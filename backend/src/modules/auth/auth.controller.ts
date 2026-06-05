@@ -18,11 +18,20 @@ const pwdSchema = z.object({
   path: ['new_password_confirmation'],
 });
 
+function isServiceError(result: unknown): result is { error: string; status?: number } {
+  return (
+    typeof result === 'object' &&
+    result !== null &&
+    'error' in result &&
+    typeof (result as { error?: unknown }).error === 'string'
+  );
+}
+
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
     const body = loginSchema.parse(req.body);
     const result = await svc.login(body.email, body.password);
-    if ('error' in result) return error(res, result.error, result.status);
+    if (isServiceError(result)) return error(res, result.error, result.status);
     return success(res, result);
   } catch (e) { return next(e); }
 }
@@ -32,7 +41,7 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
     const { refresh_token } = req.body as { refresh_token?: string };
     if (!refresh_token) return error(res, 'refresh_token requis', 400);
     const result = await svc.refresh(refresh_token);
-    if ('error' in result) return error(res, result.error, result.status);
+    if (isServiceError(result)) return error(res, result.error, result.status);
     return success(res, result);
   } catch (e) { return next(e); }
 }

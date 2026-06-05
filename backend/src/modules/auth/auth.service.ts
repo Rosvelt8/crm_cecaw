@@ -2,10 +2,10 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../../lib/prisma';
 import { env } from '../../config/env';
-import { JwtPayload } from '../../middleware/auth';
+import { AuthJwtPayload } from '../../middleware/auth';
 import { createLog } from '../../lib/logger';
 
-function signAccess(payload: Omit<JwtPayload, 'iat' | 'exp'>) {
+function signAccess(payload: Omit<AuthJwtPayload, 'iat' | 'exp'>) {
   return jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions);
 }
 
@@ -38,6 +38,14 @@ const userInclude = {
   equipe: { select: { id: true, nom: true } },
 } as const;
 
+function isRefreshPayload(payload: unknown): payload is { sub: number } {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    typeof (payload as { sub?: unknown }).sub === 'number'
+  );
+}
+
 export async function login(email: string, password: string) {
   const u = await prisma.utilisateur.findUnique({
     where: { email },
@@ -50,7 +58,7 @@ export async function login(email: string, password: string) {
     return { error: 'Compte suspendu. Contactez l\'administrateur.', status: 403 };
   }
 
-  const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
+  const payload: Omit<AuthJwtPayload, 'iat' | 'exp'> = {
     sub: u.id, email: u.email, role: u.role, agenceId: u.agenceId,
   };
   const access_token = signAccess(payload);
@@ -78,14 +86,17 @@ export async function login(email: string, password: string) {
 
 export async function refresh(refreshToken: string) {
   try {
-    const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { sub: number };
+    const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET);
+    if (!isRefreshPayload(decoded)) {
+      return { error: 'Refresh token invalide', status: 401 };
+    }
     const u = await prisma.utilisateur.findUnique({
       where: { id: decoded.sub },
       include: userInclude,
     });
     if (!u || !u.actif) return { error: 'Utilisateur invalide', status: 401 };
 
-    const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
+    const payload: Omit<AuthJwtPayload, 'iat' | 'exp'> = {
       sub: u.id, email: u.email, role: u.role, agenceId: u.agenceId,
     };
     const access_token = signAccess(payload);
