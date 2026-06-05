@@ -57,7 +57,9 @@ export default function TerrainPage() {
   const loadAgents = useCallback(async () => {
     try {
       const res = await agentService.getAgents({ per_page: 200 });
-      const enriched = (res.data ?? []).map(toTerrainAgent).filter((a): a is TerrainAgent => a !== null);
+      const enriched = ((res.data ?? []) as any[])
+        .map(toTerrainAgent)
+        .filter((a): a is TerrainAgent => a !== null);
       setAgents(enriched);
     } catch { /* silently ignore on background refresh */ }
   }, []);

@@ -32,7 +32,7 @@ const clientsDisponibles = [
 
 const creditSchema = z.object({
   clientId: z.string().min(1, 'Veuillez sélectionner un client'),
-  type: z.enum(['individuel', 'solidaire', 'pme', 'agri'], { required_error: 'Type requis' }),
+  type: z.enum(['individuel', 'solidaire', 'pme', 'agri'] as const, { message: 'Type requis' }),
   montant: z.string().min(1, 'Montant requis').refine(
     (v) => !isNaN(Number(v)) && Number(v) > 0,
     'Montant invalide'

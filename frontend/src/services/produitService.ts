@@ -12,12 +12,12 @@ export const produitService = {
     return body.data;
   },
 
-  createProduit: async (payload: Record<string, unknown>) => {
+  createProduit: async (payload: object) => {
     const { data: body } = await apiClient.post('/produits', payload);
     return body.data;
   },
 
-  updateProduit: async (id: number, payload: Record<string, unknown>) => {
+  updateProduit: async (id: number, payload: object) => {
     const { data: body } = await apiClient.put(`/produits/${id}`, payload);
     return body.data;
   },
@@ -31,12 +31,12 @@ export const produitService = {
     return { data: body.data ?? [] };
   },
 
-  createGroupeProduit: async (payload: Record<string, unknown>) => {
+  createGroupeProduit: async (payload: object) => {
     const { data: body } = await apiClient.post('/groupes-produits', payload);
     return { data: body.data };
   },
 
-  updateGroupeProduit: async (id: number, payload: Record<string, unknown>) => {
+  updateGroupeProduit: async (id: number, payload: object) => {
     const { data: body } = await apiClient.put(`/groupes-produits/${id}`, payload);
     return { data: body.data };
   },

@@ -28,6 +28,7 @@ export const creditService = {
     await new Promise((r) => setTimeout(r, 800));
     const year = new Date().getFullYear();
     const ref = `CR-${year}-${String(refCounter++).padStart(3, '0')}`;
+    const typeCredit = payload.type_credit ?? payload.type;
     const newCredit = {
       id: Date.now(),
       ref,
@@ -35,14 +36,14 @@ export const creditService = {
       clientId: String(payload.client_id),
       montant: Number(payload.montant_demande),
       statut: 'en_attente',
-      type: payload.type_credit === 'individuel' ? 'Individuel'
-           : payload.type_credit === 'solidaire' ? 'Solidaire'
-           : payload.type_credit === 'pme' ? 'PME'
+      type: typeCredit === 'individuel' ? 'Individuel'
+           : typeCredit === 'solidaire' ? 'Solidaire'
+           : typeCredit === 'pme' ? 'PME'
            : 'Agricole',
       produit: payload.produit_id ? `Produit #${payload.produit_id}` : 'Crédit Standard',
       duree: Number(payload.duree_mois),
       frequence: payload.frequence_remboursement || 'mensuel',
-      objet: payload.objet_financement || '',
+      objet: payload.objet_financement ?? payload.objet_credit ?? '',
       garantieType: payload.garantie_principale || '',
       garantieValeur: Number(payload.valeur_garantie) || 0,
       date: new Date().toISOString().split('T')[0],

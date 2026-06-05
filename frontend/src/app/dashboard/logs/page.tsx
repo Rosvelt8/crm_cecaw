@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollText, RefreshCw, ShoppingBag, Users, Settings, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import type { FilterParams } from '@/types/api';
 
 const MODULE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   marketing:  { label: 'Marketing',  color: 'bg-brand-100 text-brand-700',     icon: Users },
@@ -68,7 +69,7 @@ export default function LogsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, unknown> = { page, per_page: PER_PAGE };
+      const params: FilterParams = { page, per_page: PER_PAGE };
       if (filterAgence !== 'all') params.agence_id = filterAgence;
       if (filterModule !== 'all') params.module = filterModule;
       if (filterOp !== 'all') params.action_type = filterOp;

@@ -32,6 +32,9 @@ export interface Produit {
 export interface ProduitFilterParams {
   type?: TypeProduit;
   groupe_id?: number;
+  actif?: boolean;
   est_actif?: boolean;
   search?: string;
+  page?: number;
+  per_page?: number;
 }

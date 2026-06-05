@@ -146,7 +146,7 @@ export default function DashboardPage() {
                     tickFormatter={(v) => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', border: '1px solid hsl(var(--border))', borderRadius: '10px', fontSize: '13px', fontFamily: 'inherit' }}
-                    formatter={(v: number) => [formatCurrency(v)]}
+                    formatter={(v) => [formatCurrency(Number(v ?? 0))]}
                   />
                   <Bar dataKey="Crédits" fill="#10b981" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Débits" fill="#ef4444" radius={[4, 4, 0, 0]} />
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                     tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))', fontFamily: 'inherit' }} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', border: '1px solid hsl(var(--border))', borderRadius: '10px', fontSize: '13px', fontFamily: 'inherit' }}
-                    formatter={(v: number) => [v, 'prospects']}
+                    formatter={(v) => [Number(v ?? 0), 'prospects']}
                   />
                   <Bar dataKey="value" name="Prospects" radius={[0, 4, 4, 0]}>
                     {prospectsByStatut.map((entry, i) => (

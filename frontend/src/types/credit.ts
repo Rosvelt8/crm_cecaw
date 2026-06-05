@@ -94,9 +94,14 @@ export interface Credit {
 export interface DemandeCreditPayload {
   client_id: number;
   type: TypeCredit;
+  type_credit?: TypeCredit;
+  produit_id?: number;
   montant_demande: number;
   duree_mois: number;
   frequence_remboursement: FrequenceRemboursement;
   objet_credit: string;
+  objet_financement?: string;
+  garantie_principale?: TypeGarantie | string;
+  valeur_garantie?: number;
   garanties?: Omit<Garantie, 'id' | 'credit_id'>[];
 }
