@@ -8,7 +8,7 @@ import { setIO } from './lib/socket';
 const httpServer = createServer(app);
 
 const io = new SocketServer(httpServer, {
-  cors: { origin: env.isDev ? '*' : [env.FRONTEND_URL], credentials: true },
+  cors: { origin: env.isDev ? '*' : env.CORS_ORIGINS, credentials: true },
 });
 setIO(io);
 

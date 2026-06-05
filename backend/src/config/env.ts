@@ -1,6 +1,11 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+const corsOrigins = (process.env.CORS_ORIGINS ?? process.env.FRONTEND_URL ?? 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 export const env = {
   NODE_ENV: process.env.NODE_ENV ?? 'development',
   PORT: parseInt(process.env.PORT ?? '4000', 10),
@@ -14,6 +19,7 @@ export const env = {
   UPLOAD_DIR: process.env.UPLOAD_DIR ?? './uploads',
   MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE ?? '10485760', 10),
   FRONTEND_URL: process.env.FRONTEND_URL ?? 'http://localhost:3000',
+  CORS_ORIGINS: corsOrigins,
   // SMTP (optionnel — les mails sont silencieux si SMTP_HOST est vide)
   SMTP_HOST: process.env.SMTP_HOST ?? '',
   SMTP_PORT: parseInt(process.env.SMTP_PORT ?? '587', 10),

@@ -13,7 +13,7 @@ const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-  origin: env.isDev ? '*' : [env.FRONTEND_URL],
+  origin: env.isDev ? '*' : env.CORS_ORIGINS,
   credentials: true,
 }));
 app.use(compression());
