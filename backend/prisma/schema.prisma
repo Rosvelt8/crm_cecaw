@@ -1,0 +1,413 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum RoleUtilisateur {
+  admin
+  manager
+  backoffice
+  agent
+}
+
+enum Genre {
+  M
+  F
+  VIDE @map("")
+}
+
+enum SituationFamiliale {
+  celibataire
+  marie
+  divorce
+  veuf
+  VIDE @map("")
+}
+
+enum StatutProspect {
+  nouveau
+  contacte
+  interesse
+  negocie
+  converti
+  perdu
+}
+
+enum StatutClient {
+  actif
+  inactif
+  blackliste
+}
+
+enum StatutCompte {
+  actif
+  suspendu
+  clos
+}
+
+enum TypeTransaction {
+  credit
+  debit
+}
+
+enum UniteObjectif {
+  clients
+  montant
+}
+
+enum PeriodiciteObjectif {
+  semaine
+  mois
+  trimestre
+}
+
+enum StatutObjectif {
+  en_cours
+  atteint
+  depasse
+  echec
+}
+
+enum AssignationObjectif {
+  equipe
+  agents
+}
+
+enum ModuleLog {
+  marketing
+  collecte
+  parametres
+  system
+}
+
+// ─────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────
+
+model Agence {
+  id        Int      @id @default(autoincrement())
+  nom       String   @db.VarChar(150)
+  ville     String   @db.VarChar(100)
+  adresse   String?  @db.Text
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  equipes      Equipe[]
+  utilisateurs Utilisateur[]
+  clients      Client[]
+  logs         Log[]
+
+  @@map("agences")
+}
+
+model Equipe {
+  id            Int      @id @default(autoincrement())
+  nom           String   @db.VarChar(150)
+  agenceId      Int      @map("agence_id")
+  responsableId Int?     @map("responsable_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  agence             Agence        @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  responsable        Utilisateur?  @relation("EquipeResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  membres            Utilisateur[] @relation("EquipeMembres")
+  objectifs          Objectif[]
+
+  @@map("equipes")
+}
+
+model GroupeProduit {
+  id          Int      @id @default(autoincrement())
+  nom         String   @db.VarChar(150)
+  description String?  @db.Text
+  couleur     String   @default("#10b981") @db.VarChar(7)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  produits Produit[]
+
+  @@map("groupes_produits")
+}
+
+model Produit {
+  id          Int      @id @default(autoincrement())
+  nom         String   @db.VarChar(200)
+  groupeId    Int      @map("groupe_id")
+  description String?  @db.Text
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  groupe    GroupeProduit  @relation(fields: [groupeId], references: [id], onDelete: Restrict)
+  prospects Prospect[]
+  comptes   CompteClient[]
+  objectifs Objectif[]
+
+  @@map("produits")
+}
+
+model Utilisateur {
+  id        Int             @id @default(autoincrement())
+  nom       String          @db.VarChar(100)
+  prenom    String          @db.VarChar(100)
+  email     String          @unique @db.VarChar(255)
+  password  String          @db.VarChar(255)
+  role      RoleUtilisateur @default(agent)
+  fonction  String?         @db.VarChar(150)
+  agenceId  Int?            @map("agence_id")
+  equipeId  Int?            @map("equipe_id")
+  actif     Boolean         @default(true)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  agence             Agence?  @relation(fields: [agenceId], references: [id], onDelete: SetNull)
+  equipe             Equipe?  @relation("EquipeMembres", fields: [equipeId], references: [id], onDelete: SetNull)
+  equipesResponsable Equipe[] @relation("EquipeResponsable")
+
+  agent            Agent?
+  prospects        Prospect[]  @relation("ProspectCommercial")
+  clients          Client[]    @relation("ClientCommercial")
+  objectifsCreated Objectif[]
+  logs             Log[]
+
+  @@index([email])
+  @@index([agenceId])
+  @@index([equipeId])
+  @@map("utilisateurs")
+}
+
+model Agent {
+  id                 Int       @id @default(autoincrement())
+  utilisateurId      Int       @unique @map("utilisateur_id")
+  matricule          String    @unique @db.VarChar(50)
+  secteur            String?   @db.VarChar(200)
+  latitude           Decimal?  @db.Decimal(10, 7)
+  longitude          Decimal?  @db.Decimal(10, 7)
+  dernierePositionAt DateTime? @map("derniere_position_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  utilisateur  Utilisateur     @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  objectifs    ObjectifAgent[]
+
+  @@index([utilisateurId])
+  @@map("agents")
+}
+
+model Prospect {
+  id                  Int                 @id @default(autoincrement())
+  nom                 String              @db.VarChar(100)
+  prenom              String              @db.VarChar(100)
+  genre               Genre?              @default(VIDE)
+  dateNaissance       DateTime?           @map("date_naissance") @db.Date
+  lieuNaissance       String?             @db.VarChar(150) @map("lieu_naissance")
+  nationalite         String?             @db.VarChar(100)
+  numeroCni           String?             @db.VarChar(50) @map("numero_cni")
+  telephone           String              @db.VarChar(30)
+  telephoneSecondaire String?             @db.VarChar(30) @map("telephone_secondaire")
+  email               String?             @db.VarChar(255)
+  adresse             String?             @db.Text
+  quartier            String?             @db.VarChar(100)
+  ville               String?             @db.VarChar(100)
+  profession          String?             @db.VarChar(150)
+  employeur           String?             @db.VarChar(200)
+  secteurActivite     String?             @db.VarChar(150) @map("secteur_activite")
+  revenuMensuel       String?             @db.VarChar(50) @map("revenu_mensuel")
+  situationFamiliale  SituationFamiliale? @default(VIDE) @map("situation_familiale")
+  nombreEnfants       Int                 @default(0) @map("nombre_enfants")
+  referentNom         String?             @db.VarChar(200) @map("referent_nom")
+  referentTelephone   String?             @db.VarChar(30) @map("referent_telephone")
+  referentRelation    String?             @db.VarChar(100) @map("referent_relation")
+  statut              StatutProspect      @default(nouveau)
+  produitInteretId    Int?                @map("produit_interet_id")
+  commercialId        Int                 @map("commercial_id")
+  notes               String?             @db.Text
+  latitude            Decimal?            @db.Decimal(10, 7)
+  longitude           Decimal?            @db.Decimal(10, 7)
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  produitInteret Produit?      @relation(fields: [produitInteretId], references: [id], onDelete: SetNull)
+  commercial     Utilisateur   @relation("ProspectCommercial", fields: [commercialId], references: [id], onDelete: Restrict)
+  piecesJointes  PieceJointe[]
+  clients        Client[]
+
+  @@index([commercialId])
+  @@index([statut])
+  @@index([createdAt(sort: Desc)])
+  @@map("prospects")
+}
+
+// Pièces jointes: optional FK to prospect OR client
+model PieceJointe {
+  id         Int      @id @default(autoincrement())
+  intitule   String   @db.VarChar(200)
+  nomFichier String   @db.VarChar(255) @map("nom_fichier")
+  typeMime   String?  @db.VarChar(100) @map("type_mime")
+  taille     Int?
+  url        String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  prospectId Int?      @map("prospect_id")
+  clientId   Int?      @map("client_id")
+  prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  client     Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("pieces_jointes")
+}
+
+model Client {
+  id                  Int                 @id @default(autoincrement())
+  prospectId          Int?                @map("prospect_id")
+  nom                 String              @db.VarChar(100)
+  prenom              String              @db.VarChar(100)
+  genre               Genre?              @default(VIDE)
+  dateNaissance       DateTime?           @map("date_naissance") @db.Date
+  lieuNaissance       String?             @db.VarChar(150) @map("lieu_naissance")
+  nationalite         String?             @db.VarChar(100)
+  numeroCni           String?             @db.VarChar(50) @map("numero_cni")
+  telephone           String              @db.VarChar(30)
+  telephoneSecondaire String?             @db.VarChar(30) @map("telephone_secondaire")
+  email               String              @db.VarChar(255)
+  adresse             String              @db.Text
+  quartier            String?             @db.VarChar(100)
+  ville               String?             @db.VarChar(100)
+  profession          String?             @db.VarChar(150)
+  employeur           String?             @db.VarChar(200)
+  secteurActivite     String?             @db.VarChar(150) @map("secteur_activite")
+  revenuMensuel       String?             @db.VarChar(50) @map("revenu_mensuel")
+  situationFamiliale  SituationFamiliale? @default(VIDE) @map("situation_familiale")
+  nombreEnfants       Int                 @default(0) @map("nombre_enfants")
+  referentNom         String?             @db.VarChar(200) @map("referent_nom")
+  referentTelephone   String?             @db.VarChar(30) @map("referent_telephone")
+  referentRelation    String?             @db.VarChar(100) @map("referent_relation")
+  latitude            Decimal?            @db.Decimal(10, 7)
+  longitude           Decimal?            @db.Decimal(10, 7)
+  agenceId            Int                 @map("agence_id")
+  commercialId        Int                 @map("commercial_id")
+  statut              StatutClient        @default(actif)
+  notes               String?             @db.Text
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  prospect      Prospect?      @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  agence        Agence         @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  commercial    Utilisateur    @relation("ClientCommercial", fields: [commercialId], references: [id], onDelete: Restrict)
+  comptes       CompteClient[]
+  piecesJointes PieceJointe[]
+
+  @@index([commercialId])
+  @@index([agenceId])
+  @@index([statut])
+  @@map("clients")
+}
+
+model CompteClient {
+  id            Int          @id @default(autoincrement())
+  numero        String       @unique @db.VarChar(30)
+  clientId      Int          @map("client_id")
+  produitId     Int          @map("produit_id")
+  solde         Decimal      @default(0.00) @db.Decimal(15, 2)
+  statut        StatutCompte @default(actif)
+  dateOuverture DateTime     @default(now()) @map("date_ouverture") @db.Date
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  produit      Produit       @relation(fields: [produitId], references: [id], onDelete: Restrict)
+  transactions Transaction[]
+
+  @@index([clientId])
+  @@map("comptes_clients")
+}
+
+model Transaction {
+  id         Int             @id @default(autoincrement())
+  compteId   Int             @map("compte_id")
+  type       TypeTransaction
+  montant    Decimal         @db.Decimal(15, 2)
+  soldeAvant Decimal         @db.Decimal(15, 2) @map("solde_avant")
+  soldeApres Decimal         @db.Decimal(15, 2) @map("solde_apres")
+  motif      String?         @db.Text
+  agentId    Int             @map("agent_id")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  compte CompteClient @relation(fields: [compteId], references: [id], onDelete: Restrict)
+  agent  Agent        @relation(fields: [agentId], references: [id], onDelete: Restrict)
+
+  @@index([compteId])
+  @@index([agentId])
+  @@index([createdAt(sort: Desc)])
+  @@map("transactions")
+}
+
+model Objectif {
+  id              Int                 @id @default(autoincrement())
+  titre           String              @db.VarChar(200)
+  produitId       Int                 @map("produit_id")
+  cible           Decimal             @db.Decimal(15, 2)
+  unite           UniteObjectif
+  periodicite     PeriodiciteObjectif
+  dateDebut       DateTime            @map("date_debut") @db.Date
+  dateFin         DateTime            @map("date_fin") @db.Date
+  assignationType AssignationObjectif @default(agents) @map("assignation_type")
+  equipeId        Int?                @map("equipe_id")
+  realise         Decimal             @default(0) @db.Decimal(15, 2)
+  statut          StatutObjectif      @default(en_cours)
+  createdById     Int                 @map("created_by_id")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  produit   Produit         @relation(fields: [produitId], references: [id], onDelete: Restrict)
+  equipe    Equipe?         @relation(fields: [equipeId], references: [id], onDelete: SetNull)
+  createdBy Utilisateur     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  agents    ObjectifAgent[]
+
+  @@index([equipeId])
+  @@index([statut])
+  @@map("objectifs")
+}
+
+model ObjectifAgent {
+  objectifId Int @map("objectif_id")
+  agentId    Int @map("agent_id")
+
+  objectif Objectif @relation(fields: [objectifId], references: [id], onDelete: Cascade)
+  agent    Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@id([objectifId, agentId])
+  @@map("objectifs_agents")
+}
+
+model Log {
+  id               Int       @id @default(autoincrement())
+  timestamp        DateTime  @default(now())
+  utilisateurId    Int?      @map("utilisateur_id")
+  utilisateurLabel String    @db.VarChar(200) @map("utilisateur_label")
+  agenceId         Int?      @map("agence_id")
+  module           ModuleLog
+  action           String    @db.VarChar(100)
+  entiteType       String    @db.VarChar(100) @map("entite_type")
+  entiteId         String    @db.VarChar(100) @map("entite_id")
+  description      String?   @db.Text
+  impact           String?   @db.Text
+
+  utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id], onDelete: SetNull)
+  agence      Agence?      @relation(fields: [agenceId], references: [id], onDelete: SetNull)
+
+  @@index([timestamp(sort: Desc)])
+  @@index([utilisateurId])
+  @@index([agenceId])
+  @@index([module])
+  @@map("logs")
+}
