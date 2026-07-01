@@ -165,23 +165,23 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6 relative">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Utilisateurs & Rôles</h1>
-          <p className="text-muted-foreground">Gérez les accès et permissions des collaborateurs CECAW.</p>
+          <p className="text-muted-foreground">Gérez les accès et permissions des collaborateurs Cecaw Finance.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={load} disabled={loading}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button variant="outline" onClick={load} disabled={loading} className="w-full sm:w-auto">
             <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} /> Actualiser
           </Button>
-          <Button variant="brand" onClick={openCreate}>
+          <Button variant="brand" onClick={openCreate} className="w-full sm:w-auto">
             <UserPlus className="mr-2 h-4 w-4" /> Nouvel Utilisateur
           </Button>
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="p-4 flex items-center gap-4">
           <div className="h-12 w-12 rounded-full bg-success-50 text-success-600 flex items-center justify-center">
             <CheckCircle2 className="h-6 w-6" />
@@ -213,13 +213,13 @@ export default function UsersPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-1 max-w-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 flex-1 w-full sm:max-w-sm">
               <Input placeholder="Nom, email, agence..." value={search} onChange={(e) => setSearch(e.target.value)} icon={<Search className="h-4 w-4" />} />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="h-9 w-44 text-xs"><SelectValue placeholder="Rôle" /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full sm:w-44 text-xs"><SelectValue placeholder="Rôle" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous les rôles</SelectItem>
                   {BACKEND_ROLES.map((r) => (
@@ -228,7 +228,7 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
               <Select value={statutFilter} onValueChange={setStatutFilter}>
-                <SelectTrigger className="h-9 w-32 text-xs"><SelectValue placeholder="Statut" /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full sm:w-32 text-xs"><SelectValue placeholder="Statut" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous</SelectItem>
                   <SelectItem value="actif">Actif</SelectItem>
@@ -323,19 +323,19 @@ export default function UsersPage() {
 
       {/* Modal Créer / Modifier Utilisateur */}
       {showUserModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-lg animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in overflow-y-auto">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-lg animate-in zoom-in-95 my-4">
             <div className="border-b p-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold">{editUser ? 'Modifier l\'utilisateur' : 'Nouvel Utilisateur'}</h2>
                 <p className="text-xs text-muted-foreground">
-                  {editUser ? `${editUser.prenom} ${editUser.nom}` : 'Créer un accès collaborateur CECAW'}
+                  {editUser ? `${editUser.prenom} ${editUser.nom}` : 'Créer un accès collaborateur Cecaw Finance'}
                 </p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setShowUserModal(false)}><X className="h-5 w-5" /></Button>
             </div>
-            <form onSubmit={handleSaveUser} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSaveUser} className="p-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Prénom <span className="text-red-500">*</span></Label>
                   <Input required value={userForm.prenom} onChange={(e) => setUserForm({ ...userForm, prenom: e.target.value })} placeholder="Ex : Jean" />
@@ -347,13 +347,13 @@ export default function UsersPage() {
               </div>
               <div className="space-y-2">
                 <Label>Email professionnel <span className="text-red-500">*</span></Label>
-                <Input required type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} placeholder="prenom.nom@cecaw.cm" />
+                <Input required type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} placeholder="prenom.nom@cecawfinance.com" />
               </div>
               <div className="space-y-2">
                 <Label>Fonction</Label>
                 <Input value={userForm.fonction} onChange={(e) => setUserForm({ ...userForm, fonction: e.target.value })} placeholder="Ex : Chargé de clientèle" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Rôle</Label>
                   <Select value={userForm.role} onValueChange={(v) => setUserForm({ ...userForm, role: v as BackendRole })}>

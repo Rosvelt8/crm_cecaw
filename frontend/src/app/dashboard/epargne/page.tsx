@@ -111,34 +111,34 @@ export default function EpargnePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestion de l'Épargne</h1>
-          <p className="text-muted-foreground">Collecte journalière, gestion des comptes et suivi des transactions.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Gestion de l'Épargne</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Collecte journalière, gestion des comptes et suivi des transactions.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => toast.info('Export en cours de développement')}>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="w-full sm:w-auto text-xs" onClick={() => toast.info('Export en cours de développement')}>
             <History className="mr-2 h-4 w-4" /> Historique
           </Button>
-          <Button variant="success" onClick={() => openModal('depot')}>
+          <Button variant="success" className="w-full sm:w-auto text-xs" onClick={() => openModal('depot')}>
             <Plus className="mr-2 h-4 w-4" /> Nouveau Dépôt
           </Button>
-          <Button variant="brand" onClick={() => openModal('retrait')}>
+          <Button variant="brand" className="w-full sm:w-auto text-xs" onClick={() => openModal('retrait')}>
             <ArrowDownLeft className="mr-2 h-4 w-4" /> Nouveau Retrait
           </Button>
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-6 bg-gradient-to-br from-brand-600 to-brand-800 text-white border-none shadow-glow-blue overflow-hidden relative group">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-4 bg-gradient-to-br from-brand-600 to-brand-800 text-white border-none shadow-glow-blue overflow-hidden relative group">
           <div className="absolute right-[-20px] top-[-20px] opacity-10 group-hover:scale-110 transition-transform duration-500">
             <PiggyBank className="h-32 w-32" />
           </div>
           <div className="relative z-10">
-            <p className="text-brand-100 text-xs font-medium uppercase tracking-wider">Total Épargne CECAW</p>
+            <p className="text-brand-100 text-xs font-medium uppercase tracking-wider">Total Épargne Cecaw Finance</p>
             <h3 className="text-2xl font-bold mt-1">{formatCurrency(82450000, true)}</h3>
             <div className="mt-4 flex items-center gap-2 text-xs text-brand-200">
               <span className="bg-white/20 px-1.5 py-0.5 rounded text-white">+8.2%</span>
@@ -146,7 +146,7 @@ export default function EpargnePage() {
             </div>
           </div>
         </Card>
-        <Card className="p-6 bg-card card-hover">
+        <Card className="p-4 bg-card card-hover">
           <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Collecte du jour</p>
           <h3 className="text-2xl font-bold mt-1 text-success-600">{formatCurrency(totalCollecteJour || 165000)}</h3>
           <div className="mt-4 flex items-center justify-between">
@@ -154,7 +154,7 @@ export default function EpargnePage() {
             <Badge variant="success">En hausse</Badge>
           </div>
         </Card>
-        <Card className="p-6 bg-card card-hover">
+        <Card className="p-4 bg-card card-hover">
           <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Nouveaux Comptes (Mois)</p>
           <h3 className="text-2xl font-bold mt-1">124</h3>
           <div className="mt-4 flex items-center justify-between">
@@ -164,7 +164,7 @@ export default function EpargnePage() {
             </div>
           </div>
         </Card>
-        <Card className="p-6 bg-card card-hover">
+        <Card className="p-4 bg-card card-hover">
           <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">En attente validation</p>
           <h3 className={cn('text-2xl font-bold mt-1', enAttente > 0 ? 'text-warning-600' : 'text-muted-foreground')}>
             {enAttente}
@@ -179,24 +179,24 @@ export default function EpargnePage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 grid-cols-1">
         {/* Table Transactions */}
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <CardTitle>Transactions Récentes</CardTitle>
-              <CardDescription>Suivi en temps réel des dépôts et retraits.</CardDescription>
+              <CardTitle className="text-base">Transactions Récentes</CardTitle>
+              <CardDescription className="text-xs">Suivi en temps réel des dépôts et retraits.</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
               <Input
                 placeholder="Rechercher..."
-                className="h-8 w-40 text-xs"
+                className="h-8 w-full sm:w-40 text-xs"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 icon={<Search className="h-3 w-3" />}
               />
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-8 w-28 text-xs">
+                <SelectTrigger className="h-8 w-full sm:w-28 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -205,21 +205,21 @@ export default function EpargnePage() {
                   <SelectItem value="retrait">Retraits</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm" className="h-8">
+              <Button variant="outline" size="sm" className="h-8 w-full sm:w-auto text-xs">
                 <Download className="h-3 w-3 mr-1" /> Export
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Client / Compte</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right"></TableHead>
+                  <TableHead className="text-xs">Client / Compte</TableHead>
+                  <TableHead className="text-xs">Type</TableHead>
+                  <TableHead className="text-xs">Montant</TableHead>
+                  <TableHead className="text-xs hidden sm:table-cell">Date</TableHead>
+                  <TableHead className="text-xs">Statut</TableHead>
+                  <TableHead className="text-right text-xs"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -238,18 +238,18 @@ export default function EpargnePage() {
                       </TableCell>
                       <TableCell>
                         <div className={cn(
-                          'inline-flex items-center gap-1 text-[10px] font-bold uppercase',
+                          'inline-flex items-center gap-1 text-[10px] font-bold uppercase whitespace-nowrap',
                           tx.type === 'depot' ? 'text-success-600' : 'text-danger-600'
                         )}>
-                          {tx.type === 'depot' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
-                          {tx.type}
+                          {tx.type === 'depot' ? <ArrowUpRight className="h-3 w-3 shrink-0" /> : <ArrowDownLeft className="h-3 w-3 shrink-0" />}
+                          <span className="hidden sm:inline">{tx.type}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-bold text-xs">{formatCurrency(tx.montant)}</TableCell>
-                      <TableCell className="text-[10px] text-muted-foreground">{formatDate(tx.date)}</TableCell>
+                      <TableCell className="font-bold text-xs whitespace-nowrap">{formatCurrency(tx.montant)}</TableCell>
+                      <TableCell className="text-[10px] text-muted-foreground hidden sm:table-cell whitespace-nowrap">{formatDate(tx.date)}</TableCell>
                       <TableCell>
-                        <Badge variant={tx.statut === 'valide' ? 'success' : 'warning'} className="text-[9px] h-4 px-1">
-                          {tx.statut === 'valide' ? 'Validé' : 'En attente'}
+                        <Badge variant={tx.statut === 'valide' ? 'success' : 'warning'} className="text-[9px] h-4 px-1 whitespace-nowrap">
+                          {tx.statut === 'valide' ? 'Validé' : 'Attente'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -272,7 +272,7 @@ export default function EpargnePage() {
         </Card>
 
         {/* Sidebar Collecteurs */}
-        <div className="space-y-6">
+        <div className="space-y-6 lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">Collecteurs Terrain</CardTitle>
@@ -324,7 +324,7 @@ export default function EpargnePage() {
       {/* Modal Dépôt / Retrait */}
       {modal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-md animate-in zoom-in-95">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
             <div className={cn(
               'border-b p-4 flex items-center justify-between rounded-t-xl',
               modal === 'depot' ? 'bg-success-50/50' : 'bg-brand-50/50'
@@ -343,7 +343,7 @@ export default function EpargnePage() {
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 space-y-4">
               <div className="space-y-2">
                 <Label>Nom du client <span className="text-red-500">*</span></Label>
                 <Input

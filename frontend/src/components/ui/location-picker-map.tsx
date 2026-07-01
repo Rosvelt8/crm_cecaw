@@ -54,6 +54,9 @@ export default function LocationPickerMap({ value, onChange }: Props) {
       zoom={13}
       style={{ height: '300px', width: '100%', borderRadius: '0.5rem' }}
       className="z-0"
+      touchZoom={true}
+      doubleClickZoom={true}
+      scrollWheelZoom={true}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'

@@ -90,22 +90,22 @@ export default function ProfilPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Mon Profil</h1>
-        <p className="text-sm text-muted-foreground">Vos informations personnelles et sécurité du compte.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">Mon Profil</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Vos informations personnelles et sécurité du compte.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
         {/* Carte identité */}
-        <Card className="md:col-span-1 flex flex-col items-center text-center p-6 gap-4">
+        <Card className="sm:col-span-1 flex flex-col items-center text-center p-4 sm:p-6 gap-4">
           <div
-            className="h-20 w-20 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-lg"
+            className="h-16 w-16 sm:h-20 sm:w-20 rounded-full flex items-center justify-center text-xl sm:text-2xl font-black text-white shadow-lg shrink-0"
             style={{ background: 'linear-gradient(135deg, #c47d0e, #b8860b)' }}
           >
             {user.prenom?.[0]}{user.nom?.[0]}
           </div>
-          <div>
-            <p className="font-bold text-lg leading-tight">{user.prenom} {user.nom}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
+          <div className="min-w-0">
+            <p className="font-bold text-base sm:text-lg leading-tight break-words">{user.prenom} {user.nom}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 break-all">{user.email}</p>
           </div>
           <div className={cn(
             'inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold border uppercase tracking-widest',
@@ -148,7 +148,7 @@ export default function ProfilPage() {
         </Card>
 
         {/* Colonne droite */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="sm:col-span-2 space-y-4 sm:space-y-6">
           {/* Infos modifiables */}
           <Card>
             <CardHeader className="pb-3">
@@ -164,7 +164,7 @@ export default function ProfilPage() {
             </CardHeader>
             <CardContent>
               {!editMode ? (
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-x-6 sm:gap-y-3 text-xs sm:text-sm">
                   {[
                     ['Prénom', user.prenom], ['Nom', user.nom],
                     ['Email', user.email], ['Fonction', user.fonction || '—'],
@@ -172,20 +172,20 @@ export default function ProfilPage() {
                   ].map(([l, v]) => (
                     <div key={l}>
                       <dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{l}</dt>
-                      <dd className="font-semibold mt-0.5 text-sm">{v}</dd>
+                      <dd className="font-semibold mt-0.5 text-xs sm:text-sm break-words">{v}</dd>
                     </div>
                   ))}
                 </dl>
               ) : (
-                <form onSubmit={handleUpdateProfil} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleUpdateProfil} className="space-y-3 sm:space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Prénom</Label>
-                      <Input value={user.prenom} disabled className="bg-muted/40" />
+                      <Input value={user.prenom} disabled className="bg-muted/40 text-xs" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Nom</Label>
-                      <Input value={user.nom} disabled className="bg-muted/40" />
+                      <Input value={user.nom} disabled className="bg-muted/40 text-xs" />
                     </div>
                   </div>
                   <div className="space-y-1.5">
@@ -194,11 +194,12 @@ export default function ProfilPage() {
                       value={form.fonction}
                       onChange={(e) => setForm({ ...form, fonction: e.target.value })}
                       placeholder="ex: Agent de collecte"
+                      className="text-xs"
                     />
                   </div>
-                  <div className="flex justify-end gap-2 pt-2 border-t">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setEditMode(false)}>Annuler</Button>
-                    <Button type="submit" variant="brand" size="sm" loading={saving}>Enregistrer</Button>
+                  <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 sm:pt-4 border-t w-full">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setEditMode(false)} className="w-full sm:w-auto">Annuler</Button>
+                    <Button type="submit" variant="brand" size="sm" loading={saving} className="w-full sm:w-auto">Enregistrer</Button>
                   </div>
                 </form>
               )}
@@ -211,12 +212,12 @@ export default function ProfilPage() {
               <CardTitle className="text-base">Sécurité</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-lg bg-muted/40">
                 <div className="flex items-center gap-2">
                   <Lock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Mot de passe</span>
+                  <span className="text-xs sm:text-sm font-medium">Mot de passe</span>
                 </div>
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setShowPwdModal(true); setPwdForm({ current: '', next: '', confirm: '' }); }}>
+                <Button size="sm" variant="outline" className="h-7 text-xs w-full sm:w-auto" onClick={() => { setShowPwdModal(true); setPwdForm({ current: '', next: '', confirm: '' }); }}>
                   Changer
                 </Button>
               </div>
@@ -227,13 +228,13 @@ export default function ProfilPage() {
 
       {/* Modal mot de passe */}
       {showPwdModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4">
           <div className="bg-background rounded-xl shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between border-b p-4">
-              <h2 className="font-bold">Changer le mot de passe</h2>
-              <Button variant="ghost" size="icon" onClick={() => setShowPwdModal(false)}><X className="h-4 w-4" /></Button>
+            <div className="flex items-center justify-between border-b p-3 sm:p-4">
+              <h2 className="font-bold text-sm sm:text-base">Changer le mot de passe</h2>
+              <Button variant="ghost" size="icon" onClick={() => setShowPwdModal(false)} className="h-8 w-8"><X className="h-4 w-4" /></Button>
             </div>
-            <form onSubmit={handleChangePwd} className="p-5 space-y-4">
+            <form onSubmit={handleChangePwd} className="p-3 sm:p-5 space-y-3 sm:space-y-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">Mot de passe actuel <span className="text-red-500">*</span></Label>
                 <div className="relative">
@@ -259,9 +260,9 @@ export default function ProfilPage() {
                   <p className="text-xs text-red-500">Les mots de passe ne correspondent pas</p>
                 )}
               </div>
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <Button type="button" variant="ghost" onClick={() => setShowPwdModal(false)}>Annuler</Button>
-                <Button type="submit" variant="brand" loading={pwdSaving}>Enregistrer</Button>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 sm:pt-4 border-t w-full">
+                <Button type="button" variant="ghost" onClick={() => setShowPwdModal(false)} className="w-full sm:w-auto">Annuler</Button>
+                <Button type="submit" variant="brand" loading={pwdSaving} className="w-full sm:w-auto">Enregistrer</Button>
               </div>
             </form>
           </div>

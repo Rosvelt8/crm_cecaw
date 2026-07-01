@@ -104,14 +104,14 @@ export default function AgencesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Agences</h1>
           <p className="text-sm text-muted-foreground">{agences.length} agence{agences.length !== 1 ? 's' : ''} dans le réseau</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
-          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setModal('create'); }}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="w-full sm:w-auto"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
+          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setModal('create'); }} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Nouvelle agence
           </Button>
         </div>
@@ -173,7 +173,7 @@ export default function AgencesPage() {
       {drawer && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/40" onClick={closeDrawer} />
-          <div className="w-[420px] max-w-full bg-background shadow-2xl border-l flex flex-col overflow-hidden">
+          <div className="w-full sm:w-[420px] bg-background shadow-2xl border-l flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b bg-muted/30">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
@@ -214,8 +214,8 @@ export default function AgencesPage() {
 
       {/* Modal création */}
       {modal === 'create' && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-md my-4">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="font-bold">Nouvelle agence</h2>
               <Button variant="ghost" size="icon" onClick={() => setModal(null)}><X className="h-4 w-4" /></Button>

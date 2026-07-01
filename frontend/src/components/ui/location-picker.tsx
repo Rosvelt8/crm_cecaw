@@ -34,12 +34,12 @@ export function LocationPicker({ value, onChange, className }: Props) {
 
   return (
     <div className={cn('space-y-3', className)}>
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="gap-1.5 text-xs"
+          className="gap-1.5 text-xs w-full sm:w-auto"
           onClick={() => setOpen((o) => !o)}
         >
           <MapPin className="h-3.5 w-3.5" />
@@ -51,7 +51,7 @@ export function LocationPicker({ value, onChange, className }: Props) {
           type="button"
           variant="outline"
           size="sm"
-          className="gap-1.5 text-xs text-brand-600 border-brand-200 hover:bg-brand-50"
+          className="gap-1.5 text-xs text-brand-600 border-brand-200 hover:bg-brand-50 w-full sm:w-auto"
           onClick={detectPosition}
           disabled={locating}
         >
@@ -63,7 +63,7 @@ export function LocationPicker({ value, onChange, className }: Props) {
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500"
+            className="inline-flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-red-500 w-full sm:w-auto py-1"
           >
             <X className="h-3 w-3" /> Effacer
           </button>

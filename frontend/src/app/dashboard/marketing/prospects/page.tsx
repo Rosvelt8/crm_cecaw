@@ -87,7 +87,7 @@ export default function ProspectsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Prospects</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Pipeline de conversion — {prospects.length} prospects enregistrés.</p>
@@ -103,7 +103,7 @@ export default function ProspectsPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total',     value: stats.total,     color: 'text-foreground' },
           { label: 'En cours',  value: stats.enCours,   color: 'text-brand-600' },
@@ -118,13 +118,13 @@ export default function ProspectsPage() {
       </div>
 
       {/* Filtres */}
-      <div className="flex gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 w-full sm:w-auto sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Nom, téléphone, ville, profession…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={filterStatut} onValueChange={(v) => setFilterStatut(v as any)}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Tous les statuts" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Tous les statuts" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
             {(Object.keys(STATUT_CONFIG) as StatutProspect[]).map((s) => (

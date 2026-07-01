@@ -1,8 +1,8 @@
 import type { UserRole } from '@/types/user';
 
-export const APP_NAME = 'CECAW CRM';
+export const APP_NAME = 'Cecaw Finance S.A';
 export const APP_VERSION = '1.0.0';
-export const APP_DESCRIPTION = 'Système de Gestion de la Relation Client - CECAW Microfinance';
+export const APP_DESCRIPTION = 'Système de Gestion de la Relation Client - Cecaw Finance S.A';
 
 export const CECAW_COORDINATES = {
   lat: 4.0511,

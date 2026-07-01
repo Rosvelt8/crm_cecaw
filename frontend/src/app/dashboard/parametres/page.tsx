@@ -38,8 +38,8 @@ export default function SettingsPage() {
 
   // General
   const [general, setGeneral] = useState({
-    institution: 'CECAW Microfinance',
-    email: 'support@cecaw.cm',
+    institution: 'Cecaw Finance S.A',
+    email: 'support@cecawfinance.com',
     timezone: '(GMT+01:00) Douala, Lagos',
     devise: 'FCFA',
     dateFormat: 'DD/MM/YYYY',
@@ -117,24 +117,24 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Paramètres du Système</h1>
           <p className="text-muted-foreground">Configuration avancée du CRM pour les administrateurs.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9" onClick={() => toast.info('Paramètres réinitialisés')}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button variant="outline" size="sm" className="h-9 w-full sm:w-auto" onClick={() => toast.info('Paramètres réinitialisés')}>
             <Undo className="h-4 w-4 mr-2" /> Réinitialiser
           </Button>
-          <Button variant="brand" size="sm" className="h-9" onClick={handleSave}>
+          <Button variant="brand" size="sm" className="h-9 w-full sm:w-auto" onClick={handleSave}>
             <Save className="h-4 w-4 mr-2" /> Enregistrer Tout
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-4 items-start">
+      <div className="grid gap-8 md:grid-cols-4 items-start">
         {/* Navigation */}
-        <div className="lg:col-span-1 space-y-2">
+        <div className="md:col-span-1 space-y-2">
           {settingsSections.map((section) => (
             <div
               key={section.id}
@@ -158,16 +158,16 @@ export default function SettingsPage() {
         </div>
 
         {/* Contenu */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="md:col-span-3 space-y-6">
           {/* ─── GÉNÉRAL ─── */}
           {activeSection === 'general' && (
             <Card className="animate-in fade-in duration-300">
               <CardHeader>
                 <CardTitle>Configuration Générale</CardTitle>
-                <CardDescription>Informations de base de l'institution CECAW.</CardDescription>
+                <CardDescription>Informations de base de l'institution Cecaw Finance S.A.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Nom de l'Institution</Label>
                     <Input value={general.institution} onChange={(e) => setGeneral({ ...general, institution: e.target.value })} />
@@ -220,12 +220,12 @@ export default function SettingsPage() {
           {/* ─── AGENCES ─── */}
           {activeSection === 'agence' && (
             <Card className="animate-in fade-in duration-300">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle>Agences & Structure</CardTitle>
                   <CardDescription>Gérez les agences et leur hiérarchie organisationnelle.</CardDescription>
                 </div>
-                <Button variant="brand" size="sm" onClick={() => setShowAgenceForm(!showAgenceForm)}>
+                <Button variant="brand" size="sm" onClick={() => setShowAgenceForm(!showAgenceForm)} className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" /> Nouvelle Agence
                 </Button>
               </CardHeader>
@@ -233,7 +233,7 @@ export default function SettingsPage() {
                 {showAgenceForm && (
                   <form onSubmit={addAgence} className="p-4 border rounded-xl bg-muted/20 space-y-3 animate-in fade-in">
                     <h3 className="text-sm font-bold">Nouvelle Agence</h3>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Code <span className="text-red-500">*</span></Label>
                         <Input required value={agenceForm.code} onChange={(e) => setAgenceForm({ ...agenceForm, code: e.target.value })} placeholder="AG-005" />
@@ -260,8 +260,8 @@ export default function SettingsPage() {
 
                 <div className="space-y-3">
                   {agenceList.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center gap-4">
+                    <div key={a.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center gap-4 min-w-0">
                         <div className="h-10 w-10 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-xs">
                           {a.code.replace('AG-', '')}
                         </div>
@@ -270,14 +270,14 @@ export default function SettingsPage() {
                           <div className="text-[10px] text-muted-foreground">{a.code} • {a.responsable || 'Aucun responsable'}{a.tel ? ` • ${a.tel}` : ''}</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge variant={a.actif ? 'success' : 'outline'}>
                           {a.actif ? 'Active' : 'Inactive'}
                         </Badge>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 text-xs"
+                          className="h-7 text-xs w-full sm:w-auto"
                           onClick={() => toggleAgence(a.id)}
                         >
                           {a.actif ? 'Désactiver' : 'Activer'}
@@ -312,7 +312,7 @@ export default function SettingsPage() {
                       <div className={cn('h-4 w-4 rounded-full bg-white shadow m-1 transition-transform', security.mfaObligatoire ? 'translate-x-5' : '')} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-xs">Longueur min. mot de passe</Label>
                       <Input
@@ -362,7 +362,7 @@ export default function SettingsPage() {
                 <CardDescription>Configuration du tracking GPS et du mode offline.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Intervalle de tracking (secondes)</Label>
                     <Input
@@ -602,7 +602,7 @@ export default function SettingsPage() {
                   <CardDescription>Aperçu de ce qui sera chargé après réinitialisation.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                     {[
                       ['9', 'Agences'],
                       ['7', 'Équipes'],

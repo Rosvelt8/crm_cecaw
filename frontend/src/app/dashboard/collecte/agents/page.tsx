@@ -131,14 +131,14 @@ export default function AgentsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Agents Terrain</h1>
           <p className="text-sm text-muted-foreground">
             {stats.total} agent{stats.total > 1 ? 's' : ''} — <span className="text-emerald-600 font-semibold">{stats.enligne} en ligne</span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
           <Button variant="brand" size="sm" onClick={openCreate}>
             <Plus className="mr-2 h-4 w-4" /> Nouvel agent
@@ -146,13 +146,13 @@ export default function AgentsPage() {
         </div>
       </div>
 
-      <div className="flex gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Nom, matricule, secteur…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={filterAgence} onValueChange={setFilterAgence}>
-          <SelectTrigger className="w-52"><SelectValue placeholder="Toutes les agences" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-52"><SelectValue placeholder="Toutes les agences" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes les agences</SelectItem>
             {agences.map((ag) => <SelectItem key={ag.id} value={String(ag.id)}>{ag.nom}</SelectItem>)}
@@ -165,9 +165,12 @@ export default function AgentsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40">
-                {['Agent', 'Équipe', 'Agence', 'Secteur', 'Statut GPS', 'Actions'].map((h) => (
-                  <th key={h} className={cn('px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider', h === 'Actions' ? 'text-right' : 'text-left')}>{h}</th>
-                ))}
+                <th className="px-2 sm:px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left">Agent</th>
+                <th className="px-2 sm:px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left hidden sm:table-cell">Équipe</th>
+                <th className="px-2 sm:px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left hidden md:table-cell">Agence</th>
+                <th className="px-2 sm:px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left hidden lg:table-cell">Secteur</th>
+                <th className="px-2 sm:px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left hidden sm:table-cell">Statut GPS</th>
+                <th className="px-2 sm:px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -178,25 +181,25 @@ export default function AgentsPage() {
                 const online = isOnline(a.dernierePositionAt);
                 return (
                   <tr key={a.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/collecte/agents/${a.id}`)}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
+                    <td className="px-2 sm:px-4 py-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs shrink-0">
                           {u ? `${u.prenom?.[0] ?? ''}${u.nom?.[0] ?? ''}` : '?'}
                         </div>
-                        <div>
-                          <p className="font-semibold">{u ? `${u.prenom} ${u.nom}` : '—'}</p>
+                        <div className="hidden sm:block">
+                          <p className="font-semibold text-sm">{u ? `${u.prenom} ${u.nom}` : '—'}</p>
                           <p className="text-[11px] font-mono text-muted-foreground">{a.matricule}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{u?.equipe?.nom ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{u?.agence?.nom ?? '—'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-muted-foreground hidden sm:table-cell">{u?.equipe?.nom ?? '—'}</td>
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-muted-foreground hidden md:table-cell">{u?.agence?.nom ?? '—'}</td>
+                    <td className="px-2 sm:px-4 py-3 text-xs hidden lg:table-cell">
                       {a.secteur
-                        ? <span className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-3 w-3 shrink-0" />{a.secteur}</span>
+                        ? <span className="flex items-center gap-1 text-muted-foreground"><MapPin className="h-3 w-3 shrink-0" />{a.secteur}</span>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 sm:px-4 py-3 hidden sm:table-cell">
                       <div className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold', online ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500')}>
                         {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
                         {online ? 'En ligne' : 'Hors ligne'}
@@ -208,7 +211,7 @@ export default function AgentsPage() {
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-2 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(a)}>
                           <Pencil className="h-3.5 w-3.5" />

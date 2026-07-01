@@ -37,26 +37,26 @@ const TrackingMap = dynamic(() => import('@/components/maps/TrackingMap'), {
 export default function GeolocationPage() {
   return (
     <div className="space-y-6 h-[calc(100vh-140px)] flex flex-col">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Géolocalisation Terrain</h1>
-          <p className="text-muted-foreground">Suivi en temps réel des agents et optimisation des itinéraires.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Géolocalisation Terrain</h1>
+          <p className="text-sm text-muted-foreground">Suivi en temps réel des agents et optimisation des itinéraires.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm" className="justify-center">
             <Layers className="mr-2 h-4 w-4" />
             Heatmaps
           </Button>
-          <Button variant="brand" size="sm">
+          <Button variant="brand" size="sm" className="justify-center">
             <Navigation className="mr-2 h-4 w-4" />
             Optimiser Itinéraires
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
         {/* Left Sidebar - Agents List */}
-        <Card className="lg:col-span-1 flex flex-col min-h-0 overflow-hidden">
+        <Card className="w-full lg:w-72 lg:shrink-0 flex flex-col min-h-0 overflow-hidden">
           <CardHeader className="p-4 border-b">
             <CardTitle className="text-sm flex items-center justify-between">
               Agents en ligne
@@ -100,13 +100,13 @@ export default function GeolocationPage() {
         </Card>
 
         {/* Map Area */}
-        <div className="lg:col-span-3 flex flex-col gap-4 min-h-0">
+        <div className="flex-1 flex flex-col gap-4 min-h-0">
            <div className="flex-1 min-h-0">
               <TrackingMap />
            </div>
-           
+
            {/* Mini stats at bottom of map */}
-           <div className="grid grid-cols-3 gap-4 shrink-0">
+           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 shrink-0">
               <Card className="p-3 bg-brand-50/50 border-brand-100">
                  <div className="flex items-center gap-2">
                     <Activity className="h-4 w-4 text-brand-600" />

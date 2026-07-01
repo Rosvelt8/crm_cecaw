@@ -156,21 +156,21 @@ export default function StatistiquesPage() {
   return (
     <div className="space-y-6">
       {/* ── En-tête + filtres ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Statistiques & Performance</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Vue d'ensemble et suivi des performances individuelles et collectives.</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto sm:shrink-0">
           <Select value={filterAgence} onValueChange={setFilterAgence}>
-            <SelectTrigger className="h-8 text-xs w-44"><SelectValue placeholder="Toutes agences" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs sm:w-44 w-full"><SelectValue placeholder="Toutes agences" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes les agences</SelectItem>
               {agences.map((ag) => <SelectItem key={ag.id} value={String(ag.id)}>{ag.nom}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterPeriod} onValueChange={(v) => setFilterPeriod(v as Period)}>
-            <SelectTrigger className="h-8 text-xs w-44"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs sm:w-44 w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               {PERIODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
             </SelectContent>
@@ -179,7 +179,7 @@ export default function StatistiquesPage() {
       </div>
 
       {/* ── KPIs ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         {[
           { label: 'Prospects',        value: kpis.prospects,              sub: `${kpis.convertis} convertis`,        color: 'text-brand-600',   icon: Users },
           { label: 'Clients recrutés', value: kpis.clients,                sub: 'sur la période',                      color: 'text-violet-600',  icon: Users },
@@ -187,13 +187,13 @@ export default function StatistiquesPage() {
           { label: 'Collecte',         value: formatCurrency(kpis.collecte),sub: 'crédits reçus',                      color: 'text-amber-600',   icon: Wallet, small: true },
           { label: 'Objectifs',        value: `${kpis.objAtteints}/${kpis.objTotal}`, sub: 'atteints',                color: 'text-rose-600',    icon: Target },
         ].map((k) => (
-          <Card key={k.label} className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{k.label}</p>
-              <k.icon className={cn('h-3.5 w-3.5', k.color)} />
+          <Card key={k.label} className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-2 gap-1">
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground line-clamp-2">{k.label}</p>
+              <k.icon className={cn('h-3 sm:h-3.5 w-3 sm:w-3.5 shrink-0', k.color)} />
             </div>
-            <p className={cn('font-black leading-none', k.color, k.small ? 'text-lg' : 'text-3xl')}>{k.value}</p>
-            <p className="text-[10px] text-muted-foreground mt-1">{k.sub}</p>
+            <p className={cn('font-black leading-none', k.color, k.small ? 'text-base sm:text-lg' : 'text-2xl sm:text-3xl break-words')}>{k.value}</p>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-1 line-clamp-2">{k.sub}</p>
           </Card>
         ))}
       </div>
@@ -225,8 +225,8 @@ export default function StatistiquesPage() {
         {!loading && tab === 'individuel' && (
           <>
             <Card className="overflow-hidden rounded-t-none border-t-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full text-xs sm:text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40">
                       <th className={thSortCls} onClick={() => toggleSort('nom')}>
@@ -303,8 +303,8 @@ export default function StatistiquesPage() {
         {!loading && tab === 'equipes' && (
           <>
             <Card className="overflow-hidden rounded-t-none border-t-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full text-xs sm:text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40">
                       <th className={thCls}>Équipe</th>

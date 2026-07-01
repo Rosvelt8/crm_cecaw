@@ -73,12 +73,12 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Fiche agent */}
-      <Card className="p-6">
-        <div className="flex items-start gap-5">
+      <Card className="p-4">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-5">
           <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-xl shrink-0">
             {(u.prenom ?? '?')[0]}{(u.nom ?? '?')[0]}
           </div>
-          <div className="flex-1 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4">
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-x-6 sm:gap-y-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Matricule</p>
               <p className="font-mono font-bold mt-0.5">{agent.matricule}</p>

@@ -91,7 +91,7 @@ const AGENT_ALLOWED_HREFS = [
   '/dashboard/collecte/objectifs',
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boolean; onMobileClose: () => void }) {
   const { sidebarOpen, toggleSidebar } = useAppStore();
   const { user, logout } = useAuthStore();
   const { isAgent } = useAuth();
@@ -120,15 +120,24 @@ export default function Sidebar() {
   };
 
   return (
-    <aside
-      className={cn(
-        'fixed left-0 top-0 z-40 h-screen flex flex-col transition-all duration-300',
-        'border-r border-stone-200/80',
-        sidebarOpen ? 'w-64' : 'w-14'
-      )}
-      style={{
-        background: 'linear-gradient(160deg, #ffffff 0%, #fdf8f0 55%, #faf4e8 100%)',
-      }}
+    <>
+      <div
+        className={cn(
+          'fixed inset-0 z-30 bg-black/40 transition-opacity lg:hidden',
+          mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        )}
+        onClick={onMobileClose}
+      />
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 border-r border-stone-200/80 bg-white',
+          'lg:relative lg:top-0 lg:h-auto',
+          mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0',
+          sidebarOpen ? 'lg:w-64 w-72' : 'lg:w-14 w-72'
+        )}
+        style={{
+          background: 'linear-gradient(160deg, #ffffff 0%, #fdf8f0 55%, #faf4e8 100%)',
+        }}
     >
       {/* ── Gold accent stripe at very top ── */}
       <div
@@ -154,37 +163,33 @@ export default function Sidebar() {
         >
           <Image
             src="/logo.png"
-            alt="CECAW"
+            alt="Cecaw Finance S.A"
             width={44}
             height={44}
             className="object-contain"
           />
-        </div>
-
-        {/* Brand name — only when open */}
-        {sidebarOpen && (
-          <div className="min-w-0 flex-1">
-            <p
-              className="text-[15px] font-black tracking-[0.08em] uppercase leading-none text-stone-800"
-              style={{ fontFamily: 'var(--font-display), Georgia, serif' }}
-            >
-              CECAW
-            </p>
-            <p className="text-[9px] tracking-[0.18em] uppercase text-stone-400 mt-0.5 font-medium">
-              Microfinance
-            </p>
           </div>
-        )}
 
-        {/* Toggle button — only when open */}
-        {sidebarOpen && (
-          <button
-            onClick={toggleSidebar}
-            className="shrink-0 h-6 w-6 rounded-md flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
-          >
-            <PanelLeftClose className="h-3.5 w-3.5" />
-          </button>
-        )}
+          {/* Brand name — only when open */}
+          {sidebarOpen && (
+            <>
+              <div className="min-w-0 flex-1">
+                <p
+                  className="text-[15px] font-black tracking-[0.08em] uppercase leading-none text-stone-800"
+                  style={{ fontFamily: 'var(--font-display), Georgia, serif' }}
+                >
+                  Cecaw Finance S.A
+                </p>
+                
+              </div>
+              <button
+                onClick={toggleSidebar}
+                className="rounded-full border border-stone-200 bg-white p-1 text-stone-500 shadow-sm hover:bg-stone-50 transition-colors"
+              >
+                <PanelLeftClose className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
       </div>
 
       {/* Toggle button when collapsed */}
@@ -342,5 +347,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

@@ -91,20 +91,20 @@ export default function LogsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Journal d'Activité</h1>
-          <p className="text-sm text-muted-foreground">{total} entrée{total !== 1 ? 's' : ''} — traçabilité complète</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Journal d'Activité</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{total} entrée{total !== 1 ? 's' : ''} — traçabilité complète</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="w-full sm:w-auto">
           <RefreshCw className={cn('mr-2 h-3.5 w-3.5', loading && 'animate-spin')} /> Rafraîchir
         </Button>
       </div>
 
       {/* Filtres */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-wrap gap-2 w-full">
         <Select value={filterAgence} onValueChange={setFilterAgence}>
-          <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="Toutes les agences" /></SelectTrigger>
+          <SelectTrigger className="h-8 text-xs sm:w-44 w-full"><SelectValue placeholder="Toutes les agences" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes les agences</SelectItem>
             {agences.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.nom}</SelectItem>)}
@@ -112,7 +112,7 @@ export default function LogsPage() {
         </Select>
 
         <Select value={filterOp} onValueChange={(v) => setFilterOp(v as any)}>
-          <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="Type d'opération" /></SelectTrigger>
+          <SelectTrigger className="h-8 text-xs sm:w-44 w-full"><SelectValue placeholder="Type d'opération" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous types</SelectItem>
             {(Object.keys(OP_CONFIG) as OpType[]).map((op) => (
@@ -122,7 +122,7 @@ export default function LogsPage() {
         </Select>
 
         <Select value={filterModule} onValueChange={setFilterModule}>
-          <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Tous les modules" /></SelectTrigger>
+          <SelectTrigger className="h-8 text-xs sm:w-40 w-full"><SelectValue placeholder="Tous les modules" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les modules</SelectItem>
             {Object.entries(MODULE_CONFIG).map(([key, cfg]) => (
@@ -142,8 +142,8 @@ export default function LogsPage() {
         </div>
       ) : (
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full text-xs sm:text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
                   {['Horodatage', 'Utilisateur', 'Agence', 'Module', 'Type', 'Description'].map((h) => (
@@ -205,9 +205,9 @@ export default function LogsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-xs sm:text-sm text-muted-foreground">
           <span>Page {page} / {totalPages} — {total} entrée{total !== 1 ? 's' : ''}</span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 w-fit sm:w-auto">
             <Button variant="outline" size="icon" className="h-7 w-7" disabled={page === 1 || loading} onClick={() => setPage((p) => p - 1)}>
               <ChevronLeft className="h-4 w-4" />
             </Button>

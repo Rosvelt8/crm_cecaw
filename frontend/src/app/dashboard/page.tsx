@@ -100,39 +100,39 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">Vue d'ensemble</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Tableau de bord CECAW Microfinance.</p>
+      <div className="flex flex-col gap-1 sm:gap-0.5">
+        <h1 className="text-2xl sm:text-3xl font-bold">Vue d'ensemble</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground">Tableau de bord Cecaw Finance S.A.</p>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {KPI_ITEMS.map((kpi) => (
-          <Card key={kpi.label} className="p-6 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-muted-foreground">{kpi.label}</p>
+          <Card key={kpi.label} className="p-3 sm:p-4 flex flex-col gap-3 sm:gap-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs sm:text-sm font-semibold text-muted-foreground line-clamp-2">{kpi.label}</p>
               <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
                 <kpi.icon className={`h-5 w-5 ${kpi.iconColor}`} />
               </div>
             </div>
             <div>
-              <p className={`text-3xl font-black tracking-tight ${kpi.valueColor}`}>
+              <p className={`text-2xl sm:text-3xl font-black tracking-tight ${kpi.valueColor} break-words`}>
                 {kpi.value}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">{kpi.sub}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2">{kpi.sub}</p>
             </div>
           </Card>
         ))}
       </div>
 
       {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2 flex-1">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 flex-1">
         <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Transactions — 6 derniers mois</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-sm sm:text-base font-semibold">Transactions — 6 derniers mois</CardTitle>
             <CardDescription className="text-xs">Crédits et débits cumulés par mois.</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 min-h-[320px]">
+          <CardContent className="flex-1 min-h-[280px] sm:min-h-[320px] px-2 sm:px-4">
             {loading ? (
               <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Chargement…</div>
             ) : (
@@ -157,11 +157,11 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Pipeline Prospects</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-sm sm:text-base font-semibold">Pipeline Prospects</CardTitle>
             <CardDescription className="text-xs">Répartition par statut de qualification.</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 min-h-[320px]">
+          <CardContent className="flex-1 min-h-[280px] sm:min-h-[320px] px-2 sm:px-4">
             {loading ? (
               <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Chargement…</div>
             ) : prospectsByStatut.length === 0 ? (

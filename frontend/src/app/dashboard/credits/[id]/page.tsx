@@ -155,33 +155,33 @@ export default function CreditDetailPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 px-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/credits')}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+          <Button variant="ghost" size="icon" className="shrink-0 mt-1" onClick={() => router.push('/dashboard/credits')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold font-mono">{credit.ref}</h1>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold font-mono break-all">{credit.ref}</h1>
               <span className={cn(
-                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide',
+                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide shrink-0',
                 statutColor
               )}>
                 {statutLabel}
               </span>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">
               {credit.client} — {credit.type} — {credit.agence}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => toast.info('Impression disponible avec le backend')}>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm" className="w-full sm:w-auto text-xs" onClick={() => toast.info('Impression disponible avec le backend')}>
             <Printer className="mr-2 h-4 w-4" /> Imprimer
           </Button>
-          <Button variant="outline" size="sm" onClick={() => toast.info('Export PDF disponible avec le backend')}>
+          <Button variant="outline" size="sm" className="w-full sm:w-auto text-xs" onClick={() => toast.info('Export PDF disponible avec le backend')}>
             <Download className="mr-2 h-4 w-4" /> Exporter
           </Button>
         </div>
@@ -218,9 +218,9 @@ export default function CreditDetailPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 grid-cols-1">
         {/* Left: Workflow + Actions */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:col-span-1">
           {/* Workflow */}
           <Card>
             <CardHeader className="pb-3">
@@ -367,20 +367,20 @@ export default function CreditDetailPage() {
         {/* Right: Tabs */}
         <div className="lg:col-span-2 space-y-4">
           {/* Tab bar */}
-          <div className="flex gap-1 border-b">
+          <div className="flex gap-1 border-b overflow-x-auto -mx-4 px-4">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  'flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors',
+                  'flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition-colors shrink-0',
                   activeTab === tab.id
                     ? 'border-brand-600 text-brand-600'
                     : 'border-transparent text-muted-foreground hover:text-foreground'
                 )}
               >
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
+                <tab.icon className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">{tab.label}</span>
               </button>
             ))}
           </div>
@@ -393,11 +393,11 @@ export default function CreditDetailPage() {
                   <CardTitle>Informations du dossier</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <dl className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-4 text-sm">
                     <div>
                       <dt className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Client</dt>
-                      <dd className="font-semibold flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      <dd className="font-semibold flex items-center gap-2 text-xs sm:text-sm break-words">
+                        <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <Link href={`/dashboard/clients/${credit.clientId}`} className="text-brand-600 hover:underline">
                           {credit.client}
                         </Link>
@@ -405,37 +405,37 @@ export default function CreditDetailPage() {
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Produit</dt>
-                      <dd className="font-semibold">{credit.produit}</dd>
+                      <dd className="font-semibold text-xs sm:text-sm">{credit.produit}</dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Type de crédit</dt>
-                      <dd className="font-semibold">{credit.type}</dd>
+                      <dd className="font-semibold text-xs sm:text-sm">{credit.type}</dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Agence</dt>
-                      <dd className="font-semibold flex items-center gap-2">
-                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      <dd className="font-semibold flex items-center gap-2 text-xs sm:text-sm">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         {credit.agence}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Agent responsable</dt>
-                      <dd className="font-semibold">{credit.agent}</dd>
+                      <dd className="font-semibold text-xs sm:text-sm">{credit.agent}</dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Date de dépôt</dt>
-                      <dd className="font-semibold flex items-center gap-2">
-                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                      <dd className="font-semibold flex items-center gap-2 text-xs sm:text-sm">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         {new Date(credit.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Fréquence</dt>
-                      <dd className="font-semibold">{FREQUENCE_LABELS[credit.frequence] || credit.frequence}</dd>
+                      <dd className="font-semibold text-xs sm:text-sm">{FREQUENCE_LABELS[credit.frequence] || credit.frequence}</dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Référence</dt>
-                      <dd className="font-mono font-bold">{credit.ref}</dd>
+                      <dd className="font-mono font-bold text-xs sm:text-sm break-all">{credit.ref}</dd>
                     </div>
                   </dl>
                 </CardContent>
@@ -458,30 +458,30 @@ export default function CreditDetailPage() {
           {activeTab === 'echeancier' && (
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
-                    <CardTitle>Plan de remboursement</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Plan de remboursement</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
                       {credit.duree} échéances — {formatCurrency(mensualite)}/mois — taux annuel 18%
                     </CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info('Export Excel disponible avec le backend')}>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto text-xs" onClick={() => toast.info('Export Excel disponible avec le backend')}>
                     <Download className="mr-2 h-4 w-4" /> Excel
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className="p-0 overflow-x-auto">
                 <div className="max-h-[420px] overflow-y-auto">
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
-                        <TableHead className="w-10">#</TableHead>
-                        <TableHead>Échéance</TableHead>
-                        <TableHead className="text-right">Mensualité</TableHead>
-                        <TableHead className="text-right">Capital</TableHead>
-                        <TableHead className="text-right">Intérêts</TableHead>
-                        <TableHead className="text-right">Solde restant</TableHead>
-                        <TableHead />
+                        <TableHead className="w-8 text-xs">#</TableHead>
+                        <TableHead className="text-xs">Échéance</TableHead>
+                        <TableHead className="text-right text-xs">Mensualité</TableHead>
+                        <TableHead className="text-right text-xs hidden sm:table-cell">Capital</TableHead>
+                        <TableHead className="text-right text-xs hidden md:table-cell">Intérêts</TableHead>
+                        <TableHead className="text-right text-xs">Solde</TableHead>
+                        <TableHead className="text-xs" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -494,17 +494,17 @@ export default function CreditDetailPage() {
                           )}
                         >
                           <TableCell className="text-xs text-muted-foreground font-mono">{row.num}</TableCell>
-                          <TableCell className="text-xs">{row.date}</TableCell>
-                          <TableCell className="text-right text-sm font-semibold">{formatCurrency(row.mensualite)}</TableCell>
-                          <TableCell className="text-right text-xs">{formatCurrency(row.capital)}</TableCell>
-                          <TableCell className="text-right text-xs text-muted-foreground">{formatCurrency(row.interet)}</TableCell>
-                          <TableCell className="text-right text-xs font-mono">{formatCurrency(row.solde)}</TableCell>
+                          <TableCell className="text-xs whitespace-nowrap">{row.date}</TableCell>
+                          <TableCell className="text-right text-xs sm:text-sm font-semibold whitespace-nowrap">{formatCurrency(row.mensualite)}</TableCell>
+                          <TableCell className="text-right text-xs hidden sm:table-cell whitespace-nowrap">{formatCurrency(row.capital)}</TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground hidden md:table-cell whitespace-nowrap">{formatCurrency(row.interet)}</TableCell>
+                          <TableCell className="text-right text-xs font-mono whitespace-nowrap">{formatCurrency(row.solde)}</TableCell>
                           <TableCell>
                             {row.statut === 'paye' && (
-                              <CheckCircle className="h-3.5 w-3.5 text-success-500" />
+                              <CheckCircle className="h-3.5 w-3.5 text-success-500 shrink-0" />
                             )}
                             {row.statut === 'en_cours' && (
-                              <Clock className="h-3.5 w-3.5 text-brand-600" />
+                              <Clock className="h-3.5 w-3.5 text-brand-600 shrink-0" />
                             )}
                           </TableCell>
                         </TableRow>
@@ -512,18 +512,18 @@ export default function CreditDetailPage() {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="border-t bg-muted/30 p-3 grid grid-cols-3 gap-4 text-center">
+                <div className="border-t bg-muted/30 p-3 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-center">
                   <div>
                     <div className="text-[10px] text-muted-foreground uppercase font-bold">Total remboursé</div>
-                    <div className="text-sm font-black">{formatCurrency(credit.montant + totalInterets)}</div>
+                    <div className="text-xs sm:text-sm font-black break-words">{formatCurrency(credit.montant + totalInterets)}</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-muted-foreground uppercase font-bold">Capital</div>
-                    <div className="text-sm font-black">{formatCurrency(credit.montant)}</div>
+                    <div className="text-xs sm:text-sm font-black break-words">{formatCurrency(credit.montant)}</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-muted-foreground uppercase font-bold">Intérêts</div>
-                    <div className="text-sm font-black text-warning-700">{formatCurrency(totalInterets)}</div>
+                    <div className="text-xs sm:text-sm font-black text-warning-700 break-words">{formatCurrency(totalInterets)}</div>
                   </div>
                 </div>
               </CardContent>

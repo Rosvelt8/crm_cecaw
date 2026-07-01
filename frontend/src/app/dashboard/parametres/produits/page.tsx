@@ -140,26 +140,26 @@ export default function ProduitsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Produits</h1>
           <p className="text-sm text-muted-foreground">{produits.length} produit{produits.length !== 1 ? 's' : ''} au catalogue</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
-          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setModal('create'); }}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="w-full sm:w-auto"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
+          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setModal('create'); }} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Nouveau produit
           </Button>
         </div>
       </div>
 
-      <div className="flex gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Nom, description…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={filterGroupe} onValueChange={setFilterGroupe}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Tous les groupes" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Tous les groupes" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les groupes</SelectItem>
             {groupes.map((g) => <SelectItem key={g.id} value={String(g.id)}>{g.nom}</SelectItem>)}
@@ -241,7 +241,7 @@ export default function ProduitsPage() {
       {drawer && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/40" onClick={closeDrawer} />
-          <div className="w-[400px] max-w-full bg-background shadow-2xl border-l flex flex-col overflow-hidden">
+          <div className="w-full sm:w-[400px] bg-background shadow-2xl border-l flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b bg-muted/30">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: ((drawer.groupe ?? getGroupe(drawer.groupeId))?.couleur ?? '#888') + '22' }}>
@@ -292,8 +292,8 @@ export default function ProduitsPage() {
 
       {/* Modal création */}
       {modal === 'create' && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-md my-4">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="font-bold">Nouveau produit</h2>
               <Button variant="ghost" size="icon" onClick={() => setModal(null)}><X className="h-4 w-4" /></Button>

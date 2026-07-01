@@ -60,7 +60,7 @@ export default function ReportingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Centre de Reporting</h1>
           <p className="text-muted-foreground">Générez des rapports détaillés et analysez les indicateurs de performance clés.</p>
@@ -72,9 +72,9 @@ export default function ReportingPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 sm:grid-cols-4 lg:gap-6 lg:grid-cols-4">
          {/* Report Type Selector */}
-         <div className="lg:col-span-1 space-y-4">
+         <div className="sm:col-span-1 space-y-3 sm:space-y-4">
             {reportTypes.map((report) => (
                <Card 
                   key={report.id} 
@@ -141,21 +141,21 @@ export default function ReportingPage() {
          </div>
 
          {/* Report Content */}
-         <div className="lg:col-span-3 space-y-6">
+         <div className="sm:col-span-3 space-y-4 sm:space-y-6">
             <Card>
-               <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                     <CardTitle className="flex items-center gap-2">
+               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                     <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 text-base sm:text-lg">
                         {reportTypes.find(r => r.id === selectedReport)?.title}
-                        <Badge variant="outline" className="text-[10px] font-bold h-5">MAI 2024</Badge>
+                        <Badge variant="outline" className="text-[10px] font-bold h-5 w-fit">MAI 2024</Badge>
                      </CardTitle>
-                     <CardDescription>Aperçu visuel des données consolidées.</CardDescription>
+                     <CardDescription className="text-xs sm:text-sm">Aperçu visuel des données consolidées.</CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
-                     <Button variant="outline" size="sm" className="h-8 text-xs">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                     <Button variant="outline" size="sm" className="h-8 text-xs flex-1 sm:flex-none">
                         <FileSpreadsheet className="h-3 w-3 mr-2 text-success-600" /> Excel
                      </Button>
-                     <Button variant="brand" size="sm" className="h-8 text-xs">
+                     <Button variant="brand" size="sm" className="h-8 text-xs flex-1 sm:flex-none">
                         <Download className="h-3 w-3 mr-2" /> PDF
                      </Button>
                   </div>
@@ -180,7 +180,7 @@ export default function ReportingPage() {
                      </ResponsiveContainer>
                   </div>
                   
-                  <div className="mt-8 grid gap-4 md:grid-cols-3">
+                  <div className="mt-6 sm:mt-8 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
                      <div className="p-4 rounded-xl bg-muted/20 border">
                         <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Encours Global</div>
                         <div className="text-xl font-bold">{formatCurrency(128450000, true)}</div>

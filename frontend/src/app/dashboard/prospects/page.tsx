@@ -129,12 +129,12 @@ export default function ProspectsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Pipeline CRM</h1>
           <p className="text-muted-foreground">Suivez et convertissez vos opportunités commerciales.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center bg-muted rounded-lg p-1">
             <Button
               variant={viewMode === 'grid' ? 'brand' : 'ghost'}
@@ -151,14 +151,14 @@ export default function ProspectsPage() {
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <Button variant="brand" onClick={openCreate}>
+          <Button variant="brand" onClick={openCreate} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Nouveau Prospect
           </Button>
         </div>
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4 bg-primary-50/30 border-primary-100">
           <div className="text-xs text-muted-foreground font-medium uppercase">Valeur Pipeline</div>
           <div className="text-xl font-bold text-primary-700">{formatCurrency(pipelineValue, true)}</div>
@@ -180,7 +180,7 @@ export default function ProspectsPage() {
       </div>
 
       {/* Search */}
-      <div className="max-w-sm">
+      <div className="w-full sm:max-w-sm">
         <Input
           placeholder="Rechercher un prospect..."
           value={search}
@@ -190,7 +190,7 @@ export default function ProspectsPage() {
       </div>
 
       {/* Kanban Board */}
-      <div className="overflow-x-auto pb-4 -mx-6 px-6">
+      <div className="overflow-x-auto pb-4 -mx-4 px-4">
         <div className="flex gap-4 min-w-max h-[calc(100vh-380px)]">
           {columns.map((column) => {
             const cards = filtered.filter((p) => p.statut === column.id);
@@ -295,7 +295,7 @@ export default function ProspectsPage() {
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+            <form onSubmit={handleSave} className="p-4 space-y-4">
               <div className="space-y-2">
                 <Label>Nom de l'entreprise / Client <span className="text-red-500">*</span></Label>
                 <Input

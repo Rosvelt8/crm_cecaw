@@ -86,10 +86,10 @@ export const EMPTY_FORM: ProspectFormData = {
 function Section({ title, accent, children }: { title: string; accent?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border bg-white overflow-hidden">
-      <div className={cn('px-6 py-3 border-b', accent ?? 'bg-muted/30')}>
+      <div className={cn('px-4 py-3 border-b', accent ?? 'bg-muted/30')}>
         <h3 className="text-sm font-bold uppercase tracking-wider text-foreground/70">{title}</h3>
       </div>
-      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {children}
       </div>
     </div>
@@ -141,7 +141,7 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
   return (
     <div className="flex flex-col gap-6">
       {/* Sticky header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
@@ -151,7 +151,7 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
             <p className="text-sm text-muted-foreground mt-0.5">Fiche KYC complète du prospect.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row">
           <Button variant="outline" type="button" onClick={() => router.back()}>Annuler</Button>
           <Button variant="brand" type="submit" form="prospect-form" disabled={isSubmitting}>
             <Save className="mr-2 h-4 w-4" /> Enregistrer
@@ -328,10 +328,10 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
 
         {/* ── Localisation GPS ── */}
         <div className="rounded-xl border bg-white overflow-hidden">
-          <div className="px-6 py-3 border-b bg-teal-50 border-teal-100">
+          <div className="px-4 py-3 border-b bg-teal-50 border-teal-100">
             <h3 className="text-sm font-bold uppercase tracking-wider text-foreground/70">Localisation GPS <span className="normal-case font-normal text-muted-foreground">(optionnel)</span></h3>
           </div>
-          <div className="p-6">
+          <div className="p-4">
             <LocationPicker
               value={form.latitude != null && form.longitude != null ? { lat: form.latitude, lng: form.longitude } : null}
               onChange={(coords) => set({ latitude: coords?.lat ?? null, longitude: coords?.lng ?? null })}
@@ -341,10 +341,10 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
 
         {/* ── Pièces jointes ── */}
         <div className="rounded-xl border bg-white overflow-hidden">
-          <div className="px-6 py-3 border-b bg-slate-50 border-slate-100">
+          <div className="px-4 py-3 border-b bg-slate-50 border-slate-100">
             <h3 className="text-sm font-bold uppercase tracking-wider text-foreground/70">Pièces jointes <span className="normal-case font-normal text-muted-foreground">(optionnel)</span></h3>
           </div>
-          <div className="p-6">
+          <div className="p-4">
             <AttachmentsInput
               value={form.piecesJointes}
               onChange={(pj) => set({ piecesJointes: pj })}

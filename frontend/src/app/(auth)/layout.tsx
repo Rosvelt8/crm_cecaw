@@ -8,12 +8,12 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
     <AuthGuard requireAuth={false}>
       <div className="min-h-screen grid lg:grid-cols-2">
         <div className="relative hidden lg:flex flex-col justify-between p-12 bg-brand-900 text-white overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://www.cecaw.cm/wp-content/uploads/2026/04/eventail-CECAW-e1776351460470.png')] bg-cover bg-center opacity-20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-brand-900 to-slate-950 opacity-20" />
           <div className="absolute inset-0 bg-gradient-to-br from-brand-900/90 via-brand-900/50 to-transparent" />
           
           <div className="relative z-10 flex items-center gap-3">
-            <img src="/logo.png" alt="CECAW CRM" className="h-12 w-auto object-contain" />
-            <span className="text-2xl font-bold tracking-tight uppercase">CECAW CRM</span>
+            <img src="/logo.png" alt="Cecaw Finance S.A" className="h-12 w-auto object-contain" />
+            <span className="text-2xl font-bold tracking-tight uppercase">Cecaw Finance S.A</span>
           </div>
 
           <div className="relative z-10">
@@ -27,16 +27,16 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="relative z-10 flex items-center gap-4 text-sm text-brand-200">
-            <span>© 2026 CECAW Microfinance. Tous droits réservés.</span>
+            <span>© 2026 Cecaw Finance S.A. Tous droits réservés.</span>
           </div>
         </div>
 
-        <div className="flex items-center justify-center p-8 bg-background">
-          <div className="w-full max-w-md space-y-8 animate-fade-in">
+        <div className="flex items-center justify-center p-4 sm:p-8 bg-background">
+          <div className="w-full max-w-md space-y-6 sm:space-y-8 animate-fade-in">
             <div className="lg:hidden flex justify-center mb-8">
               <div className="flex items-center gap-3">
-                <img src="/logo.png" alt="CECAW CRM" className="h-10 w-auto object-contain" />
-                <span className="text-xl font-bold text-brand-900 uppercase">CECAW CRM</span>
+                <img src="/logo.png" alt="Cecaw Finance S.A" className="h-10 w-auto object-contain" />
+                <span className="text-xl font-bold text-brand-900 uppercase">Cecaw Finance</span>
               </div>
             </div>
             {children}

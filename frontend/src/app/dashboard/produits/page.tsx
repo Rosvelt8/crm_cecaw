@@ -114,17 +114,17 @@ export default function ProduitsPage() {
 
 
   return (
-    <div className="space-y-8 relative">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 relative px-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Produits & Groupes</h1>
-          <p className="text-muted-foreground">Gestion du catalogue de produits CECAW.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Produits & Groupes</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Gestion du catalogue de produits Cecaw Finance S.A.</p>
         </div>
-        <div className="flex items-center gap-2">
-           <Button variant="outline" onClick={() => { setGroupFormData({ est_actif: true }); setShowGroupModal(true); }}>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+           <Button variant="outline" className="w-full sm:w-auto text-xs" onClick={() => { setGroupFormData({ est_actif: true }); setShowGroupModal(true); }}>
               <Layers className="mr-2 h-4 w-4" /> Nouveau Groupe
            </Button>
-           <Button variant="brand" onClick={() => { setFormData({ type: 'credit', est_actif: true }); setShowProductModal(true); }}>
+           <Button variant="brand" className="w-full sm:w-auto text-xs" onClick={() => { setFormData({ type: 'credit', est_actif: true }); setShowProductModal(true); }}>
               <Plus className="mr-2 h-4 w-4" /> Nouveau Produit
            </Button>
         </div>
@@ -133,22 +133,22 @@ export default function ProduitsPage() {
       {loading ? (
         <div className="flex justify-center items-center h-40 text-muted-foreground">Chargement des produits...</div>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-3 items-start">
+        <div className="grid gap-8 lg:grid-cols-3 items-start grid-cols-1">
            <div className="lg:col-span-2 space-y-6">
               <Card>
                  <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                        <div>
-                          <CardTitle>Catalogue des Produits</CardTitle>
-                          <CardDescription>Liste de tous les produits disponibles</CardDescription>
+                          <CardTitle className="text-base">Catalogue des Produits</CardTitle>
+                          <CardDescription className="text-xs">Liste de tous les produits disponibles</CardDescription>
                        </div>
-                       <div className="w-64">
+                       <div className="w-full sm:w-64">
                          <Input placeholder="Rechercher..." icon={<Search className="h-4 w-4" />} />
                        </div>
                     </div>
                  </CardHeader>
                  <CardContent>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                        {produits.map(produit => (
                          <div key={produit.id} className="p-4 rounded-xl border bg-card hover:bg-muted/50 transition-colors group flex flex-col gap-2">
                            <div className="flex justify-between items-start">
@@ -183,10 +183,10 @@ export default function ProduitsPage() {
               </Card>
            </div>
            
-           <div className="space-y-6">
+           <div className="space-y-6 lg:col-span-1">
               <Card>
                 <CardHeader>
-                  <CardTitle>Groupes de Produits</CardTitle>
+                  <CardTitle className="text-base">Groupes de Produits</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {groupes.map(groupe => (
@@ -220,27 +220,27 @@ export default function ProduitsPage() {
       {/* Modal Produit (Custom Overlay) */}
       {showProductModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-           <div className="bg-background rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+           <div className="bg-background rounded-xl shadow-xl w-full max-w-xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95">
               <div className="sticky top-0 bg-background/80 backdrop-blur border-b p-4 flex items-center justify-between z-10">
                  <h2 className="text-xl font-bold">{formData.id ? 'Modifier le Produit' : 'Nouveau Produit'}</h2>
                  <Button variant="ghost" size="icon" onClick={() => setShowProductModal(false)}>
                     <X className="h-5 w-5" />
                  </Button>
               </div>
-              <form onSubmit={handleSaveProduct} className="p-6 space-y-6">
-                 <div className="grid gap-4 md:grid-cols-2">
+              <form onSubmit={handleSaveProduct} className="p-4 space-y-6">
+                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                     <div className="space-y-2">
-                       <Label>Code Produit *</Label>
-                       <Input required value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} placeholder="Ex: PRD-AGRI" />
+                       <Label className="text-xs sm:text-sm">Code Produit *</Label>
+                       <Input required value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} placeholder="Ex: PRD-AGRI" className="text-xs" />
                     </div>
                     <div className="space-y-2">
-                       <Label>Nom du Produit *</Label>
-                       <Input required value={formData.nom || ''} onChange={e => setFormData({...formData, nom: e.target.value})} placeholder="Ex: Crédit Agricole" />
+                       <Label className="text-xs sm:text-sm">Nom du Produit *</Label>
+                       <Input required value={formData.nom || ''} onChange={e => setFormData({...formData, nom: e.target.value})} placeholder="Ex: Crédit Agricole" className="text-xs" />
                     </div>
                     <div className="space-y-2">
-                       <Label>Type de Produit</Label>
+                       <Label className="text-xs sm:text-sm">Type de Produit</Label>
                        <Select value={formData.type} onValueChange={(val: any) => setFormData({...formData, type: val})}>
-                          <SelectTrigger>
+                          <SelectTrigger className="text-xs">
                              <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -251,9 +251,9 @@ export default function ProduitsPage() {
                        </Select>
                     </div>
                     <div className="space-y-2">
-                       <Label>Groupe (Pôle)</Label>
+                       <Label className="text-xs sm:text-sm">Groupe (Pôle)</Label>
                        <Select value={formData.groupe_id?.toString()} onValueChange={(val) => setFormData({...formData, groupe_id: Number(val)})}>
-                          <SelectTrigger>
+                          <SelectTrigger className="text-xs">
                              <SelectValue placeholder="Sélectionner..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -266,25 +266,25 @@ export default function ProduitsPage() {
                  </div>
                  
                  <div className="space-y-2">
-                    <Label>Description</Label>
-                    <Input value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Courte description..." />
+                    <Label className="text-xs sm:text-sm">Description</Label>
+                    <Input value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Courte description..." className="text-xs" />
                  </div>
 
                  {formData.type === 'credit' && (
                     <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
-                       <h3 className="text-sm font-bold">Conditions du Crédit</h3>
-                       <div className="grid gap-4 md:grid-cols-3">
+                       <h3 className="text-xs sm:text-sm font-bold">Conditions du Crédit</h3>
+                       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
                           <div className="space-y-2">
                              <Label className="text-xs">Taux d'intérêt (%)</Label>
-                             <Input type="number" step="0.1" value={formData.taux_interet_defaut || ''} onChange={e => setFormData({...formData, taux_interet_defaut: Number(e.target.value)})} />
+                             <Input type="number" step="0.1" value={formData.taux_interet_defaut || ''} onChange={e => setFormData({...formData, taux_interet_defaut: Number(e.target.value)})} className="text-xs" />
                           </div>
                           <div className="space-y-2">
                              <Label className="text-xs">Montant Min</Label>
-                             <Input type="number" value={formData.montant_min || ''} onChange={e => setFormData({...formData, montant_min: Number(e.target.value)})} />
+                             <Input type="number" value={formData.montant_min || ''} onChange={e => setFormData({...formData, montant_min: Number(e.target.value)})} className="text-xs" />
                           </div>
                           <div className="space-y-2">
                              <Label className="text-xs">Montant Max</Label>
-                             <Input type="number" value={formData.montant_max || ''} onChange={e => setFormData({...formData, montant_max: Number(e.target.value)})} />
+                             <Input type="number" value={formData.montant_max || ''} onChange={e => setFormData({...formData, montant_max: Number(e.target.value)})} className="text-xs" />
                           </div>
                        </div>
                     </div>
@@ -295,38 +295,38 @@ export default function ProduitsPage() {
                     <Label htmlFor="est_actif" className="cursor-pointer">Produit Actif (Disponible)</Label>
                  </div>
 
-                 <div className="flex justify-end gap-2 pt-4 border-t">
-                    <Button type="button" variant="ghost" onClick={() => setShowProductModal(false)}>Annuler</Button>
-                    <Button type="submit" variant="brand">Enregistrer</Button>
+                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t">
+                    <Button type="button" variant="ghost" className="w-full sm:w-auto order-2 sm:order-1" onClick={() => setShowProductModal(false)}>Annuler</Button>
+                    <Button type="submit" variant="brand" className="w-full sm:w-auto order-1 sm:order-2">Enregistrer</Button>
                  </div>
               </form>
            </div>
         </div>
       )}
-      
+
       {/* Group Modal */}
       {showGroupModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-           <div className="bg-background rounded-xl shadow-xl w-full max-w-md animate-in zoom-in-95">
-              <div className="border-b p-4 flex items-center justify-between">
-                 <h2 className="text-xl font-bold">{groupFormData.id ? 'Modifier le Groupe' : 'Nouveau Groupe'}</h2>
+           <div className="bg-background rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+              <div className="border-b p-4 flex items-center justify-between sticky top-0 bg-background">
+                 <h2 className="text-lg font-bold">{groupFormData.id ? 'Modifier le Groupe' : 'Nouveau Groupe'}</h2>
                  <Button variant="ghost" size="icon" onClick={() => setShowGroupModal(false)}>
                     <X className="h-5 w-5" />
                  </Button>
               </div>
-              <form onSubmit={handleSaveGroup} className="p-6 space-y-6">
+              <form onSubmit={handleSaveGroup} className="p-4 space-y-6">
                  <div className="space-y-4">
                     <div className="space-y-2">
-                       <Label>Code du Groupe *</Label>
-                       <Input required value={groupFormData.code || ''} onChange={e => setGroupFormData({...groupFormData, code: e.target.value})} placeholder="Ex: GRP-CREDIT" />
+                       <Label className="text-xs sm:text-sm">Code du Groupe *</Label>
+                       <Input required value={groupFormData.code || ''} onChange={e => setGroupFormData({...groupFormData, code: e.target.value})} placeholder="Ex: GRP-CREDIT" className="text-xs" />
                     </div>
                     <div className="space-y-2">
-                       <Label>Nom du Groupe *</Label>
-                       <Input required value={groupFormData.nom || ''} onChange={e => setGroupFormData({...groupFormData, nom: e.target.value})} placeholder="Ex: Pôle Crédits" />
+                       <Label className="text-xs sm:text-sm">Nom du Groupe *</Label>
+                       <Input required value={groupFormData.nom || ''} onChange={e => setGroupFormData({...groupFormData, nom: e.target.value})} placeholder="Ex: Pôle Crédits" className="text-xs" />
                     </div>
                     <div className="space-y-2">
-                       <Label>Description</Label>
-                       <Input value={groupFormData.description || ''} onChange={e => setGroupFormData({...groupFormData, description: e.target.value})} placeholder="Courte description..." />
+                       <Label className="text-xs sm:text-sm">Description</Label>
+                       <Input value={groupFormData.description || ''} onChange={e => setGroupFormData({...groupFormData, description: e.target.value})} placeholder="Courte description..." className="text-xs" />
                     </div>
                  </div>
 
@@ -335,9 +335,9 @@ export default function ProduitsPage() {
                     <Label htmlFor="group_est_actif" className="cursor-pointer">Groupe Actif</Label>
                  </div>
 
-                 <div className="flex justify-end gap-2 pt-4 border-t">
-                    <Button type="button" variant="ghost" onClick={() => setShowGroupModal(false)}>Annuler</Button>
-                    <Button type="submit" variant="brand">Enregistrer</Button>
+                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t">
+                    <Button type="button" variant="ghost" className="w-full sm:w-auto order-2 sm:order-1" onClick={() => setShowGroupModal(false)}>Annuler</Button>
+                    <Button type="submit" variant="brand" className="w-full sm:w-auto order-1 sm:order-2">Enregistrer</Button>
                  </div>
               </form>
            </div>
@@ -348,19 +348,19 @@ export default function ProduitsPage() {
       {confirmDelete && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-background rounded-xl shadow-xl w-full max-w-sm animate-in zoom-in-95">
-            <div className="p-6 space-y-4">
+            <div className="p-4 space-y-4">
               <div className="flex items-center gap-3 text-danger-600">
                 <AlertTriangle className="h-6 w-6 shrink-0" />
-                <h2 className="text-lg font-bold">Confirmer la suppression</h2>
+                <h2 className="text-base sm:text-lg font-bold">Confirmer la suppression</h2>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground break-words">
                 Voulez-vous vraiment supprimer{' '}
                 <span className="font-bold text-foreground">"{confirmDelete.nom}"</span> ?
                 Cette action est irréversible.
               </p>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setConfirmDelete(null)}>Annuler</Button>
-                <Button variant="destructive" onClick={confirmDeleteAction}>Supprimer</Button>
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                <Button variant="ghost" className="w-full sm:w-auto order-2 sm:order-1" onClick={() => setConfirmDelete(null)}>Annuler</Button>
+                <Button variant="destructive" className="w-full sm:w-auto order-1 sm:order-2" onClick={confirmDeleteAction}>Supprimer</Button>
               </div>
             </div>
           </div>

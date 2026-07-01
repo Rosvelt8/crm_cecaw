@@ -58,7 +58,7 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gestion des Clients</h1>
           <p className="text-muted-foreground">{total} client{total !== 1 ? 's' : ''} enregistré{total !== 1 ? 's' : ''}.</p>
@@ -77,16 +77,16 @@ export default function ClientsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Input
               placeholder="Nom, téléphone..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               icon={<Search className="h-4 w-4" />}
-              className="max-w-sm"
+              className="w-full sm:max-w-sm"
             />
             <Select value={statutFilter} onValueChange={setStatutFilter}>
-              <SelectTrigger className="h-9 w-36 text-xs"><SelectValue placeholder="Statut" /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full sm:w-36 text-xs"><SelectValue placeholder="Statut" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="actif">Actif</SelectItem>

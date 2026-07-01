@@ -56,20 +56,20 @@ export default function NotificationsPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Centre de Notifications</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Centre de Notifications</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Restez informé de l'activité de votre portefeuille et des alertes système.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:items-center">
           {unreadCount > 0 && (
-            <Badge variant="brand" className="text-sm px-3 py-1">
+            <Badge variant="brand" className="text-xs sm:text-sm px-3 py-1 w-fit">
               {unreadCount} non lu{unreadCount > 1 ? 's' : ''}
             </Badge>
           )}
-          <Button variant="outline" size="sm" onClick={markAllRead} disabled={unreadCount === 0}>
+          <Button variant="outline" size="sm" onClick={markAllRead} disabled={unreadCount === 0} className="w-full sm:w-auto">
             <CheckCheck className="mr-2 h-4 w-4" />
             Tout marquer comme lu
           </Button>
@@ -87,14 +87,14 @@ export default function NotificationsPage() {
             <Card
               key={notif.id}
               className={cn(
-                'p-4 transition-all hover:bg-muted/30 group border-l-4 cursor-pointer',
+                'p-3 sm:p-4 transition-all hover:bg-muted/30 group border-l-4 cursor-pointer',
                 !notif.isRead ? 'bg-brand-50/10 border-l-brand-600' : 'border-l-transparent',
                 notif.type === 'warning' && !notif.isRead && 'border-l-warning-500',
                 notif.type === 'success' && !notif.isRead && 'border-l-success-500',
               )}
               onClick={() => markRead(notif.id)}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3 sm:gap-4">
                 <div className={cn(
                   'h-10 w-10 rounded-full flex items-center justify-center shrink-0 shadow-sm',
                   notif.type === 'success' && 'bg-success-50 text-success-600',
@@ -107,24 +107,26 @@ export default function NotificationsPage() {
                 </div>
 
                 <div className="flex-1 space-y-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm">{notif.title}</span>
-                      {!notif.isRead && <div className="h-1.5 w-1.5 rounded-full bg-brand-600 shrink-0" />}
+                  <div className="flex flex-col gap-1 min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-bold text-xs sm:text-sm break-words">{notif.title}</span>
+                        {!notif.isRead && <div className="h-1.5 w-1.5 rounded-full bg-brand-600 shrink-0 mt-0.5" />}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground shrink-0 whitespace-nowrap ml-2">{notif.time}</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground shrink-0">{notif.time}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{notif.message}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed break-words">{notif.message}</p>
 
-                  <div className="pt-2 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  </div>
+                  <div className="pt-2 flex items-center gap-2 sm:gap-3 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap">
                     <Button
                       variant="link"
                       className="p-0 h-auto text-[10px] font-bold text-brand-600"
                       onClick={(e) => { e.stopPropagation(); toggleRead(notif.id); }}
                     >
-                      {notif.isRead ? 'Marquer non lu' : 'Marquer lu'}
+                      {notif.isRead ? 'Non lu' : 'Lu'}
                     </Button>
-                    <span className="text-muted-foreground/30">•</span>
+                    <span className="text-muted-foreground/30 hidden sm:block">•</span>
                     <Button
                       variant="link"
                       className="p-0 h-auto text-[10px] font-medium text-muted-foreground"

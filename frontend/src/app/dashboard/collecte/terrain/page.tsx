@@ -120,39 +120,39 @@ export default function TerrainPage() {
 
   return (
     <div
-      className="-mx-6 -mb-6 -mt-6 lg:-mx-8 lg:-mb-8 lg:-mt-8 flex"
+      className="-mx-4 -mb-4 -mt-4 lg:-mx-8 lg:-mb-8 lg:-mt-8 flex flex-col lg:flex-row"
       style={{ height: 'calc(100vh - 56px)' }}
     >
       {/* ── Left panel ───────────────────────────────────────────────── */}
-      <div className="w-72 shrink-0 flex flex-col bg-white border-r border-border/80 shadow-sm z-10">
+      <div className="w-full lg:w-72 lg:shrink-0 flex flex-col bg-white lg:border-r border-b lg:border-b-0 border-border/80 shadow-sm lg:shadow-sm z-10 h-[40vh] lg:h-full">
 
         {/* Header */}
-        <div className="px-4 py-3 border-b space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-bold text-sm leading-none">Suivi Terrain</p>
-              <p className="text-[11px] text-muted-foreground mt-1">
+        <div className="px-3 sm:px-4 py-2 sm:py-3 border-b space-y-2 sm:space-y-3">
+          <div className="flex items-start sm:items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-bold text-xs sm:text-sm leading-none">Suivi Terrain</p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5">
                 <span className={cn('font-bold', onlineCount > 0 ? 'text-emerald-600' : 'text-slate-400')}>
                   {onlineCount}
                 </span>
                 <span className="text-muted-foreground"> / {agents.length} en ligne</span>
               </p>
             </div>
-            <div className={cn('h-2.5 w-2.5 rounded-full', onlineCount > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300')} />
+            <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', onlineCount > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300')} />
           </div>
 
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
-              className="pl-8 h-8 text-xs"
-              placeholder="Nom, matricule, secteur…"
+              className="pl-8 h-7 sm:h-8 text-xs"
+              placeholder="Nom, matricule…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
           <Select value={filterAgence} onValueChange={(v) => { setFilterAgence(v); setSelectedId(null); }}>
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-7 sm:h-8 text-xs">
               <SelectValue placeholder="Toutes les agences" />
             </SelectTrigger>
             <SelectContent>
@@ -165,14 +165,16 @@ export default function TerrainPage() {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 px-4 py-2 border-b bg-muted/30">
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            En ligne (&lt;60 min)
+        <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-1.5 sm:py-2 border-b bg-muted/30">
+          <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-muted-foreground">
+            <div className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-emerald-500 shrink-0" />
+            <span className="hidden sm:inline">En ligne (&lt;60 min)</span>
+            <span className="sm:hidden">Ligne</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <div className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-            Hors ligne
+          <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-muted-foreground">
+            <div className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-slate-400 shrink-0" />
+            <span className="hidden sm:inline">Hors ligne</span>
+            <span className="sm:hidden">Offline</span>
           </div>
         </div>
 
@@ -182,24 +184,24 @@ export default function TerrainPage() {
             <button
               key={a.id}
               className={cn(
-                'w-full text-left px-4 py-3 transition-colors hover:bg-muted/50 border-b border-border/50',
+                'w-full text-left px-2 sm:px-4 py-2 sm:py-3 transition-colors hover:bg-muted/50 border-b border-border/50',
                 selectedId === a.id
-                  ? 'bg-brand-50 border-l-[3px] border-l-brand-500 pl-[13px]'
+                  ? 'bg-brand-50 border-l-[3px] border-l-brand-500 pl-[calc(0.5rem-3px)] sm:pl-[calc(1rem-3px)]'
                   : 'border-l-[3px] border-l-transparent'
               )}
               onClick={() => setSelectedId(a.id === selectedId ? null : a.id)}
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <div className={cn(
-                  'h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0',
+                  'h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-bold text-white shrink-0',
                   a.online ? 'bg-emerald-500' : 'bg-slate-400'
                 )}>
                   {a.initials}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-xs leading-tight truncate">{a.nom}</p>
-                  <p className="text-[10px] font-mono text-muted-foreground">{a.matricule}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{a.secteur}</p>
+                  <p className="font-semibold text-[11px] sm:text-xs leading-tight truncate">{a.nom}</p>
+                  <p className="text-[9px] sm:text-[10px] font-mono text-muted-foreground truncate">{a.matricule}</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate hidden sm:block">{a.secteur}</p>
                 </div>
                 <div className="shrink-0">
                   {a.online
@@ -208,7 +210,7 @@ export default function TerrainPage() {
                 </div>
               </div>
               {a.dernierePositionAt && (
-                <p className={cn('text-[10px] mt-1.5 pl-10', a.online ? 'text-emerald-600' : 'text-muted-foreground/60')}>
+                <p className={cn('text-[9px] sm:text-[10px] mt-1 pl-9 sm:pl-10', a.online ? 'text-emerald-600' : 'text-muted-foreground/60')}>
                   {a.minutesAgo !== null && a.minutesAgo < 60
                     ? `Il y a ${a.minutesAgo} min`
                     : new Date(a.dernierePositionAt).toLocaleString('fr-FR', {
@@ -220,38 +222,39 @@ export default function TerrainPage() {
             </button>
           ))}
           {filtered.length === 0 && (
-            <div className="py-12 text-center text-xs text-muted-foreground">Aucun agent trouvé.</div>
+            <div className="py-8 sm:py-12 text-center text-xs text-muted-foreground">Aucun agent trouvé.</div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t space-y-2 bg-muted/20">
+        <div className="p-2 sm:p-3 border-t space-y-2 bg-muted/20">
           {selectedAgent ? (
             <div className="space-y-2">
-              <div className="text-[11px] text-muted-foreground text-center truncate">
+              <div className="text-[9px] sm:text-[11px] text-muted-foreground text-center truncate">
                 Sélectionné : <span className="font-semibold text-foreground">{selectedAgent.nom}</span>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full h-7 text-xs gap-1.5"
+                className="w-full h-6 sm:h-7 text-xs gap-1.5"
                 onClick={() => simulatePosition(selectedAgent.id)}
               >
                 <RefreshCw className="h-3 w-3" />
-                Simuler position GPS
+                <span className="hidden sm:inline">Simuler position GPS</span>
+                <span className="sm:hidden">Simuler GPS</span>
               </Button>
             </div>
           ) : (
-            <p className="text-[10px] text-muted-foreground text-center flex items-center justify-center gap-1">
-              <MapPin className="h-3 w-3" />
-              {agents.length} agent{agents.length !== 1 ? 's' : ''} géolocalisé{agents.length !== 1 ? 's' : ''}
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground text-center flex items-center justify-center gap-1">
+              <MapPin className="h-3 w-3 shrink-0" />
+              {agents.length} agent{agents.length !== 1 ? 's' : ''}
             </p>
           )}
         </div>
       </div>
 
       {/* ── Map area ─────────────────────────────────────────────────── */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden h-[60vh] lg:h-full">
         <TerrainMap
           agents={filtered}
           selectedId={selectedId}

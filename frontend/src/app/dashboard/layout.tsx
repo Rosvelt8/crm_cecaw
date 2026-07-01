@@ -1,5 +1,6 @@
-'use client';
+ 'use client';
 
+import { useState } from 'react';
 import { useAppStore } from '@/stores/useAppStore';
 import { cn } from '@/lib/utils';
 import Sidebar from '@/components/layout/Sidebar';
@@ -8,19 +9,20 @@ import AuthGuard from '@/components/auth/AuthGuard';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { sidebarOpen } = useAppStore();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
     <AuthGuard requireAuth={true}>
       <div className="flex min-h-screen bg-background">
-        <Sidebar />
+        <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
         <main
           className={cn(
             'flex-1 transition-all duration-300',
-            sidebarOpen ? 'pl-72' : 'pl-20'
+            sidebarOpen ? 'lg:pl-64 pl-0' : 'lg:pl-14 pl-0'
           )}
         >
-          <Navbar />
-          <div className="p-6 lg:p-8 animate-slide-up">
+          <Navbar onMobileMenuClick={() => setMobileSidebarOpen(true)} />
+          <div className="p-4 lg:p-6 animate-slide-up">
             {children}
           </div>
         </main>

@@ -54,12 +54,14 @@ const mockAgents = [
 
 export default function TrackingMap() {
   return (
-    <div className="h-full w-full rounded-xl overflow-hidden border shadow-sm relative">
+    <div className="h-full w-full rounded-lg overflow-hidden border shadow-sm relative">
       <MapContainer
         center={[CECAW_COORDINATES.lat, CECAW_COORDINATES.lng]}
         zoom={CECAW_COORDINATES.zoom}
         scrollWheelZoom={true}
         className="h-full w-full z-10"
+        touchZoom={true}
+        doubleClickZoom={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

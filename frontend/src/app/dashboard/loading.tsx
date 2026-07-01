@@ -9,7 +9,7 @@ export default function Loading() {
       </div>
       <div className="flex flex-col items-center">
          <p className="text-lg font-bold tracking-tight">Chargement des données...</p>
-         <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">CECAW CRM SYSTEM</p>
+         <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Cecaw Finance S.A</p>
       </div>
     </div>
   );

@@ -80,7 +80,7 @@ export default function ClientsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Clients</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Portefeuille clients — {clients.length} enregistrés.</p>
@@ -96,7 +96,7 @@ export default function ClientsPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total',       value: stats.total,       color: '' },
           { label: 'Actifs',      value: stats.actifs,      color: 'text-emerald-600' },
@@ -111,13 +111,13 @@ export default function ClientsPage() {
       </div>
 
       {/* Filtres */}
-      <div className="flex gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 w-full sm:w-auto sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Nom, téléphone, ville…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={filterStatut} onValueChange={(v) => setFilterStatut(v as any)}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Tous" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Tous" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous</SelectItem>
             {(Object.keys(STATUT_CONFIG) as StatutClient[]).map((s) => (

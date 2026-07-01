@@ -120,7 +120,7 @@ export default function NewCreditPage() {
 
   if (submitted) {
     return (
-      <div className="max-w-lg mx-auto mt-16 text-center space-y-6">
+      <div className="max-w-lg mx-auto mt-8 sm:mt-16 text-center space-y-6 px-4">
         <div className="h-20 w-20 rounded-full bg-success-50 text-success-600 flex items-center justify-center mx-auto">
           <CheckCircle2 className="h-10 w-10" />
         </div>
@@ -130,11 +130,11 @@ export default function NewCreditPage() {
             Votre demande de crédit <span className="font-mono font-bold text-brand-600">{submittedRef}</span> est maintenant en attente d'analyse.
           </p>
         </div>
-        <div className="flex items-center justify-center gap-3">
-          <Button variant="outline" onClick={() => { setSubmitted(false); setStep(1); }}>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => { setSubmitted(false); setStep(1); }}>
             Nouvelle demande
           </Button>
-          <Button variant="brand" onClick={() => router.push('/dashboard/credits')}>
+          <Button variant="brand" className="w-full sm:w-auto" onClick={() => router.push('/dashboard/credits')}>
             Voir le portefeuille
           </Button>
         </div>
@@ -143,14 +143,14 @@ export default function NewCreditPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-8 px-4">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Nouvelle Demande de Crédit</h1>
-        <p className="text-muted-foreground">Formulaire de demande de financement avec workflow de validation.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Nouvelle Demande de Crédit</h1>
+        <p className="text-muted-foreground text-sm sm:text-base">Formulaire de demande de financement avec workflow de validation.</p>
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center justify-center gap-0 px-4">
+      <div className="flex items-center justify-center gap-0 overflow-x-auto px-2 -mx-4">
         {STEPS.map((s, i) => (
           <div key={s.n} className="flex items-center">
             <div className="flex flex-col items-center gap-1">
@@ -209,13 +209,13 @@ export default function NewCreditPage() {
                 </div>
 
                 {selectedClient && (
-                  <div className="p-4 bg-brand-50/50 border border-brand-100 rounded-xl grid grid-cols-3 gap-4 text-center animate-in fade-in">
+                  <div className="p-4 bg-brand-50/50 border border-brand-100 rounded-xl grid grid-cols-1 sm:grid-cols-3 gap-4 text-center animate-in fade-in">
                     <div>
                       <div className="text-[10px] text-muted-foreground uppercase font-bold">Code</div>
                       <div className="font-mono font-bold text-sm">{selectedClient.code}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Score CECAW</div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Score Cecaw Finance</div>
                       <div className={cn(
                         'font-bold text-sm',
                         selectedClient.score > 75 ? 'text-success-600' :
@@ -253,7 +253,7 @@ export default function NewCreditPage() {
             {/* Étape 2 — Financement */}
             {step === 2 && (
               <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Montant demandé (FCFA) <span className="text-red-500">*</span></Label>
                     <Input
@@ -311,7 +311,7 @@ export default function NewCreditPage() {
             {/* Étape 3 — Garanties */}
             {step === 3 && (
               <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Type de garantie principale <span className="text-red-500">*</span></Label>
                     <Select onValueChange={(v) => setValue('garantieType', v)}>
@@ -367,20 +367,20 @@ export default function NewCreditPage() {
           </CardContent>
 
           <Separator />
-          <div className="p-6 flex items-center justify-between">
+          <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-3">
             {step > 1 ? (
-              <Button type="button" variant="ghost" onClick={() => setStep((s) => s - 1)}>
+              <Button type="button" variant="ghost" className="w-full sm:w-auto order-2 sm:order-1" onClick={() => setStep((s) => s - 1)}>
                 Précédent
               </Button>
             ) : (
-              <div />
+              <div className="order-2 sm:order-1" />
             )}
             {step < 3 ? (
-              <Button type="button" variant="brand" onClick={goNext}>
+              <Button type="button" variant="brand" className="w-full sm:w-auto order-1 sm:order-2" onClick={goNext}>
                 Suivant <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
-              <Button type="submit" variant="success" disabled={isLoading} className="min-w-[160px]">
+              <Button type="submit" variant="success" disabled={isLoading} className="w-full sm:w-auto min-w-[160px] order-1 sm:order-2">
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isLoading ? 'Envoi en cours...' : 'Soumettre la demande'}
               </Button>

@@ -206,16 +206,16 @@ export default function ClientDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* ── En-tête ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push('/dashboard/marketing/clients')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold">
+          <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold shrink-0">
             {client.prenom?.[0]}{client.nom?.[0]}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
               <h1 className="text-2xl font-bold">{client.prenom} {client.nom}</h1>
               <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold', STATUT_CLIENT_COLOR[client.statut] ?? 'bg-muted text-muted-foreground')}>
                 {client.statut === 'actif' ? 'Actif' : client.statut === 'inactif' ? 'Inactif' : 'Blacklisté'}
@@ -232,7 +232,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* ── Solde total rapide ── */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="p-5 bg-brand-50 border-brand-100">
           <p className="text-xs font-semibold text-brand-700 uppercase tracking-wide">Solde total (comptes actifs)</p>
           <p className="text-2xl font-black text-brand-700 mt-1">{formatCurrency(soldeTotalActif)}</p>
@@ -315,7 +315,7 @@ export default function ClientDetailPage() {
 
       {/* ── Comptes ── */}
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-bold">Comptes ({comptes.length})</h2>
           <Button variant="brand" size="sm" onClick={openCompteCreate}>
             <Plus className="mr-2 h-4 w-4" /> Nouveau compte
@@ -330,14 +330,14 @@ export default function ClientDetailPage() {
           const txList = recentTx[String(cp.id)] ?? [];
           return (
             <Card key={cp.id} className="overflow-hidden">
-              <div className="flex items-center gap-4 px-5 py-4 border-b bg-muted/20">
+              <div className="flex flex-col gap-3 px-5 py-4 border-b bg-muted/20 sm:flex-row sm:items-center">
                 <div className="h-9 w-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
                   <BookOpen className="h-4 w-4 text-brand-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                     <p className="font-mono font-bold text-sm">{cp.numero}</p>
-                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold', STATUT_COMPTE_COLOR[cp.statut] ?? 'bg-muted text-muted-foreground')}>
+                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold w-fit', STATUT_COMPTE_COLOR[cp.statut] ?? 'bg-muted text-muted-foreground')}>
                       {cp.statut === 'actif' ? 'Actif' : cp.statut === 'suspendu' ? 'Suspendu' : 'Clos'}
                     </span>
                   </div>
@@ -345,11 +345,11 @@ export default function ClientDetailPage() {
                     {getProduitNom(cp.produitId ?? cp.produit?.id)} · ouvert le {new Date(cp.dateOuverture ?? cp.date_ouverture).toLocaleDateString('fr-FR')}
                   </p>
                 </div>
-                <div className="text-right mr-4">
+                <div className="text-right">
                   <p className="text-xl font-black">{formatCurrency(cp.solde ?? 0)}</p>
                   <p className="text-[11px] text-muted-foreground">solde actuel</p>
                 </div>
-                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1 shrink-0 w-full sm:w-auto justify-end sm:justify-start" onClick={(e) => e.stopPropagation()}>
                   {cp.statut === 'actif' && (
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-brand-600 border-brand-200 hover:bg-brand-50"
                       onClick={() => { setTxModal(cp); setTxForm({ type: 'credit', montant: '', motif: '' }); }}>

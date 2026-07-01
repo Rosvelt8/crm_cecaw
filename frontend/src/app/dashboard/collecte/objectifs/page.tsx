@@ -192,14 +192,14 @@ export default function ObjectifsPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Objectifs</h1>
           <p className="text-sm text-muted-foreground">Attribution et suivi des objectifs par équipe ou agent.</p>
         </div>
         {!isAgent && (
-          <Button variant="brand" size="sm" onClick={openCreate}>
+          <Button variant="brand" size="sm" onClick={openCreate} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Nouvel objectif
           </Button>
         )}

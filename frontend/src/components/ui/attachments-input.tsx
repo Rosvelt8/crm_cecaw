@@ -143,7 +143,7 @@ export function AttachmentsInput({ value, onChange }: Props) {
         </div>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
         <input
           ref={inputRef}
           type="file"
@@ -155,7 +155,7 @@ export function AttachmentsInput({ value, onChange }: Props) {
           type="button"
           variant="outline"
           size="sm"
-          className="gap-1.5 text-xs"
+          className="gap-1.5 text-xs w-full sm:w-auto"
           onClick={() => inputRef.current?.click()}
           disabled={!!pending}
         >

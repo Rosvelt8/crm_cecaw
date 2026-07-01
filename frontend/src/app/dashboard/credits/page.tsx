@@ -57,19 +57,19 @@ export default function CreditsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Portefeuille Crédits</h1>
           <p className="text-muted-foreground">
             Suivi des demandes, décaissements et remboursements.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline">
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" /> Rapports
           </Button>
-          <Link href="/dashboard/credits/nouveau">
-            <Button variant="brand">
+          <Link href="/dashboard/credits/nouveau" className="w-full sm:w-auto">
+            <Button variant="brand" className="w-full">
               <Plus className="mr-2 h-4 w-4" /> Nouvelle Demande
             </Button>
           </Link>
@@ -77,7 +77,7 @@ export default function CreditsPage() {
       </div>
 
       {/* KPI rapide */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total dossiers', value: credits.length, unit: '' },
           { label: 'Encours actif', value: formatCurrency(totalEncours, true), unit: '' },
@@ -93,8 +93,8 @@ export default function CreditsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-1 max-w-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 flex-1 w-full sm:max-w-sm">
               <Input
                 placeholder="Référence, client, type..."
                 value={search}
@@ -102,9 +102,9 @@ export default function CreditsPage() {
                 icon={<Search className="h-4 w-4" />}
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
               <Select value={statutFilter} onValueChange={(v) => { setStatutFilter(v); setPage(1); }}>
-                <SelectTrigger className="h-9 w-40 text-xs">
+                <SelectTrigger className="h-9 w-full sm:w-40 text-xs">
                   <SelectValue placeholder="Statut" />
                 </SelectTrigger>
                 <SelectContent>
@@ -120,7 +120,7 @@ export default function CreditsPage() {
                 </SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
-                <SelectTrigger className="h-9 w-36 text-xs">
+                <SelectTrigger className="h-9 w-full sm:w-36 text-xs">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -134,7 +134,7 @@ export default function CreditsPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -142,9 +142,9 @@ export default function CreditsPage() {
                 <TableHead>Client</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Montant</TableHead>
-                <TableHead>Date Demande</TableHead>
+                <TableHead className="hidden sm:table-cell">Date Demande</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead>Agence</TableHead>
+                <TableHead className="hidden lg:table-cell">Agence</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -159,10 +159,10 @@ export default function CreditsPage() {
                 paginated.map((credit) => (
                   <TableRow key={credit.id}>
                     <TableCell className="font-mono text-xs font-bold">{credit.ref}</TableCell>
-                    <TableCell className="font-medium">{credit.client}</TableCell>
+                    <TableCell className="font-medium text-xs sm:text-sm">{credit.client}</TableCell>
                     <TableCell className="text-xs">{credit.type}</TableCell>
-                    <TableCell className="font-semibold">{formatCurrency(credit.montant)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{formatDate(credit.date)}</TableCell>
+                    <TableCell className="font-semibold text-xs sm:text-sm">{formatCurrency(credit.montant)}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">{formatDate(credit.date)}</TableCell>
                     <TableCell>
                       <div className={cn(
                         'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border',
@@ -171,10 +171,10 @@ export default function CreditsPage() {
                         {CREDIT_STATUT_LABELS[credit.statut as keyof typeof CREDIT_STATUT_LABELS] ?? credit.statut}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs">{credit.agence}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-xs">{credit.agence}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/dashboard/credits/${credit.id}`}>
-                        <Button variant="ghost" size="sm" className="h-8 gap-1">
+                        <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
                           <ExternalLink className="h-3 w-3" /> Détails
                         </Button>
                       </Link>
@@ -186,13 +186,13 @@ export default function CreditsPage() {
           </Table>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between px-4 py-3 border-t text-xs text-muted-foreground">
-            <span>{filtered.length} dossier{filtered.length !== 1 ? 's' : ''}</span>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-t text-xs text-muted-foreground gap-3">
+            <span className="order-2 sm:order-1">{filtered.length} dossier{filtered.length !== 1 ? 's' : ''}</span>
+            <div className="flex items-center justify-center sm:justify-end gap-2 order-1 sm:order-2">
               <Button variant="outline" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="font-medium">{page} / {totalPages}</span>
+              <span className="font-medium text-xs px-1">{page} / {totalPages}</span>
               <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>

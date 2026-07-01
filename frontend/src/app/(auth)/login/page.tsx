@@ -23,10 +23,10 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const DEFAULT_PASSWORD = 'Cecaw2025!';
 
 const DEMO_ACCOUNTS = [
-  { email: 'admin@cecaw.com',      prenom: 'Super',   nom: 'Admin',    role: 'Administrateur' },
-  { email: 'manager@cecaw.com',    prenom: 'Fatou',   nom: 'Manager',  role: 'Manager' },
-  { email: 'backoffice@cecaw.com', prenom: 'Pierre',  nom: 'Backoff',  role: 'Back-office' },
-  { email: 'agent1@cecaw.com',     prenom: 'Jean',    nom: 'Agent',    role: 'Agent Terrain' },
+  { email: 'admin@cecawfinance.com',      prenom: 'Super',   nom: 'Admin',    role: 'Administrateur' },
+  { email: 'manager@cecawfinance.com',    prenom: 'Fatou',   nom: 'Manager',  role: 'Manager' },
+  { email: 'backoffice@cecawfinance.com', prenom: 'Pierre',  nom: 'Backoff',  role: 'Back-office' },
+  { email: 'agent1@cecawfinance.com',     prenom: 'Jean',    nom: 'Agent',    role: 'Agent Terrain' },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
@@ -71,21 +71,21 @@ function LoginForm() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Connexion</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Connexion</h1>
         <p className="text-muted-foreground text-sm">
           Entrez vos identifiants pour accéder à votre espace de travail.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
+        <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="email">Email professionnel</label>
           <Input
             id="email"
             type="email"
-            placeholder="nom@cecaw.cm"
+            placeholder="nom@cecawfinance.com"
             icon={<Mail className="h-4 w-4" />}
             error={!!errors.email}
             autoComplete="email"
@@ -94,7 +94,7 @@ function LoginForm() {
           {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="password">Mot de passe</label>
           <div className="relative">
             <Input
@@ -127,7 +127,7 @@ function LoginForm() {
         <button
           type="button"
           onClick={() => setShowAccounts((v) => !v)}
-          className="w-full flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium hover:bg-muted/30 transition-colors"
+          className="w-full flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-medium hover:bg-muted/30 transition-colors flex-wrap"
         >
           <span className="flex items-center gap-2 text-muted-foreground">
             <Users className="h-4 w-4" />
@@ -146,7 +146,7 @@ function LoginForm() {
                 key={acc.email}
                 type="button"
                 onClick={() => fillAccount(acc.email)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors text-left"
+                className="w-full flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-muted/30 transition-colors text-left flex-wrap sm:flex-nowrap"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="h-7 w-7 rounded-full bg-brand-100 text-brand-700 font-bold text-xs flex items-center justify-center shrink-0">

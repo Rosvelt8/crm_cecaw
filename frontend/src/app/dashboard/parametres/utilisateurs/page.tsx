@@ -197,31 +197,31 @@ export default function UtilisateursPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Utilisateurs</h1>
           <p className="text-sm text-muted-foreground">{utilisateurs.length} comptes enregistrés</p>
         </div>
-        <Button variant="brand" size="sm" onClick={openCreate}>
+        <Button variant="brand" size="sm" onClick={openCreate} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" /> Nouvel utilisateur
         </Button>
       </div>
 
       {/* Filtres */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+        <div className="relative flex-1 w-full sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Nom, email, fonction…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={filterAgence} onValueChange={setFilterAgence}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Toutes les agences" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Toutes les agences" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes les agences</SelectItem>
             {agences.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.nom}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterRole} onValueChange={setFilterRole}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Tous les rôles" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Tous les rôles" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les rôles</SelectItem>
             {(Object.keys(ROLE_LABELS) as BackendRole[]).map((r) => (
@@ -320,7 +320,7 @@ export default function UtilisateursPage() {
       {drawer && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/40" onClick={closeDrawer} />
-          <div className="w-[480px] max-w-full bg-background shadow-2xl border-l flex flex-col overflow-hidden">
+          <div className="w-full sm:w-[480px] bg-background shadow-2xl border-l flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b bg-muted/30">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm shrink-0">
@@ -401,7 +401,7 @@ export default function UtilisateursPage() {
                 </div>
               ) : (
                 <form onSubmit={handleUpdate} className="p-5 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Prénom *</Label>
                       <Input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} />
@@ -470,13 +470,13 @@ export default function UtilisateursPage() {
       {/* ── Modal création ── */}
       {modal === 'create' && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-lg my-4">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-lg my-4">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="font-bold">Nouvel utilisateur</h2>
               <Button variant="ghost" size="icon" onClick={() => setModal(null)}><X className="h-4 w-4" /></Button>
             </div>
             <form onSubmit={handleCreate} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Prénom *</Label>
                   <Input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} />
@@ -494,7 +494,7 @@ export default function UtilisateursPage() {
                 <Label className="text-xs">Fonction</Label>
                 <Input value={form.fonction} onChange={(e) => setForm({ ...form, fonction: e.target.value })} placeholder="ex: Agent de collecte" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Rôle</Label>
                   <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as BackendRole })}>
@@ -539,8 +539,8 @@ export default function UtilisateursPage() {
 
       {/* ── Modal réinitialisation MDP ── */}
       {pwdModal && (
-        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-md my-4">
             <div className="flex items-center justify-between border-b p-4">
               <div>
                 <h2 className="font-bold">Réinitialisation du mot de passe</h2>

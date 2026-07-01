@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 
 const UNREAD_NOTIF_COUNT = 2;
 
-export default function Navbar() {
+export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () => void }) {
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
@@ -25,21 +25,31 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-end border-b bg-white/90 backdrop-blur-md px-6 gap-3">
-      {/* Notifications */}
-      <Link href="/dashboard/logs" className="relative">
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-          <Bell className="h-4 w-4" />
-          {UNREAD_NOTIF_COUNT > 0 && (
-            <span className={cn(
-              'absolute right-1 top-1 flex items-center justify-center rounded-full bg-red-500 text-white font-bold ring-2 ring-white',
-              'h-3.5 w-3.5 text-[8px]'
-            )}>
-              {UNREAD_NOTIF_COUNT}
-            </span>
-          )}
-        </Button>
-      </Link>
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b bg-white/90 backdrop-blur-md px-4 sm:px-6 gap-3">
+      <button
+        type="button"
+        onClick={onMobileMenuClick}
+        className="inline-flex items-center justify-center rounded-lg border border-stone-200 bg-white p-2 text-stone-600 transition-colors hover:bg-muted/80 lg:hidden"
+        aria-label="Ouvrir le menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      <div className="flex items-center gap-3 ml-auto lg:ml-0">
+        <Link href="/dashboard/logs" className="relative">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+            <Bell className="h-4 w-4" />
+            {UNREAD_NOTIF_COUNT > 0 && (
+              <span className={cn(
+                'absolute right-1 top-1 flex items-center justify-center rounded-full bg-red-500 text-white font-bold ring-2 ring-white',
+                'h-3.5 w-3.5 text-[8px]'
+              )}>
+                {UNREAD_NOTIF_COUNT}
+              </span>
+            )}
+          </Button>
+        </Link>
+      </div>
 
       {/* User menu */}
       <DropdownMenu>
