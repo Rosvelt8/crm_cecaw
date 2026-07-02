@@ -25,7 +25,7 @@ export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () =>
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b bg-white/90 backdrop-blur-md px-4 sm:px-6 gap-3">
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center border-b bg-white/90 backdrop-blur-md px-4 sm:px-6 gap-3">
       <button
         type="button"
         onClick={onMobileMenuClick}
@@ -35,7 +35,10 @@ export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () =>
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="flex items-center gap-3 ml-auto lg:ml-0">
+      <div className="flex-1" />
+
+      {/* Right section: Notifications + User menu */}
+      <div className="flex items-center gap-2">
         <Link href="/dashboard/logs" className="relative">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
             <Bell className="h-4 w-4" />
@@ -49,10 +52,9 @@ export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () =>
             )}
           </Button>
         </Link>
-      </div>
 
-      {/* User menu */}
-      <DropdownMenu>
+        {/* User menu */}
+        <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="flex items-center gap-2.5 px-2 h-9 hover:bg-muted/60">
             <div className="hidden sm:flex flex-col items-end leading-none">
@@ -88,7 +90,8 @@ export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () =>
             Déconnexion
           </DropdownMenuItem>
         </DropdownMenuContent>
-      </DropdownMenu>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }

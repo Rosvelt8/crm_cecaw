@@ -13,16 +13,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <AuthGuard requireAuth={true}>
-      <div className="flex min-h-screen bg-background">
+      <div className="flex flex-col min-h-screen bg-background">
+        <Navbar onMobileMenuClick={() => setMobileSidebarOpen(true)} />
         <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
-        <main
-          className={cn(
-            'flex-1 transition-all duration-300',
-            sidebarOpen ? 'lg:pl-64 pl-0' : 'lg:pl-14 pl-0'
-          )}
-        >
-          <Navbar onMobileMenuClick={() => setMobileSidebarOpen(true)} />
-          <div className="p-4 lg:p-6 animate-slide-up">
+        <main className="flex-1 w-full">
+          <div className={cn(
+            'p-4 lg:p-6 animate-slide-up transition-all duration-300',
+            sidebarOpen ? 'lg:ml-64' : 'lg:ml-14'
+          )}>
             {children}
           </div>
         </main>

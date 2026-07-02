@@ -162,7 +162,7 @@ export default function EquipesPage() {
                 <tr><td colSpan={5} className="py-16 text-center text-muted-foreground text-sm">Chargement…</td></tr>
               ) : paginated.map((eq) => {
                 const resp = eq.responsable ?? managers.find((u) => u.id === eq.responsableId);
-                const membreCount = eq._count?.membres ?? eq.membres?.length ?? 0;
+                const membreCount = eq.nb_membres ?? eq._count?.membres ?? eq.membres?.length ?? 0;
                 return (
                   <tr key={eq.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => openDrawer(eq)}>
                     <td className="px-4 py-3">

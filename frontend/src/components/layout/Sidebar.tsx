@@ -131,7 +131,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boo
       <aside
         className={cn(
           'fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 border-r border-stone-200/80 bg-white',
-          'lg:relative lg:top-0 lg:h-auto',
+          'top-14 lg:top-0',
           mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0',
           sidebarOpen ? 'lg:w-64 w-72' : 'lg:w-14 w-72'
         )}

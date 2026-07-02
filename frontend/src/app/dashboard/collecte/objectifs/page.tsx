@@ -153,15 +153,16 @@ export default function ObjectifsPage() {
     try {
       const payload = {
         titre: form.titre,
-        produitId: Number(form.produitId),
+        produit_id: Number(form.produitId),
         cible: parseFloat(form.cible),
         unite: form.unite,
         periodicite: form.periodicite,
-        dateDebut: form.dateDebut,
-        dateFin: form.dateFin,
-        assignationType: form.assignationType,
-        equipeId: form.assignationType === 'equipe' ? Number(form.equipeId) : null,
-        agentIds: form.assignationType === 'agents' ? form.agentIds.map(Number) : [],
+        date_debut: form.dateDebut,
+        date_fin: form.dateFin,
+        assignation_type: form.assignationType,
+        ...(form.assignationType === 'equipe'
+          ? { equipe_id: Number(form.equipeId) }
+          : { agent_ids: form.agentIds.map(Number) }),
       };
 
       if (modal === 'create') {
