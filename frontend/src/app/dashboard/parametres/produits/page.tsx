@@ -74,7 +74,7 @@ export default function ProduitsPage() {
     if (!form.nom.trim() || !form.groupeId) { toast.error('Nom et groupe requis'); return; }
     setSaving(true);
     try {
-      await produitService.createProduit({ nom: form.nom, groupeId: Number(form.groupeId), description: form.description, actif: form.actif });
+      await produitService.createProduit({ nom: form.nom, groupe_id: Number(form.groupeId), description: form.description, actif: form.actif });
       toast.success(`Produit "${form.nom}" créé`);
       setModal(null);
       await load();
@@ -87,7 +87,7 @@ export default function ProduitsPage() {
     if (!drawer || !form.nom.trim() || !form.groupeId) { toast.error('Nom et groupe requis'); return; }
     setSaving(true);
     try {
-      await produitService.updateProduit(drawer.id, { nom: form.nom, groupeId: Number(form.groupeId), description: form.description, actif: form.actif });
+      await produitService.updateProduit(drawer.id, { nom: form.nom, groupe_id: Number(form.groupeId), description: form.description, actif: form.actif });
       toast.success('Produit mis à jour');
       await load();
       closeDrawer();

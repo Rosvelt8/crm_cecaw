@@ -8,7 +8,7 @@ const schema = z.object({
   groupe_id: z.number().int().positive(),
   description: z.string().optional(),
   actif: z.boolean().optional(),
-});
+}).strict();
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {
   try { return success(res, await svc.list(req.query.groupe_id as string, req.query.actif as string, req.query.search as string)); } catch (e) { return next(e); }
