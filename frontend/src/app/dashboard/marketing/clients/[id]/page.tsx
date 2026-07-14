@@ -212,11 +212,14 @@ export default function ClientDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold shrink-0">
-            {client.prenom?.[0]}{client.nom?.[0]}
+            {client.typePersonne === 'morale' ? client.nom?.[0] : <>{client.prenom?.[0]}{client.nom?.[0]}</>}
           </div>
           <div>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-              <h1 className="text-2xl font-bold">{client.prenom} {client.nom}</h1>
+              <h1 className="text-2xl font-bold">{client.typePersonne === 'morale' ? client.nom : `${client.prenom ?? ''} ${client.nom}`}</h1>
+              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold bg-slate-100 text-slate-600">
+                {client.typePersonne === 'morale' ? 'Entreprise' : 'Particulier'}
+              </span>
               <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold', STATUT_CLIENT_COLOR[client.statut] ?? 'bg-muted text-muted-foreground')}>
                 {client.statut === 'actif' ? 'Actif' : client.statut === 'inactif' ? 'Inactif' : 'Blacklisté'}
               </span>
@@ -254,8 +257,19 @@ export default function ClientDetailPage() {
             <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Identité & Contact</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {[
+            {(client.typePersonne === 'morale' ? [
+              { icon: Shield, label: 'Sigle',            value: client.sigle },
+              { icon: Shield, label: 'Forme juridique',  value: client.formeJuridique },
+              { icon: Shield, label: 'N° RCCM',          value: client.rccm },
+              { icon: Shield, label: 'NUI',              value: client.nui },
+              { icon: Users,  label: 'Créée le',         value: client.dateNaissance ? new Date(client.dateNaissance).toLocaleDateString('fr-FR') : undefined },
+              { icon: Shield, label: 'Capital social',   value: client.capitalSocial },
+              { icon: Phone,  label: 'Téléphone',        value: client.telephone },
+              { icon: Phone,  label: 'Tél. secondaire',  value: client.telephoneSecondaire },
+              { icon: Mail,   label: 'Email',            value: client.email },
+            ] : [
               { icon: Shield, label: 'CNI',             value: client.numeroCni ?? client.numeroCNI },
+              { icon: Shield, label: 'NUI',              value: client.nui },
               { icon: Users,  label: 'Genre',            value: client.genre === 'M' ? 'Masculin' : client.genre === 'F' ? 'Féminin' : undefined },
               { icon: Users,  label: 'Né(e) le',         value: client.dateNaissance ? new Date(client.dateNaissance).toLocaleDateString('fr-FR') : undefined },
               { icon: MapPin, label: 'Lieu de naissance',value: client.lieuNaissance },
@@ -265,7 +279,7 @@ export default function ClientDetailPage() {
               { icon: Mail,   label: 'Email',            value: client.email },
               { icon: Users,  label: 'Situation',        value: client.situationFamiliale ? SituationLabel[client.situationFamiliale] : undefined },
               { icon: Users,  label: 'Enfants',          value: client.nombreEnfants != null ? String(client.nombreEnfants) : undefined },
-            ].filter((r) => r.value).map(({ icon: Icon, label, value }) => (
+            ]).filter((r) => r.value).map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-start gap-3">
                 <Icon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <div className="flex-1 flex justify-between">
@@ -286,12 +300,14 @@ export default function ClientDetailPage() {
               { icon: MapPin,    label: 'Adresse',       value: client.adresse },
               { icon: MapPin,    label: 'Quartier',       value: client.quartier },
               { icon: MapPin,    label: 'Ville',          value: client.ville },
-              { icon: Briefcase, label: 'Profession',     value: client.profession },
-              { icon: Briefcase, label: 'Employeur',      value: client.employeur },
+              ...(client.typePersonne === 'morale' ? [] : [
+                { icon: Briefcase, label: 'Profession',     value: client.profession },
+                { icon: Briefcase, label: 'Employeur',      value: client.employeur },
+              ]),
               { icon: Briefcase, label: 'Secteur',        value: client.secteurActivite },
-              { icon: Briefcase, label: 'Revenu mensuel', value: client.revenuMensuel },
-              { icon: Users,     label: 'Référent',       value: client.referentNom ? `${client.referentNom}${client.referentRelation ? ` (${client.referentRelation})` : ''}` : undefined },
-              { icon: Phone,     label: 'Tél. référent',  value: client.referentTelephone },
+              { icon: Briefcase, label: client.typePersonne === 'morale' ? "Chiffre d'affaires" : 'Revenu mensuel', value: client.revenuMensuel },
+              { icon: Users,     label: client.typePersonne === 'morale' ? 'Représentant légal' : 'Référent', value: client.referentNom ? `${client.referentNom}${client.referentRelation ? ` (${client.referentRelation})` : ''}` : undefined },
+              { icon: Phone,     label: client.typePersonne === 'morale' ? 'Tél. représentant' : 'Tél. référent', value: client.referentTelephone },
               { icon: BookOpen,  label: 'Agence',         value: agenceNom },
               { icon: Users,     label: 'Commercial',     value: commercialNom },
             ].filter((r) => r.value && r.value !== '—').map(({ icon: Icon, label, value }) => (

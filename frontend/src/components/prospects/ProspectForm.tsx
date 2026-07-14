@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { produitService } from '@/services/produitService';
 import { userService } from '@/services/userService';
-import type { StatutProspect, GenreProspect, SituationFamiliale } from '@/lib/storage/types';
+import type { StatutProspect, GenreProspect, SituationFamiliale, TypePersonne } from '@/lib/storage/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +30,13 @@ const SECTEURS = ['Agriculture', 'Commerce', 'Artisanat', 'Éducation', 'Santé'
 
 const REVENUS = ['< 50 000 FCFA', '50 000 – 100 000 FCFA', '100 000 – 200 000 FCFA', '200 000 – 500 000 FCFA', '> 500 000 FCFA'];
 
+const CHIFFRES_AFFAIRES = ['< 5 000 000 FCFA', '5 000 000 – 20 000 000 FCFA', '20 000 000 – 50 000 000 FCFA', '50 000 000 – 100 000 000 FCFA', '> 100 000 000 FCFA'];
+
+const FORMES_JURIDIQUES = ['SA', 'SARL', 'SARLU', 'GIC', 'Coopérative', 'Établissement', 'ONG', 'Association', 'Autre'];
+
 export type ProspectFormData = {
+  // Type de personne
+  typePersonne: TypePersonne;
   // Identité
   prenom: string;
   nom: string;
@@ -39,6 +45,12 @@ export type ProspectFormData = {
   lieuNaissance: string;
   nationalite: string;
   numeroCNI: string;
+  nui: string;
+  // Entreprise (type morale)
+  sigle: string;
+  formeJuridique: string;
+  rccm: string;
+  capitalSocial: string;
   // Contact
   telephone: string;
   telephoneSecondaire: string;
@@ -72,7 +84,9 @@ export type ProspectFormData = {
 };
 
 export const EMPTY_FORM: ProspectFormData = {
-  prenom: '', nom: '', genre: '', dateNaissance: '', lieuNaissance: '', nationalite: 'Camerounaise', numeroCNI: '',
+  typePersonne: 'physique',
+  prenom: '', nom: '', genre: '', dateNaissance: '', lieuNaissance: '', nationalite: 'Camerounaise', numeroCNI: '', nui: '',
+  sigle: '', formeJuridique: '', rccm: '', capitalSocial: '',
   telephone: '', telephoneSecondaire: '', email: '',
   adresse: '', quartier: '', ville: '',
   profession: '', employeur: '', secteurActivite: '', revenuMensuel: '',
@@ -160,37 +174,87 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
       </div>
 
       <form id="prospect-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {/* ── Identité ── */}
-        <Section title="Identité" accent="bg-brand-50 border-brand-100">
-          <Field label="Prénom" required>
-            <Input value={form.prenom} onChange={(e) => set({ prenom: e.target.value })} placeholder="Jean" required />
-          </Field>
-          <Field label="Nom" required>
-            <Input value={form.nom} onChange={(e) => set({ nom: e.target.value })} placeholder="MVONDO" required />
-          </Field>
-          <Field label="Genre">
-            <Select value={form.genre || '__none__'} onValueChange={(v) => set({ genre: v === '__none__' ? '' : v as GenreProspect })}>
-              <SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">—</SelectItem>
-                <SelectItem value="M">Masculin</SelectItem>
-                <SelectItem value="F">Féminin</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Date de naissance">
-            <Input type="date" value={form.dateNaissance} onChange={(e) => set({ dateNaissance: e.target.value })} />
-          </Field>
-          <Field label="Lieu de naissance">
-            <Input value={form.lieuNaissance} onChange={(e) => set({ lieuNaissance: e.target.value })} placeholder="Douala" />
-          </Field>
-          <Field label="Nationalité">
-            <Input value={form.nationalite} onChange={(e) => set({ nationalite: e.target.value })} placeholder="Camerounaise" />
-          </Field>
-          <Field label="N° Carte Nationale d'Identité">
-            <Input value={form.numeroCNI} onChange={(e) => set({ numeroCNI: e.target.value })} placeholder="Ex: 123456789" />
+        {/* ── Type de personne ── */}
+        <Section title="Type de personne" accent="bg-brand-50 border-brand-100">
+          <Field label="Type" required full>
+            <div className="flex rounded-lg border overflow-hidden w-fit">
+              {(['physique', 'morale'] as const).map((t) => (
+                <button key={t} type="button" onClick={() => set({ typePersonne: t })}
+                  className={cn('px-5 py-2 text-sm font-semibold transition-colors',
+                    form.typePersonne === t ? 'bg-brand-600 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80')}>
+                  {t === 'physique' ? 'Personne physique' : 'Personne morale (entreprise)'}
+                </button>
+              ))}
+            </div>
           </Field>
         </Section>
+
+        {/* ── Identité ── */}
+        {form.typePersonne === 'physique' ? (
+          <Section title="Identité" accent="bg-brand-50 border-brand-100">
+            <Field label="Prénom" required>
+              <Input value={form.prenom} onChange={(e) => set({ prenom: e.target.value })} placeholder="Jean" required />
+            </Field>
+            <Field label="Nom" required>
+              <Input value={form.nom} onChange={(e) => set({ nom: e.target.value })} placeholder="MVONDO" required />
+            </Field>
+            <Field label="Genre">
+              <Select value={form.genre || '__none__'} onValueChange={(v) => set({ genre: v === '__none__' ? '' : v as GenreProspect })}>
+                <SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  <SelectItem value="M">Masculin</SelectItem>
+                  <SelectItem value="F">Féminin</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Date de naissance">
+              <Input type="date" value={form.dateNaissance} onChange={(e) => set({ dateNaissance: e.target.value })} />
+            </Field>
+            <Field label="Lieu de naissance">
+              <Input value={form.lieuNaissance} onChange={(e) => set({ lieuNaissance: e.target.value })} placeholder="Douala" />
+            </Field>
+            <Field label="Nationalité">
+              <Input value={form.nationalite} onChange={(e) => set({ nationalite: e.target.value })} placeholder="Camerounaise" />
+            </Field>
+            <Field label="N° Carte Nationale d'Identité">
+              <Input value={form.numeroCNI} onChange={(e) => set({ numeroCNI: e.target.value })} placeholder="Ex: 123456789" />
+            </Field>
+            <Field label="NUI (N° d'Identifiant Unique)">
+              <Input value={form.nui} onChange={(e) => set({ nui: e.target.value })} placeholder="Ex: P123456789012A" />
+            </Field>
+          </Section>
+        ) : (
+          <Section title="Identité de l'entreprise" accent="bg-brand-50 border-brand-100">
+            <Field label="Raison sociale" required>
+              <Input value={form.nom} onChange={(e) => set({ nom: e.target.value })} placeholder="CECAW SARL" required />
+            </Field>
+            <Field label="Sigle">
+              <Input value={form.sigle} onChange={(e) => set({ sigle: e.target.value })} placeholder="Ex: CECAW" />
+            </Field>
+            <Field label="Forme juridique" required>
+              <Select value={form.formeJuridique || '__none__'} onValueChange={(v) => set({ formeJuridique: v === '__none__' ? '' : v })}>
+                <SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {FORMES_JURIDIQUES.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="N° RCCM">
+              <Input value={form.rccm} onChange={(e) => set({ rccm: e.target.value })} placeholder="Ex: RC/DLA/2020/B/1234" />
+            </Field>
+            <Field label="NUI (N° d'Identifiant Unique)">
+              <Input value={form.nui} onChange={(e) => set({ nui: e.target.value })} placeholder="Ex: M123456789012A" />
+            </Field>
+            <Field label="Date de création">
+              <Input type="date" value={form.dateNaissance} onChange={(e) => set({ dateNaissance: e.target.value })} />
+            </Field>
+            <Field label="Capital social (FCFA)">
+              <Input value={form.capitalSocial} onChange={(e) => set({ capitalSocial: e.target.value })} placeholder="Ex: 1 000 000" />
+            </Field>
+          </Section>
+        )}
 
         {/* ── Contact ── */}
         <Section title="Contact" accent="bg-blue-50 border-blue-100">
@@ -224,14 +288,18 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
           </Field>
         </Section>
 
-        {/* ── Situation professionnelle ── */}
-        <Section title="Situation professionnelle" accent="bg-amber-50 border-amber-100">
-          <Field label="Profession">
-            <Input value={form.profession} onChange={(e) => set({ profession: e.target.value })} placeholder="Commerçant, Agriculteur…" />
-          </Field>
-          <Field label="Employeur / Entreprise">
-            <Input value={form.employeur} onChange={(e) => set({ employeur: e.target.value })} placeholder="Nom de l'entreprise" />
-          </Field>
+        {/* ── Situation professionnelle / entreprise ── */}
+        <Section title={form.typePersonne === 'physique' ? 'Situation professionnelle' : 'Activité de l\'entreprise'} accent="bg-amber-50 border-amber-100">
+          {form.typePersonne === 'physique' && (
+            <>
+              <Field label="Profession">
+                <Input value={form.profession} onChange={(e) => set({ profession: e.target.value })} placeholder="Commerçant, Agriculteur…" />
+              </Field>
+              <Field label="Employeur / Entreprise">
+                <Input value={form.employeur} onChange={(e) => set({ employeur: e.target.value })} placeholder="Nom de l'entreprise" />
+              </Field>
+            </>
+          )}
           <Field label="Secteur d'activité">
             <Select value={form.secteurActivite || '__none__'} onValueChange={(v) => set({ secteurActivite: v === '__none__' ? '' : v })}>
               <SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger>
@@ -241,46 +309,48 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Revenu mensuel estimé">
+          <Field label={form.typePersonne === 'physique' ? 'Revenu mensuel estimé' : "Chiffre d'affaires annuel estimé"}>
             <Select value={form.revenuMensuel || '__none__'} onValueChange={(v) => set({ revenuMensuel: v === '__none__' ? '' : v })}>
-              <SelectTrigger><SelectValue placeholder="Tranche de revenu" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Tranche" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">—</SelectItem>
-                {REVENUS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                {(form.typePersonne === 'physique' ? REVENUS : CHIFFRES_AFFAIRES).map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
               </SelectContent>
             </Select>
           </Field>
         </Section>
 
-        {/* ── Situation familiale ── */}
-        <Section title="Situation familiale" accent="bg-violet-50 border-violet-100">
-          <Field label="Situation matrimoniale">
-            <Select value={form.situationFamiliale || '__none__'} onValueChange={(v) => set({ situationFamiliale: v === '__none__' ? '' : v as SituationFamiliale })}>
-              <SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">—</SelectItem>
-                <SelectItem value="celibataire">Célibataire</SelectItem>
-                <SelectItem value="marie">Marié(e)</SelectItem>
-                <SelectItem value="divorce">Divorcé(e)</SelectItem>
-                <SelectItem value="veuf">Veuf / Veuve</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Nombre d'enfants">
-            <Input type="number" min="0" max="20" value={form.nombreEnfants} onChange={(e) => set({ nombreEnfants: parseInt(e.target.value) || 0 })} />
-          </Field>
-        </Section>
+        {/* ── Situation familiale (physique uniquement) ── */}
+        {form.typePersonne === 'physique' && (
+          <Section title="Situation familiale" accent="bg-violet-50 border-violet-100">
+            <Field label="Situation matrimoniale">
+              <Select value={form.situationFamiliale || '__none__'} onValueChange={(v) => set({ situationFamiliale: v === '__none__' ? '' : v as SituationFamiliale })}>
+                <SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  <SelectItem value="celibataire">Célibataire</SelectItem>
+                  <SelectItem value="marie">Marié(e)</SelectItem>
+                  <SelectItem value="divorce">Divorcé(e)</SelectItem>
+                  <SelectItem value="veuf">Veuf / Veuve</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Nombre d'enfants">
+              <Input type="number" min="0" max="20" value={form.nombreEnfants} onChange={(e) => set({ nombreEnfants: parseInt(e.target.value) || 0 })} />
+            </Field>
+          </Section>
+        )}
 
-        {/* ── Référent / garant ── */}
-        <Section title="Personne de référence / Garant" accent="bg-slate-50 border-slate-100">
-          <Field label="Nom complet du référent">
+        {/* ── Référent / Représentant légal ── */}
+        <Section title={form.typePersonne === 'physique' ? 'Personne de référence / Garant' : 'Représentant légal'} accent="bg-slate-50 border-slate-100">
+          <Field label={form.typePersonne === 'physique' ? 'Nom complet du référent' : 'Nom du représentant légal'}>
             <Input value={form.referentNom} onChange={(e) => set({ referentNom: e.target.value })} placeholder="Prénom NOM" />
           </Field>
-          <Field label="Téléphone du référent">
+          <Field label="Téléphone">
             <Input value={form.referentTelephone} onChange={(e) => set({ referentTelephone: e.target.value })} placeholder="6xx xxx xxx" />
           </Field>
-          <Field label="Relation">
-            <Input value={form.referentRelation} onChange={(e) => set({ referentRelation: e.target.value })} placeholder="Époux/se, Parent, Collègue…" />
+          <Field label={form.typePersonne === 'physique' ? 'Relation' : 'Fonction'}>
+            <Input value={form.referentRelation} onChange={(e) => set({ referentRelation: e.target.value })} placeholder={form.typePersonne === 'physique' ? 'Époux/se, Parent, Collègue…' : 'Gérant, Directeur Général…'} />
           </Field>
         </Section>
 

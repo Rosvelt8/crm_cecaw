@@ -56,7 +56,7 @@ export default function ProspectsPage() {
       if (isAgent && p.commercialId !== Number(utilisateurId)) return false;
       if (!search) return true;
       const q = search.toLowerCase();
-      return `${p.prenom} ${p.nom} ${p.telephone} ${p.ville ?? ''} ${p.profession ?? ''}`.toLowerCase().includes(q);
+      return `${p.prenom ?? ''} ${p.nom} ${p.telephone} ${p.ville ?? ''} ${p.profession ?? ''}`.toLowerCase().includes(q);
     }),
     [prospects, search, isAgent, utilisateurId]
   );
@@ -155,11 +155,13 @@ export default function ProspectsPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-xs shrink-0">
-                        {p.prenom?.[0]}{p.nom?.[0]}
+                        {p.typePersonne === 'morale' ? p.nom?.[0] : <>{p.prenom?.[0]}{p.nom?.[0]}</>}
                       </div>
                       <div>
-                        <p className="font-semibold text-foreground">{p.prenom} {p.nom}</p>
-                        {p.numeroCni && <p className="text-[11px] text-muted-foreground">CNI {p.numeroCni}</p>}
+                        <p className="font-semibold text-foreground">{p.typePersonne === 'morale' ? p.nom : `${p.prenom ?? ''} ${p.nom}`}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {p.typePersonne === 'morale' ? (p.formeJuridique || 'Entreprise') : (p.numeroCni ? `CNI ${p.numeroCni}` : null)}
+                        </p>
                       </div>
                     </div>
                   </td>

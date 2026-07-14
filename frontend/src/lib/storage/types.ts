@@ -87,6 +87,7 @@ export interface Agent {
 
 export type GenreProspect = 'M' | 'F' | '';
 export type SituationFamiliale = 'celibataire' | 'marie' | 'divorce' | 'veuf' | '';
+export type TypePersonne = 'physique' | 'morale';
 
 export interface Prospect {
   id: string;

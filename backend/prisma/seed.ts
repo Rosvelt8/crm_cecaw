@@ -490,6 +490,15 @@ async function main() {
     });
   }
 
+  // Les upserts ci-dessus insèrent avec des ids explicites, ce qui ne fait pas
+  // avancer les séquences auto-increment de Postgres : on les resynchronise
+  // sur MAX(id) pour éviter des collisions de clé primaire (409) sur les futures créations.
+  for (const table of ['produits', 'groupes_produits', 'agences', 'equipes']) {
+    await prisma.$executeRawUnsafe(
+      `SELECT setval('${table}_id_seq', COALESCE((SELECT MAX(id) FROM ${table}), 1))`
+    );
+  }
+
   console.log('✅ Seed completed!');
   console.log(`   📧 Admin: admin@cecaw.cm / ${DEFAULT_PASSWORD}`);
   console.log(`   📧 Manager: m.ngassa@cecaw.cm / ${DEFAULT_PASSWORD}`);

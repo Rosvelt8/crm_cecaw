@@ -278,7 +278,7 @@ export default function ProduitsPage() {
                 </div>
               ) : (
                 <form onSubmit={handleUpdate} className="space-y-4">
-                  <FormFields compact />
+                  {FormFields({ compact: true })}
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button type="button" variant="ghost" size="sm" onClick={() => setEditMode(false)}>Annuler</Button>
                     <Button type="submit" variant="brand" size="sm" loading={saving}>Enregistrer</Button>
@@ -299,7 +299,7 @@ export default function ProduitsPage() {
               <Button variant="ghost" size="icon" onClick={() => setModal(null)}><X className="h-4 w-4" /></Button>
             </div>
             <form onSubmit={handleCreate} className="p-5 space-y-4">
-              <FormFields />
+              {FormFields({})}
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="ghost" onClick={() => setModal(null)}>Annuler</Button>
                 <Button type="submit" variant="brand" loading={saving}>Créer</Button>

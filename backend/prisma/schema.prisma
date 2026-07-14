@@ -32,6 +32,11 @@ enum SituationFamiliale {
   VIDE @map("")
 }
 
+enum TypePersonne {
+  physique
+  morale
+}
+
 enum StatutProspect {
   nouveau
   contacte
@@ -206,13 +211,19 @@ model Agent {
 
 model Prospect {
   id                  Int                 @id @default(autoincrement())
+  typePersonne        TypePersonne        @default(physique) @map("type_personne")
   nom                 String              @db.VarChar(100)
-  prenom              String              @db.VarChar(100)
+  prenom              String?             @db.VarChar(100)
   genre               Genre?              @default(VIDE)
   dateNaissance       DateTime?           @map("date_naissance") @db.Date
   lieuNaissance       String?             @db.VarChar(150) @map("lieu_naissance")
   nationalite         String?             @db.VarChar(100)
   numeroCni           String?             @db.VarChar(50) @map("numero_cni")
+  nui                 String?             @db.VarChar(50)
+  formeJuridique      String?             @db.VarChar(100) @map("forme_juridique")
+  sigle               String?             @db.VarChar(100)
+  rccm                String?             @db.VarChar(50)
+  capitalSocial       String?             @db.VarChar(50) @map("capital_social")
   telephone           String              @db.VarChar(30)
   telephoneSecondaire String?             @db.VarChar(30) @map("telephone_secondaire")
   email               String?             @db.VarChar(255)
@@ -269,13 +280,19 @@ model PieceJointe {
 model Client {
   id                  Int                 @id @default(autoincrement())
   prospectId          Int?                @map("prospect_id")
+  typePersonne        TypePersonne        @default(physique) @map("type_personne")
   nom                 String              @db.VarChar(100)
-  prenom              String              @db.VarChar(100)
+  prenom              String?             @db.VarChar(100)
   genre               Genre?              @default(VIDE)
   dateNaissance       DateTime?           @map("date_naissance") @db.Date
   lieuNaissance       String?             @db.VarChar(150) @map("lieu_naissance")
   nationalite         String?             @db.VarChar(100)
   numeroCni           String?             @db.VarChar(50) @map("numero_cni")
+  nui                 String?             @db.VarChar(50)
+  formeJuridique      String?             @db.VarChar(100) @map("forme_juridique")
+  sigle               String?             @db.VarChar(100)
+  rccm                String?             @db.VarChar(50)
+  capitalSocial       String?             @db.VarChar(50) @map("capital_social")
   telephone           String              @db.VarChar(30)
   telephoneSecondaire String?             @db.VarChar(30) @map("telephone_secondaire")
   email               String              @db.VarChar(255)

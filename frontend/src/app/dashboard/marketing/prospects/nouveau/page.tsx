@@ -20,10 +20,26 @@ export default function NouveauProspectPage() {
     try {
       const commercialId = isAgent && utilisateurId ? utilisateurId : data.commercialId;
       await prospectService.create({
-        ...data,
-        commercialId: commercialId ? Number(commercialId) : null,
-        produitInteretId: data.produitInteretId ? Number(data.produitInteretId) : null,
-        piecesJointes: undefined,
+        type_personne: data.typePersonne,
+        nom: data.nom, prenom: data.prenom || undefined,
+        genre: data.genre, date_naissance: data.dateNaissance || undefined,
+        lieu_naissance: data.lieuNaissance || undefined, nationalite: data.nationalite || undefined,
+        numero_cni: data.numeroCNI || undefined, nui: data.nui || undefined,
+        forme_juridique: data.formeJuridique || undefined, sigle: data.sigle || undefined,
+        rccm: data.rccm || undefined, capital_social: data.capitalSocial || undefined,
+        telephone: data.telephone, telephone_secondaire: data.telephoneSecondaire || undefined,
+        email: data.email || undefined,
+        adresse: data.adresse || undefined, quartier: data.quartier || undefined, ville: data.ville || undefined,
+        profession: data.profession || undefined, employeur: data.employeur || undefined,
+        secteur_activite: data.secteurActivite || undefined, revenu_mensuel: data.revenuMensuel || undefined,
+        situation_familiale: data.situationFamiliale, nombre_enfants: data.nombreEnfants,
+        referent_nom: data.referentNom || undefined, referent_telephone: data.referentTelephone || undefined,
+        referent_relation: data.referentRelation || undefined,
+        statut: data.statut,
+        produit_interet_id: data.produitInteretId ? Number(data.produitInteretId) : null,
+        commercial_id: commercialId ? Number(commercialId) : undefined,
+        notes: data.notes || undefined,
+        latitude: data.latitude ?? undefined, longitude: data.longitude ?? undefined,
       });
       toast.success(`Prospect ${data.prenom} ${data.nom} créé`);
       router.push('/dashboard/marketing/prospects');

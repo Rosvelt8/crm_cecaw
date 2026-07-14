@@ -53,7 +53,7 @@ export default function ClientsPage() {
       if (isAgent && c.commercialId !== Number(utilisateurId)) return false;
       if (!search) return true;
       const q = search.toLowerCase();
-      return `${c.prenom} ${c.nom} ${c.telephone} ${c.email ?? ''} ${c.ville ?? ''}`.toLowerCase().includes(q);
+      return `${c.prenom ?? ''} ${c.nom} ${c.telephone} ${c.email ?? ''} ${c.ville ?? ''}`.toLowerCase().includes(q);
     }),
     [clients, search, isAgent, utilisateurId]
   );
@@ -148,11 +148,13 @@ export default function ClientsPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-xs shrink-0">
-                        {c.prenom?.[0]}{c.nom?.[0]}
+                        {c.typePersonne === 'morale' ? c.nom?.[0] : <>{c.prenom?.[0]}{c.nom?.[0]}</>}
                       </div>
                       <div>
-                        <p className="font-semibold">{c.prenom} {c.nom}</p>
-                        {c.numeroCni && <p className="text-[11px] text-muted-foreground">CNI {c.numeroCni}</p>}
+                        <p className="font-semibold">{c.typePersonne === 'morale' ? c.nom : `${c.prenom ?? ''} ${c.nom}`}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {c.typePersonne === 'morale' ? (c.formeJuridique || 'Entreprise') : (c.numeroCni ? `CNI ${c.numeroCni}` : null)}
+                        </p>
                       </div>
                     </div>
                   </td>

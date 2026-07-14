@@ -20,13 +20,19 @@ export default function ModifierProspectPage() {
     prospectService.getProspect(id).then((p) => {
       setProspect(p);
       setDefaultValues({
+        typePersonne: p.typePersonne ?? 'physique',
         prenom: p.prenom ?? '',
         nom: p.nom ?? '',
-        genre: p.genre ?? '',
+        genre: p.genre && p.genre !== 'VIDE' ? p.genre : '',
         dateNaissance: p.dateNaissance ?? '',
         lieuNaissance: p.lieuNaissance ?? '',
         nationalite: p.nationalite ?? 'Camerounaise',
         numeroCNI: p.numeroCni ?? p.numeroCNI ?? '',
+        nui: p.nui ?? '',
+        sigle: p.sigle ?? '',
+        formeJuridique: p.formeJuridique ?? '',
+        rccm: p.rccm ?? '',
+        capitalSocial: p.capitalSocial ?? '',
         telephone: p.telephone ?? '',
         telephoneSecondaire: p.telephoneSecondaire ?? '',
         email: p.email ?? '',
@@ -37,7 +43,7 @@ export default function ModifierProspectPage() {
         employeur: p.employeur ?? '',
         secteurActivite: p.secteurActivite ?? '',
         revenuMensuel: p.revenuMensuel ?? '',
-        situationFamiliale: p.situationFamiliale ?? '',
+        situationFamiliale: p.situationFamiliale && p.situationFamiliale !== 'VIDE' ? p.situationFamiliale : '',
         nombreEnfants: p.nombreEnfants ?? 0,
         referentNom: p.referentNom ?? '',
         referentTelephone: p.referentTelephone ?? '',
@@ -81,10 +87,26 @@ export default function ModifierProspectPage() {
     setIsSubmitting(true);
     try {
       await prospectService.update(id, {
-        ...data,
-        commercialId: data.commercialId ? Number(data.commercialId) : null,
-        produitInteretId: data.produitInteretId ? Number(data.produitInteretId) : null,
-        piecesJointes: undefined,
+        type_personne: data.typePersonne,
+        nom: data.nom, prenom: data.prenom || undefined,
+        genre: data.genre, date_naissance: data.dateNaissance || undefined,
+        lieu_naissance: data.lieuNaissance || undefined, nationalite: data.nationalite || undefined,
+        numero_cni: data.numeroCNI || undefined, nui: data.nui || undefined,
+        forme_juridique: data.formeJuridique || undefined, sigle: data.sigle || undefined,
+        rccm: data.rccm || undefined, capital_social: data.capitalSocial || undefined,
+        telephone: data.telephone, telephone_secondaire: data.telephoneSecondaire || undefined,
+        email: data.email || undefined,
+        adresse: data.adresse || undefined, quartier: data.quartier || undefined, ville: data.ville || undefined,
+        profession: data.profession || undefined, employeur: data.employeur || undefined,
+        secteur_activite: data.secteurActivite || undefined, revenu_mensuel: data.revenuMensuel || undefined,
+        situation_familiale: data.situationFamiliale, nombre_enfants: data.nombreEnfants,
+        referent_nom: data.referentNom || undefined, referent_telephone: data.referentTelephone || undefined,
+        referent_relation: data.referentRelation || undefined,
+        statut: data.statut,
+        produit_interet_id: data.produitInteretId ? Number(data.produitInteretId) : null,
+        commercial_id: data.commercialId ? Number(data.commercialId) : undefined,
+        notes: data.notes || undefined,
+        latitude: data.latitude ?? undefined, longitude: data.longitude ?? undefined,
       });
       toast.success('Prospect mis à jour');
       router.push('/dashboard/marketing/prospects');

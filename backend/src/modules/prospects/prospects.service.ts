@@ -68,13 +68,19 @@ export async function getOne(id: number) {
 export async function create(data: Record<string, unknown>, actor: JwtPayload) {
   const p = await prisma.prospect.create({
     data: {
+      typePersonne: (data.type_personne as never) ?? 'physique',
       nom: data.nom as string,
-      prenom: data.prenom as string,
-      genre: (data.genre as never) ?? 'VIDE',
+      prenom: data.prenom as string | undefined,
+      genre: ((data.genre as string) || 'VIDE') as never,
       dateNaissance: data.date_naissance ? new Date(data.date_naissance as string) : null,
       lieuNaissance: data.lieu_naissance as string | undefined,
       nationalite: data.nationalite as string | undefined,
       numeroCni: data.numero_cni as string | undefined,
+      nui: data.nui as string | undefined,
+      formeJuridique: data.forme_juridique as string | undefined,
+      sigle: data.sigle as string | undefined,
+      rccm: data.rccm as string | undefined,
+      capitalSocial: data.capital_social as string | undefined,
       telephone: data.telephone as string,
       telephoneSecondaire: data.telephone_secondaire as string | undefined,
       email: data.email as string | undefined,
@@ -85,7 +91,7 @@ export async function create(data: Record<string, unknown>, actor: JwtPayload) {
       employeur: data.employeur as string | undefined,
       secteurActivite: data.secteur_activite as string | undefined,
       revenuMensuel: data.revenu_mensuel as string | undefined,
-      situationFamiliale: (data.situation_familiale as never) ?? 'VIDE',
+      situationFamiliale: ((data.situation_familiale as string) || 'VIDE') as never,
       nombreEnfants: (data.nombre_enfants as number) ?? 0,
       referentNom: data.referent_nom as string | undefined,
       referentTelephone: data.referent_telephone as string | undefined,
@@ -107,13 +113,19 @@ export async function update(id: number, data: Record<string, unknown>, actor: J
   const p = await prisma.prospect.update({
     where: { id },
     data: {
+      ...(data.type_personne !== undefined && { typePersonne: data.type_personne as never }),
       ...(data.nom !== undefined && { nom: data.nom as string }),
       ...(data.prenom !== undefined && { prenom: data.prenom as string }),
-      ...(data.genre !== undefined && { genre: data.genre as never }),
+      ...(data.genre !== undefined && { genre: ((data.genre as string) || 'VIDE') as never }),
       ...(data.date_naissance !== undefined && { dateNaissance: new Date(data.date_naissance as string) }),
       ...(data.lieu_naissance !== undefined && { lieuNaissance: data.lieu_naissance as string }),
       ...(data.nationalite !== undefined && { nationalite: data.nationalite as string }),
       ...(data.numero_cni !== undefined && { numeroCni: data.numero_cni as string }),
+      ...(data.nui !== undefined && { nui: data.nui as string }),
+      ...(data.forme_juridique !== undefined && { formeJuridique: data.forme_juridique as string }),
+      ...(data.sigle !== undefined && { sigle: data.sigle as string }),
+      ...(data.rccm !== undefined && { rccm: data.rccm as string }),
+      ...(data.capital_social !== undefined && { capitalSocial: data.capital_social as string }),
       ...(data.telephone !== undefined && { telephone: data.telephone as string }),
       ...(data.telephone_secondaire !== undefined && { telephoneSecondaire: data.telephone_secondaire as string }),
       ...(data.email !== undefined && { email: data.email as string }),
@@ -121,7 +133,7 @@ export async function update(id: number, data: Record<string, unknown>, actor: J
       ...(data.quartier !== undefined && { quartier: data.quartier as string }),
       ...(data.ville !== undefined && { ville: data.ville as string }),
       ...(data.profession !== undefined && { profession: data.profession as string }),
-      ...(data.situation_familiale !== undefined && { situationFamiliale: data.situation_familiale as never }),
+      ...(data.situation_familiale !== undefined && { situationFamiliale: ((data.situation_familiale as string) || 'VIDE') as never }),
       ...(data.nombre_enfants !== undefined && { nombreEnfants: data.nombre_enfants as number }),
       ...(data.statut !== undefined && { statut: data.statut as StatutProspect }),
       ...(data.produit_interet_id !== undefined && { produitInteretId: data.produit_interet_id as number | null }),
@@ -149,10 +161,14 @@ export async function updateStatut(id: number, statut: StatutProspect, actor: Jw
     const client = await prisma.client.create({
       data: {
         prospectId: id,
+        typePersonne: current.typePersonne,
         nom: current.nom, prenom: current.prenom,
         genre: current.genre, dateNaissance: current.dateNaissance,
         lieuNaissance: current.lieuNaissance, nationalite: current.nationalite,
-        numeroCni: current.numeroCni, telephone: current.telephone,
+        numeroCni: current.numeroCni, nui: current.nui,
+        formeJuridique: current.formeJuridique, sigle: current.sigle,
+        rccm: current.rccm, capitalSocial: current.capitalSocial,
+        telephone: current.telephone,
         telephoneSecondaire: current.telephoneSecondaire,
         email: current.email ?? '', adresse: current.adresse ?? '',
         quartier: current.quartier, ville: current.ville,
@@ -171,7 +187,7 @@ export async function updateStatut(id: number, statut: StatutProspect, actor: Jw
     await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'marketing', action: 'CONVERT_PROSPECT', entiteType: 'prospect', entiteId: id, description: `Conversion du prospect ${current.prenom} ${current.nom} en client`, impact: '+1 client' });
     if (current.email) {
       const agence = await prisma.agence.findUnique({ where: { id: actor.agenceId ?? 1 }, select: { nom: true } });
-      sendBienvenueClient({ to: current.email, prenom: current.prenom, nom: current.nom, agence: agence?.nom ?? 'CECAW' }).catch(() => {});
+      sendBienvenueClient({ to: current.email, prenom: current.prenom ?? '', nom: current.nom, agence: agence?.nom ?? 'CECAW' }).catch(() => {});
     }
     return { prospect: p, client_cree: client };
   }

@@ -20,13 +20,19 @@ export default function ModifierClientPage() {
     clientService.getClient(id).then((c) => {
       setClient(c);
       setDefaultValues({
+        typePersonne: c.typePersonne ?? 'physique',
         prenom: c.prenom ?? '',
         nom: c.nom ?? '',
-        genre: c.genre ?? '',
+        genre: c.genre && c.genre !== 'VIDE' ? c.genre : '',
         dateNaissance: c.dateNaissance ?? '',
         lieuNaissance: c.lieuNaissance ?? '',
         nationalite: c.nationalite ?? 'Camerounaise',
         numeroCNI: c.numeroCni ?? c.numeroCNI ?? '',
+        nui: c.nui ?? '',
+        sigle: c.sigle ?? '',
+        formeJuridique: c.formeJuridique ?? '',
+        rccm: c.rccm ?? '',
+        capitalSocial: c.capitalSocial ?? '',
         telephone: c.telephone ?? '',
         telephoneSecondaire: c.telephoneSecondaire ?? '',
         email: c.email ?? '',
@@ -37,7 +43,7 @@ export default function ModifierClientPage() {
         employeur: c.employeur ?? '',
         secteurActivite: c.secteurActivite ?? '',
         revenuMensuel: c.revenuMensuel ?? '',
-        situationFamiliale: c.situationFamiliale ?? '',
+        situationFamiliale: c.situationFamiliale && c.situationFamiliale !== 'VIDE' ? c.situationFamiliale : '',
         nombreEnfants: c.nombreEnfants ?? 0,
         referentNom: c.referentNom ?? '',
         referentTelephone: c.referentTelephone ?? '',
@@ -79,10 +85,26 @@ export default function ModifierClientPage() {
     setIsSubmitting(true);
     try {
       await clientService.update(id, {
-        ...data,
-        commercialId: data.commercialId ? Number(data.commercialId) : null,
-        agenceId: data.agenceId ? Number(data.agenceId) : null,
-        piecesJointes: undefined,
+        type_personne: data.typePersonne,
+        nom: data.nom, prenom: data.prenom || undefined,
+        genre: data.genre, date_naissance: data.dateNaissance || undefined,
+        lieu_naissance: data.lieuNaissance || undefined, nationalite: data.nationalite || undefined,
+        numero_cni: data.numeroCNI || undefined, nui: data.nui || undefined,
+        forme_juridique: data.formeJuridique || undefined, sigle: data.sigle || undefined,
+        rccm: data.rccm || undefined, capital_social: data.capitalSocial || undefined,
+        telephone: data.telephone, telephone_secondaire: data.telephoneSecondaire || undefined,
+        email: data.email || undefined,
+        adresse: data.adresse || undefined, quartier: data.quartier || undefined, ville: data.ville || undefined,
+        profession: data.profession || undefined, employeur: data.employeur || undefined,
+        secteur_activite: data.secteurActivite || undefined, revenu_mensuel: data.revenuMensuel || undefined,
+        situation_familiale: data.situationFamiliale, nombre_enfants: data.nombreEnfants,
+        referent_nom: data.referentNom || undefined, referent_telephone: data.referentTelephone || undefined,
+        referent_relation: data.referentRelation || undefined,
+        statut: data.statut,
+        commercial_id: data.commercialId ? Number(data.commercialId) : undefined,
+        agence_id: data.agenceId ? Number(data.agenceId) : undefined,
+        notes: data.notes || undefined,
+        latitude: data.latitude ?? undefined, longitude: data.longitude ?? undefined,
       });
       toast.success('Client mis à jour');
       router.push(`/dashboard/marketing/clients/${id}`);
