@@ -10,13 +10,13 @@ import Image from 'next/image';
 import {
   Users, UserSquare2, BookOpen, ArrowLeftRight,
   UserCog, Target, MapPin,
-  BarChart2, ScrollText,
+  BarChart2, ScrollText, Settings,
   Layers, Package, Building2, UsersRound, ShieldCheck,
   LogOut, PanelLeftClose, PanelLeftOpen, ChevronDown, LayoutDashboard,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
-type NavItem  = { label: string; href: string; icon: React.ElementType };
+type NavItem  = { label: string; href: string; icon: React.ElementType; exact?: boolean };
 type NavGroup = {
   icon?: React.ElementType;
   id: string;
@@ -71,6 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
     accent: 'text-slate-500',
     icon: UserCog,
     items: [
+      { label: 'Général',      href: '/dashboard/parametres',              icon: Settings, exact: true },
       { label: 'Groupes',      href: '/dashboard/parametres/groupes',      icon: Layers },
       { label: 'Produits',     href: '/dashboard/parametres/produits',      icon: Package },
       { label: 'Agences',      href: '/dashboard/parametres/agences',       icon: Building2 },
@@ -116,8 +117,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boo
   // for the permanently-docked desktop sidebar, not a full-width overlay drawer.
   const showFull = mobileOpen || sidebarOpen;
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + '/');
+  const isActive = (href: string, exact?: boolean) =>
+    pathname === href || (!exact && pathname.startsWith(href + '/'));
 
   const handleLogout = () => {
     logout();
@@ -236,7 +237,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boo
 
         {visibleGroups.map((group, i) => {
           const isOpen = openGroups[group.id];
-          const hasActive = group.items.some(item => isActive(item.href));
+          const hasActive = group.items.some(item => isActive(item.href, item.exact));
 
           return (
             <div key={group.id} className={cn(i > 0 && showFull && 'mt-5')}>
@@ -270,7 +271,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boo
               {(showFull ? isOpen : true) && (
                 <div className={cn('space-y-[2px]', showFull ? 'px-2 pb-1' : 'px-1.5')}>
                   {group.items.map(item => {
-                    const active = isActive(item.href);
+                    const active = isActive(item.href, item.exact);
                     return (
                       <Link
                         key={item.href}

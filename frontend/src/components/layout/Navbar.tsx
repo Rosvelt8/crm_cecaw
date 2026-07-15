@@ -78,7 +78,7 @@ export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () =>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href="/dashboard/parametres/utilisateurs" className="text-sm cursor-pointer">
+            <Link href="/dashboard/parametres" className="text-sm cursor-pointer">
               Paramètres
             </Link>
           </DropdownMenuItem>

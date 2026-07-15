@@ -20,14 +20,7 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const DEFAULT_PASSWORD = 'Cecaw2025!';
 
-const DEMO_ACCOUNTS = [
-  { email: 'admin@cecawfinance.com',      prenom: 'Super',   nom: 'Admin',    role: 'Administrateur' },
-  { email: 'manager@cecawfinance.com',    prenom: 'Fatou',   nom: 'Manager',  role: 'Manager' },
-  { email: 'backoffice@cecawfinance.com', prenom: 'Pierre',  nom: 'Backoff',  role: 'Back-office' },
-  { email: 'agent1@cecawfinance.com',     prenom: 'Jean',    nom: 'Agent',    role: 'Agent Terrain' },
-];
 
 const ROLE_COLORS: Record<string, string> = {
   'Administrateur':  'bg-purple-100 text-purple-700',
@@ -39,7 +32,6 @@ const ROLE_COLORS: Record<string, string> = {
 function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showAccounts, setShowAccounts] = useState(false);
   const { setAuth } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -49,12 +41,7 @@ function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
-  const fillAccount = (email: string) => {
-    setValue('email', email);
-    setValue('password', DEFAULT_PASSWORD);
-    setShowAccounts(false);
-  };
-
+ 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
@@ -85,7 +72,7 @@ function LoginForm() {
           <Input
             id="email"
             type="email"
-            placeholder="nom@cecawfinance.com"
+            placeholder="nom@cecaw.cm"
             icon={<Mail className="h-4 w-4" />}
             error={!!errors.email}
             autoComplete="email"
@@ -122,49 +109,7 @@ function LoginForm() {
         </Button>
       </form>
 
-      {/* Comptes disponibles */}
-      <div className="rounded-xl border border-dashed border-muted-foreground/30 overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setShowAccounts((v) => !v)}
-          className="w-full flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-medium hover:bg-muted/30 transition-colors flex-wrap"
-        >
-          <span className="flex items-center gap-2 text-muted-foreground">
-            <Users className="h-4 w-4" />
-            Comptes de démonstration
-          </span>
-          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className="font-mono bg-muted rounded px-1.5 py-0.5">{DEFAULT_PASSWORD}</span>
-            {showAccounts ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </span>
-        </button>
-
-        {showAccounts && (
-          <div className="border-t divide-y">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => fillAccount(acc.email)}
-                className="w-full flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-muted/30 transition-colors text-left flex-wrap sm:flex-nowrap"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-7 w-7 rounded-full bg-brand-100 text-brand-700 font-bold text-xs flex items-center justify-center shrink-0">
-                    {acc.prenom[0]}{acc.nom[0]}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{acc.prenom} {acc.nom}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">{acc.email}</p>
-                  </div>
-                </div>
-                <span className={cn('shrink-0 text-[10px] font-bold rounded-full px-2 py-0.5', ROLE_COLORS[acc.role] ?? 'bg-slate-100 text-slate-600')}>
-                  {acc.role}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+     
     </div>
   );
 }
