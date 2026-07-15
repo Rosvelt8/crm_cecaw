@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { z } from 'zod';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { authService } from '@/services/authService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -24,6 +25,16 @@ const ROLE_COLORS: Record<string, string> = {
   agent: 'bg-emerald-100 text-emerald-700 border-emerald-200',
 };
 
+const profilSchema = z.object({
+  fonction: z.string().trim().max(150, 'Maximum 150 caractères').optional(),
+});
+
+const pwdSchema = z.object({
+  current: z.string().min(1, 'Mot de passe actuel requis'),
+  next: z.string().min(6, 'Le nouveau mot de passe doit contenir au moins 6 caractères'),
+  confirm: z.string(),
+}).refine((d) => d.next === d.confirm, { message: 'Les mots de passe ne correspondent pas', path: ['confirm'] });
+
 export default function ProfilPage() {
   const { user, setUser } = useAuthStore();
 
@@ -46,6 +57,8 @@ export default function ProfilPage() {
 
   const handleUpdateProfil = async (e: React.FormEvent) => {
     e.preventDefault();
+    const result = profilSchema.safeParse(form);
+    if (!result.success) { toast.error(result.error.issues[0].message); return; }
     setSaving(true);
     try {
       const updated = await authService.updateMe({ fonction: form.fonction });
@@ -61,15 +74,8 @@ export default function ProfilPage() {
 
   const handleChangePwd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pwdForm.current || !pwdForm.next || !pwdForm.confirm) {
-      toast.error('Tous les champs sont requis'); return;
-    }
-    if (pwdForm.next.length < 6) {
-      toast.error('Le nouveau mot de passe doit contenir au moins 6 caractères'); return;
-    }
-    if (pwdForm.next !== pwdForm.confirm) {
-      toast.error('Les mots de passe ne correspondent pas'); return;
-    }
+    const result = pwdSchema.safeParse(pwdForm);
+    if (!result.success) { toast.error(result.error.issues[0].message); return; }
     setPwdSaving(true);
     try {
       await authService.changePassword({

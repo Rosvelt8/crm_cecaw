@@ -39,8 +39,8 @@ const baseSchema = z.object({
   statut: z.nativeEnum(StatutClient).optional(),
   prospect_id: z.number().int().positive().optional().nullable(),
   notes: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  latitude: z.coerce.number().optional(),
+  longitude: z.coerce.number().optional(),
 });
 
 function refineTypePersonne(data: { type_personne?: string; prenom?: string; forme_juridique?: string }, ctx: z.RefinementCtx) {

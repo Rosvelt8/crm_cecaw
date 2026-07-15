@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { z } from 'zod';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { agentService } from '@/services/agentService';
@@ -24,6 +25,22 @@ function isOnline(dernierePositionAt: string | null): boolean {
 type Form = { utilisateurId: string; matricule: string; secteur: string };
 const EMPTY: Form = { utilisateurId: '', matricule: '', secteur: '' };
 
+const agentSchema = z.object({
+  utilisateurId: z.string().optional(),
+  matricule: z.string().trim().min(1, 'Matricule requis').max(50, 'Maximum 50 caractères'),
+  secteur: z.string().trim().max(200, 'Maximum 200 caractères').optional(),
+});
+
+function validateForm(form: Form, isCreate: boolean): Record<string, string> | null {
+  const result = agentSchema.safeParse(form);
+  const errors: Record<string, string> = {};
+  if (!result.success) {
+    result.error.issues.forEach((issue) => { errors[String(issue.path[0])] = issue.message; });
+  }
+  if (isCreate && !form.utilisateurId) errors.utilisateurId = 'Utilisateur requis';
+  return Object.keys(errors).length > 0 ? errors : null;
+}
+
 export default function AgentsPage() {
   const router = useRouter();
 
@@ -37,6 +54,7 @@ export default function AgentsPage() {
   const [modal, setModal] = useState<'create' | { id: number } | null>(null);
   const [form, setForm] = useState<Form>(EMPTY);
   const [confirmId, setConfirmId] = useState<number | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,19 +106,22 @@ export default function AgentsPage() {
 
   const openCreate = async () => {
     setForm(EMPTY);
+    setErrors({});
     await loadUsers();
     setModal('create');
   };
 
   const openEdit = (a: any) => {
     setForm({ utilisateurId: String(a.utilisateurId), matricule: a.matricule ?? '', secteur: a.secteur ?? '' });
+    setErrors({});
     setModal({ id: a.id });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (modal === 'create' && !form.utilisateurId) { toast.error('Utilisateur requis'); return; }
-    if (!form.matricule.trim()) { toast.error('Matricule requis'); return; }
+    const fieldErrors = validateForm(form, modal === 'create');
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       if (modal === 'create') {
@@ -264,15 +285,18 @@ export default function AgentsPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {errors.utilisateurId && <p className="text-xs text-red-500">{errors.utilisateurId}</p>}
                 </div>
               )}
               <div className="space-y-2">
                 <Label>Matricule <span className="text-red-500">*</span></Label>
                 <Input value={form.matricule} onChange={(e) => setForm({ ...form, matricule: e.target.value })} placeholder="ex: AGT-004" />
+                {errors.matricule && <p className="text-xs text-red-500">{errors.matricule}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Secteur / Zone</Label>
                 <Input value={form.secteur} onChange={(e) => setForm({ ...form, secteur: e.target.value })} placeholder="ex: Zone Akwa-Nord" />
+                {errors.secteur && <p className="text-xs text-red-500">{errors.secteur}</p>}
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="ghost" onClick={() => setModal(null)}>Annuler</Button>

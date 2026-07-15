@@ -52,8 +52,8 @@ function NouveauClientContent() {
         commercialId: p.commercialId ? String(p.commercialId) : (p.commercial?.id ? String(p.commercial.id) : ''),
         statut: 'actif',
         notes: p.notes ?? '',
-        latitude: p.latitude ?? null,
-        longitude: p.longitude ?? null,
+        latitude: p.latitude != null ? Number(p.latitude) : null,
+        longitude: p.longitude != null ? Number(p.longitude) : null,
         piecesJointes: [],
       });
     }).catch(() => toast.error('Impossible de charger le prospect'))

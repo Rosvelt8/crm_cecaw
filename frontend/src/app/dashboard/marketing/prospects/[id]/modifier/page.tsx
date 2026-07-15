@@ -52,8 +52,8 @@ export default function ModifierProspectPage() {
         produitInteretId: p.produitInteretId ? String(p.produitInteretId) : '',
         commercialId: p.commercialId ? String(p.commercialId) : (p.commercial?.id ? String(p.commercial.id) : ''),
         notes: p.notes ?? '',
-        latitude: p.latitude ?? null,
-        longitude: p.longitude ?? null,
+        latitude: p.latitude != null ? Number(p.latitude) : null,
+        longitude: p.longitude != null ? Number(p.longitude) : null,
         piecesJointes: [],
       });
     }).catch(() => {

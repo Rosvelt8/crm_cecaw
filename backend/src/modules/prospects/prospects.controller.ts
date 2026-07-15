@@ -38,8 +38,8 @@ const baseSchema = z.object({
   produit_interet_id: z.number().int().positive().optional().nullable(),
   commercial_id: z.number().int().positive().optional(),
   notes: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  latitude: z.coerce.number().optional(),
+  longitude: z.coerce.number().optional(),
 });
 
 function refineTypePersonne(data: { type_personne?: string; prenom?: string; forme_juridique?: string }, ctx: z.RefinementCtx) {

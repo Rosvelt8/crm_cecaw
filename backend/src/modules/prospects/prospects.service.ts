@@ -6,9 +6,9 @@ import { StatutProspect } from '@prisma/client';
 import { sendBienvenueClient } from '../../lib/mailer';
 
 const TRANSITIONS: Record<StatutProspect, StatutProspect[]> = {
-  nouveau: ['contacte', 'interesse', 'perdu'],
-  contacte: ['interesse', 'perdu'],
-  interesse: ['negocie', 'perdu'],
+  nouveau: ['contacte', 'interesse', 'negocie', 'converti', 'perdu'],
+  contacte: ['interesse', 'negocie', 'converti', 'perdu'],
+  interesse: ['negocie', 'converti', 'perdu'],
   negocie: ['converti', 'perdu'],
   converti: [],
   perdu: ['nouveau'],

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { z } from 'zod';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { produitService } from '@/services/produitService';
@@ -15,6 +16,21 @@ import { toast } from 'sonner';
 
 type Form = { nom: string; groupeId: string; description: string; actif: boolean };
 const EMPTY: Form = { nom: '', groupeId: '', description: '', actif: true };
+
+const produitSchema = z.object({
+  nom: z.string().trim().min(1, 'Nom requis').max(200, 'Maximum 200 caractères'),
+  groupeId: z.string().trim().min(1, 'Groupe requis'),
+  description: z.string().trim().max(500, 'Maximum 500 caractères').optional().or(z.literal('')),
+  actif: z.boolean(),
+});
+
+function validateForm(form: Form): Record<string, string> | null {
+  const result = produitSchema.safeParse(form);
+  if (result.success) return null;
+  const errors: Record<string, string> = {};
+  result.error.issues.forEach((issue) => { errors[String(issue.path[0])] = issue.message; });
+  return errors;
+}
 
 const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
   <button type="button" onClick={onChange}
@@ -34,6 +50,7 @@ export default function ProduitsPage() {
   const [drawer, setDrawer] = useState<any | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<Form>(EMPTY);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmId, setConfirmId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -64,14 +81,16 @@ export default function ProduitsPage() {
   const getGroupe = (id: number | string) => groupes.find((g) => g.id === id || String(g.id) === String(id));
 
   const openDrawer = (p: any) => {
-    setDrawer(p); setEditMode(false);
+    setDrawer(p); setEditMode(false); setErrors({});
     setForm({ nom: p.nom, groupeId: String(p.groupeId), description: p.description ?? '', actif: p.actif ?? true });
   };
   const closeDrawer = () => { setDrawer(null); setEditMode(false); };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nom.trim() || !form.groupeId) { toast.error('Nom et groupe requis'); return; }
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       await produitService.createProduit({ nom: form.nom, groupe_id: Number(form.groupeId), description: form.description, actif: form.actif });
@@ -84,7 +103,10 @@ export default function ProduitsPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!drawer || !form.nom.trim() || !form.groupeId) { toast.error('Nom et groupe requis'); return; }
+    if (!drawer) return;
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       await produitService.updateProduit(drawer.id, { nom: form.nom, groupe_id: Number(form.groupeId), description: form.description, actif: form.actif });
@@ -119,6 +141,7 @@ export default function ProduitsPage() {
       <div className="space-y-1.5">
         <Label className={compact ? 'text-xs' : ''}>Nom *</Label>
         <Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="ex: Dépôt à Terme" />
+        {errors.nom && <p className="text-xs text-red-500">{errors.nom}</p>}
       </div>
       <div className="space-y-1.5">
         <Label className={compact ? 'text-xs' : ''}>Groupe *</Label>
@@ -126,10 +149,12 @@ export default function ProduitsPage() {
           <SelectTrigger><SelectValue placeholder="Choisir un groupe" /></SelectTrigger>
           <SelectContent>{groupes.map((g) => <SelectItem key={g.id} value={String(g.id)}>{g.nom}</SelectItem>)}</SelectContent>
         </Select>
+        {errors.groupeId && <p className="text-xs text-red-500">{errors.groupeId}</p>}
       </div>
       <div className="space-y-1.5">
         <Label className={compact ? 'text-xs' : ''}>Description</Label>
         <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description courte" />
+        {errors.description && <p className="text-xs text-red-500">{errors.description}</p>}
       </div>
       <div className="flex items-center gap-3">
         <Label className={compact ? 'text-xs' : ''}>Actif</Label>
@@ -147,7 +172,7 @@ export default function ProduitsPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="w-full sm:w-auto"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
-          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setModal('create'); }} className="w-full sm:w-auto">
+          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setErrors({}); setModal('create'); }} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Nouveau produit
           </Button>
         </div>

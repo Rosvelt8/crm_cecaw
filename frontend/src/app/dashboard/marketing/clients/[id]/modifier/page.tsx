@@ -52,8 +52,8 @@ export default function ModifierClientPage() {
         commercialId: c.commercialId ? String(c.commercialId) : (c.commercial?.id ? String(c.commercial.id) : ''),
         statut: c.statut ?? 'actif',
         notes: c.notes ?? '',
-        latitude: c.latitude ?? null,
-        longitude: c.longitude ?? null,
+        latitude: c.latitude != null ? Number(c.latitude) : null,
+        longitude: c.longitude != null ? Number(c.longitude) : null,
         piecesJointes: [],
       });
     }).catch(() => {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { z } from 'zod';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { equipeService } from '@/services/equipeService';
@@ -18,6 +19,20 @@ import { toast } from 'sonner';
 type Form = { nom: string; agenceId: string; responsableId: string };
 const EMPTY: Form = { nom: '', agenceId: '', responsableId: '' };
 
+const equipeSchema = z.object({
+  nom: z.string().trim().min(1, "Nom de l'équipe requis").max(150, 'Maximum 150 caractères'),
+  agenceId: z.string().trim().min(1, 'Agence requise'),
+  responsableId: z.string().optional(),
+});
+
+function validateForm(form: Form): Record<string, string> | null {
+  const result = equipeSchema.safeParse(form);
+  if (result.success) return null;
+  const errors: Record<string, string> = {};
+  result.error.issues.forEach((issue) => { errors[String(issue.path[0])] = issue.message; });
+  return errors;
+}
+
 export default function EquipesPage() {
   const [equipes, setEquipes] = useState<any[]>([]);
   const [agences, setAgences] = useState<any[]>([]);
@@ -28,6 +43,7 @@ export default function EquipesPage() {
   const [drawer, setDrawer] = useState<any | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<Form>(EMPTY);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmId, setConfirmId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -53,7 +69,7 @@ export default function EquipesPage() {
   const { paginated, ...pagination } = usePagination(equipes, 15);
 
   const openDrawer = (eq: any) => {
-    setDrawer(eq); setEditMode(false);
+    setDrawer(eq); setEditMode(false); setErrors({});
     setForm({
       nom: eq.nom,
       agenceId: String(eq.agenceId ?? eq.agence?.id ?? ''),
@@ -64,7 +80,9 @@ export default function EquipesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nom.trim() || !form.agenceId) { toast.error('Nom et agence requis'); return; }
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       await equipeService.create({
@@ -81,7 +99,10 @@ export default function EquipesPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!drawer || !form.nom.trim() || !form.agenceId) { toast.error('Nom et agence requis'); return; }
+    if (!drawer) return;
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       await equipeService.update(drawer.id, {
@@ -111,6 +132,7 @@ export default function EquipesPage() {
       <div className="space-y-1.5">
         <Label>Nom de l'équipe *</Label>
         <Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="ex: Équipe Akwa" />
+        {errors.nom && <p className="text-xs text-red-500">{errors.nom}</p>}
       </div>
       <div className="space-y-1.5">
         <Label>Agence rattachée *</Label>
@@ -118,6 +140,7 @@ export default function EquipesPage() {
           <SelectTrigger><SelectValue placeholder="Choisir une agence" /></SelectTrigger>
           <SelectContent>{agences.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.nom}</SelectItem>)}</SelectContent>
         </Select>
+        {errors.agenceId && <p className="text-xs text-red-500">{errors.agenceId}</p>}
       </div>
       <div className="space-y-1.5">
         <Label>Responsable</Label>
@@ -141,7 +164,7 @@ export default function EquipesPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="w-full sm:w-auto"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
-          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setModal('create'); }} className="w-full sm:w-auto">
+          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setErrors({}); setModal('create'); }} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Nouvelle équipe
           </Button>
         </div>

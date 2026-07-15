@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { z } from 'zod';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { agenceService } from '@/services/agenceService';
@@ -14,6 +15,22 @@ import { toast } from 'sonner';
 
 type Form = { nom: string; ville: string; adresse: string; telephone: string; email: string };
 const EMPTY: Form = { nom: '', ville: '', adresse: '', telephone: '', email: '' };
+
+const agenceSchema = z.object({
+  nom: z.string().trim().min(1, 'Nom requis').max(150, 'Maximum 150 caractères'),
+  ville: z.string().trim().min(1, 'Ville requise').max(100, 'Maximum 100 caractères'),
+  adresse: z.string().trim().max(255, 'Maximum 255 caractères').optional().or(z.literal('')),
+  telephone: z.string().trim().max(30, 'Maximum 30 caractères').optional().or(z.literal('')),
+  email: z.string().trim().email('Email invalide').max(255).optional().or(z.literal('')),
+});
+
+function validateForm(form: Form): Record<string, string> | null {
+  const result = agenceSchema.safeParse(form);
+  if (result.success) return null;
+  const errors: Record<string, string> = {};
+  result.error.issues.forEach((issue) => { errors[String(issue.path[0])] = issue.message; });
+  return errors;
+}
 
 const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
   <button type="button" onClick={onChange}
@@ -30,6 +47,7 @@ export default function AgencesPage() {
   const [drawer, setDrawer] = useState<any | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<Form>(EMPTY);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmId, setConfirmId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -46,14 +64,16 @@ export default function AgencesPage() {
   const { paginated, ...pagination } = usePagination(agences, 15);
 
   const openDrawer = (a: any) => {
-    setDrawer(a); setEditMode(false);
+    setDrawer(a); setEditMode(false); setErrors({});
     setForm({ nom: a.nom, ville: a.ville ?? '', adresse: a.adresse ?? '', telephone: a.telephone ?? '', email: a.email ?? '' });
   };
   const closeDrawer = () => { setDrawer(null); setEditMode(false); };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nom.trim() || !form.ville.trim()) { toast.error('Nom et ville requis'); return; }
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       await agenceService.create(form);
@@ -66,7 +86,10 @@ export default function AgencesPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!drawer || !form.nom.trim()) { toast.error('Nom requis'); return; }
+    if (!drawer) return;
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       const updated = await agenceService.update(drawer.id, form);
@@ -91,13 +114,13 @@ export default function AgencesPage() {
   const FormFields = () => (
     <>
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5"><Label>Nom *</Label><Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Agence Akwa" /></div>
-        <div className="space-y-1.5"><Label>Ville *</Label><Input value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} placeholder="Douala" /></div>
+        <div className="space-y-1.5"><Label>Nom *</Label><Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Agence Akwa" />{errors.nom && <p className="text-xs text-red-500">{errors.nom}</p>}</div>
+        <div className="space-y-1.5"><Label>Ville *</Label><Input value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} placeholder="Douala" />{errors.ville && <p className="text-xs text-red-500">{errors.ville}</p>}</div>
       </div>
-      <div className="space-y-1.5"><Label>Adresse</Label><Input value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} placeholder="Rue, quartier…" /></div>
+      <div className="space-y-1.5"><Label>Adresse</Label><Input value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} placeholder="Rue, quartier…" />{errors.adresse && <p className="text-xs text-red-500">{errors.adresse}</p>}</div>
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5"><Label>Téléphone</Label><Input value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} /></div>
-        <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+        <div className="space-y-1.5"><Label>Téléphone</Label><Input value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} />{errors.telephone && <p className="text-xs text-red-500">{errors.telephone}</p>}</div>
+        <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />{errors.email && <p className="text-xs text-red-500">{errors.email}</p>}</div>
       </div>
     </>
   );
@@ -111,7 +134,7 @@ export default function AgencesPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="w-full sm:w-auto"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
-          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setModal('create'); }} className="w-full sm:w-auto">
+          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setErrors({}); setModal('create'); }} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Nouvelle agence
           </Button>
         </div>

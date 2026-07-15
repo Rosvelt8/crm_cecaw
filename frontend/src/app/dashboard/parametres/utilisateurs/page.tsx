@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { z } from 'zod';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { userService } from '@/services/userService';
@@ -26,6 +27,22 @@ const ROLE_COLORS: Record<BackendRole, string> = {
 
 type Form = { nom: string; prenom: string; email: string; role: BackendRole; fonction: string; agenceId: string; equipeId: string; actif: boolean };
 const EMPTY: Form = { nom: '', prenom: '', email: '', role: 'agent', fonction: '', agenceId: '', equipeId: '', actif: true };
+
+const userSchema = z.object({
+  nom: z.string().trim().min(1, 'Nom requis').max(100, 'Maximum 100 caractères'),
+  prenom: z.string().trim().min(1, 'Prénom requis').max(100, 'Maximum 100 caractères'),
+  email: z.string().trim().email('Email invalide').max(255, 'Maximum 255 caractères'),
+  fonction: z.string().trim().max(150, 'Maximum 150 caractères').optional(),
+  agenceId: z.string().trim().min(1, 'Agence requise'),
+});
+
+function validateForm(form: Form): Record<string, string> | null {
+  const result = userSchema.safeParse(form);
+  if (result.success) return null;
+  const errors: Record<string, string> = {};
+  result.error.issues.forEach((issue) => { errors[String(issue.path[0])] = issue.message; });
+  return errors;
+}
 
 function initials(p: string, n: string) { return `${p?.[0] ?? ''}${n?.[0] ?? ''}`.toUpperCase() || '?'; }
 function roleSlug(u: User): BackendRole { return (u.roleString ?? u.role?.slug ?? 'agent') as BackendRole; }
@@ -56,6 +73,7 @@ export default function UtilisateursPage() {
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [saving, setSaving]       = useState(false);
   const [pwdModal, setPwdModal]   = useState<User | null>(null);
+  const [errors, setErrors]       = useState<Record<string, string>>({});
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -99,6 +117,7 @@ export default function UtilisateursPage() {
   const openDrawer = (u: User) => {
     setDrawer(u);
     setEditMode(false);
+    setErrors({});
     setForm({
       nom: u.nom, prenom: u.prenom, email: u.email, role: roleSlug(u),
       fonction: u.fonction ?? '', actif: u.actif ?? true,
@@ -108,13 +127,13 @@ export default function UtilisateursPage() {
   };
   const closeDrawer = () => { setDrawer(null); setEditMode(false); };
 
-  const openCreate = () => { setForm(EMPTY); setModal('create'); };
+  const openCreate = () => { setForm(EMPTY); setErrors({}); setModal('create'); };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nom.trim() || !form.prenom.trim() || !form.email.trim()) {
-      toast.error('Nom, prénom et email requis'); return;
-    }
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       await userService.create({
@@ -137,9 +156,9 @@ export default function UtilisateursPage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!drawer) return;
-    if (!form.nom.trim() || !form.prenom.trim() || !form.email.trim()) {
-      toast.error('Nom, prénom et email requis'); return;
-    }
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       const updated = await userService.update(drawer.id, {
@@ -405,19 +424,23 @@ export default function UtilisateursPage() {
                     <div className="space-y-1.5">
                       <Label className="text-xs">Prénom *</Label>
                       <Input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} />
+                      {errors.prenom && <p className="text-xs text-red-500">{errors.prenom}</p>}
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Nom *</Label>
                       <Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
+                      {errors.nom && <p className="text-xs text-red-500">{errors.nom}</p>}
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Email *</Label>
                     <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                    {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Fonction</Label>
                     <Input value={form.fonction} onChange={(e) => setForm({ ...form, fonction: e.target.value })} placeholder="ex: Agent de collecte" />
+                    {errors.fonction && <p className="text-xs text-red-500">{errors.fonction}</p>}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
@@ -440,6 +463,7 @@ export default function UtilisateursPage() {
                           {agences.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.nom}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      {errors.agenceId && <p className="text-xs text-red-500">{errors.agenceId}</p>}
                     </div>
                   </div>
                   <div className="space-y-1.5">
@@ -480,19 +504,23 @@ export default function UtilisateursPage() {
                 <div className="space-y-1.5">
                   <Label className="text-xs">Prénom *</Label>
                   <Input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} />
+                  {errors.prenom && <p className="text-xs text-red-500">{errors.prenom}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Nom *</Label>
                   <Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
+                  {errors.nom && <p className="text-xs text-red-500">{errors.nom}</p>}
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Email *</Label>
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Fonction</Label>
                 <Input value={form.fonction} onChange={(e) => setForm({ ...form, fonction: e.target.value })} placeholder="ex: Agent de collecte" />
+                {errors.fonction && <p className="text-xs text-red-500">{errors.fonction}</p>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -513,6 +541,7 @@ export default function UtilisateursPage() {
                       {agences.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.nom}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {errors.agenceId && <p className="text-xs text-red-500">{errors.agenceId}</p>}
                 </div>
               </div>
               <div className="space-y-1.5">

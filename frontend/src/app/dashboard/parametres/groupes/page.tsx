@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { z } from 'zod';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { produitService } from '@/services/produitService';
@@ -17,6 +18,20 @@ const COULEURS = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#3b82f6', '#ec489
 type Form = { nom: string; description: string; couleur: string };
 const EMPTY: Form = { nom: '', description: '', couleur: '#10b981' };
 
+const groupeSchema = z.object({
+  nom: z.string().trim().min(1, 'Le nom est requis').max(100, 'Maximum 100 caractères'),
+  description: z.string().trim().max(255, 'Maximum 255 caractères').optional().or(z.literal('')),
+  couleur: z.string().trim().min(1),
+});
+
+function validateForm(form: Form): Record<string, string> | null {
+  const result = groupeSchema.safeParse(form);
+  if (result.success) return null;
+  const errors: Record<string, string> = {};
+  result.error.issues.forEach((issue) => { errors[String(issue.path[0])] = issue.message; });
+  return errors;
+}
+
 export default function GroupesPage() {
   const [groupes, setGroupes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +40,7 @@ export default function GroupesPage() {
   const [drawer, setDrawer] = useState<any | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<Form>(EMPTY);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmId, setConfirmId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -41,14 +57,16 @@ export default function GroupesPage() {
   const { paginated, ...pagination } = usePagination(groupes, 15);
 
   const openDrawer = (g: any) => {
-    setDrawer(g); setEditMode(false);
+    setDrawer(g); setEditMode(false); setErrors({});
     setForm({ nom: g.nom, description: g.description ?? '', couleur: g.couleur ?? '#10b981' });
   };
   const closeDrawer = () => { setDrawer(null); setEditMode(false); };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nom.trim()) { toast.error('Le nom est requis'); return; }
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       await produitService.createGroupeProduit({ nom: form.nom, description: form.description, couleur: form.couleur });
@@ -61,7 +79,10 @@ export default function GroupesPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!drawer || !form.nom.trim()) { toast.error('Le nom est requis'); return; }
+    if (!drawer) return;
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       await produitService.updateGroupeProduit(drawer.id, { nom: form.nom, description: form.description, couleur: form.couleur });
@@ -101,7 +122,7 @@ export default function GroupesPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="w-full sm:w-auto"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
-          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setModal('create'); }} className="w-full sm:w-auto">
+          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setErrors({}); setModal('create'); }} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Nouveau groupe
           </Button>
         </div>
@@ -217,8 +238,8 @@ export default function GroupesPage() {
                 </div>
               ) : (
                 <form onSubmit={handleUpdate} className="space-y-4">
-                  <div className="space-y-1.5"><Label className="text-xs">Nom *</Label><Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} /></div>
-                  <div className="space-y-1.5"><Label className="text-xs">Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+                  <div className="space-y-1.5"><Label className="text-xs">Nom *</Label><Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />{errors.nom && <p className="text-xs text-red-500">{errors.nom}</p>}</div>
+                  <div className="space-y-1.5"><Label className="text-xs">Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />{errors.description && <p className="text-xs text-red-500">{errors.description}</p>}</div>
                   <div className="space-y-1.5"><Label className="text-xs">Couleur</Label><ColorPicker /></div>
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button type="button" variant="ghost" size="sm" onClick={() => setEditMode(false)}>Annuler</Button>
@@ -240,8 +261,8 @@ export default function GroupesPage() {
               <Button variant="ghost" size="icon" onClick={() => setModal(null)}><X className="h-4 w-4" /></Button>
             </div>
             <form onSubmit={handleCreate} className="p-5 space-y-4">
-              <div className="space-y-1.5"><Label className="text-xs">Nom *</Label><Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="ex: Épargne" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Nom *</Label><Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="ex: Épargne" />{errors.nom && <p className="text-xs text-red-500">{errors.nom}</p>}</div>
+              <div className="space-y-1.5"><Label className="text-xs">Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />{errors.description && <p className="text-xs text-red-500">{errors.description}</p>}</div>
               <div className="space-y-1.5"><Label className="text-xs">Couleur</Label><ColorPicker /></div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="ghost" onClick={() => setModal(null)}>Annuler</Button>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { z } from 'zod';
 import { useRouter, useParams } from 'next/navigation';
 import { clientService } from '@/services/clientService';
 import { compteService } from '@/services/compteService';
@@ -34,6 +35,20 @@ const STATUT_COMPTE_COLOR: Record<string, string> = {
 type CompteForm = { produitId: string; solde: string; statut: string; dateOuverture: string };
 const EMPTY_COMPTE: CompteForm = { produitId: '', solde: '0', statut: 'actif', dateOuverture: new Date().toISOString().split('T')[0] };
 
+const compteSchema = z.object({
+  produitId: z.string().trim().min(1, 'Produit requis'),
+  solde: z.string().trim().refine((v) => v === '' || Number(v) >= 0, 'Le solde initial doit être positif ou nul'),
+  dateOuverture: z.string().trim().min(1, "Date d'ouverture requise"),
+});
+
+function validateCompteForm(form: CompteForm): Record<string, string> | null {
+  const result = compteSchema.safeParse(form);
+  if (result.success) return null;
+  const errors: Record<string, string> = {};
+  result.error.issues.forEach((issue) => { errors[String(issue.path[0])] = issue.message; });
+  return errors;
+}
+
 type TxForm = { type: 'credit' | 'debit'; montant: string; motif: string };
 
 const SituationLabel: Record<string, string> = {
@@ -53,6 +68,7 @@ export default function ClientDetailPage() {
 
   const [compteModal, setCompteModal] = useState<'create' | { id: number | string } | null>(null);
   const [compteForm, setCompteForm] = useState<CompteForm>(EMPTY_COMPTE);
+  const [compteErrors, setCompteErrors] = useState<Record<string, string>>({});
   const [confirmCompteId, setConfirmCompteId] = useState<number | string | null>(null);
   const [savingCompte, setSavingCompte] = useState(false);
 
@@ -124,7 +140,7 @@ export default function ClientDetailPage() {
   const totalTxCount = Object.values(recentTx).flat().length;
 
   // ── Compte handlers ──
-  const openCompteCreate = () => { setCompteForm(EMPTY_COMPTE); setCompteModal('create'); };
+  const openCompteCreate = () => { setCompteForm(EMPTY_COMPTE); setCompteErrors({}); setCompteModal('create'); };
   const openCompteEdit = (cp: any) => {
     setCompteForm({
       produitId: String(cp.produitId ?? cp.produit?.id ?? ''),
@@ -132,12 +148,15 @@ export default function ClientDetailPage() {
       statut: cp.statut ?? 'actif',
       dateOuverture: cp.dateOuverture ?? cp.date_ouverture ?? new Date().toISOString().split('T')[0],
     });
+    setCompteErrors({});
     setCompteModal({ id: cp.id });
   };
 
   const handleCompteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!compteForm.produitId) { toast.error('Produit requis'); return; }
+    const fieldErrors = validateCompteForm(compteForm);
+    if (fieldErrors) { setCompteErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setCompteErrors({});
     setSavingCompte(true);
     try {
       if (compteModal === 'create') {
@@ -446,11 +465,13 @@ export default function ClientDetailPage() {
                     {produits.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nom}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {compteErrors.produitId && <p className="text-xs text-red-500">{compteErrors.produitId}</p>}
               </div>
               {compteModal === 'create' && (
                 <div className="space-y-1.5">
                   <Label>Solde initial (FCFA)</Label>
                   <Input type="number" min="0" value={compteForm.solde} onChange={(e) => setCompteForm({ ...compteForm, solde: e.target.value })} />
+                  {compteErrors.solde && <p className="text-xs text-red-500">{compteErrors.solde}</p>}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">

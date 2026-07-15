@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { z } from 'zod';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { objectifService } from '@/services/objectifService';
@@ -40,6 +41,35 @@ const EMPTY: Form = {
   assignationType: 'agents', equipeId: '', agentIds: [],
 };
 
+const objectifSchema = z.object({
+  titre: z.string().trim().min(1, 'Titre requis').max(200, 'Maximum 200 caractères'),
+  produitId: z.string().trim().min(1, 'Produit requis'),
+  cible: z.string().trim().refine((v) => Number(v) > 0, "La cible doit être un nombre positif"),
+  dateDebut: z.string().trim().min(1, 'Date de début requise'),
+  dateFin: z.string().trim().min(1, 'Date de fin requise'),
+  assignationType: z.string(),
+  equipeId: z.string().optional(),
+  agentIds: z.array(z.string()).optional(),
+}).superRefine((data, ctx) => {
+  if (data.dateDebut && data.dateFin && data.dateFin < data.dateDebut) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['dateFin'], message: 'La date de fin doit être après la date de début' });
+  }
+  if (data.assignationType === 'equipe' && !data.equipeId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['equipeId'], message: 'Sélectionnez une équipe' });
+  }
+  if (data.assignationType === 'agents' && (!data.agentIds || data.agentIds.length === 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['agentIds'], message: 'Sélectionnez au moins un agent' });
+  }
+});
+
+function validateForm(form: Form): Record<string, string> | null {
+  const result = objectifSchema.safeParse(form);
+  if (result.success) return null;
+  const errors: Record<string, string> = {};
+  result.error.issues.forEach((issue) => { errors[String(issue.path[0])] = issue.message; });
+  return errors;
+}
+
 export default function ObjectifsPage() {
   const { isAgent, utilisateurId } = useAuth();
 
@@ -53,6 +83,7 @@ export default function ObjectifsPage() {
   const [form, setForm] = useState<Form>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [confirmId, setConfirmId] = useState<number | string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const loadObjectifs = useCallback(async () => {
     setLoading(true);
@@ -110,6 +141,7 @@ export default function ObjectifsPage() {
 
   const openCreate = () => {
     setForm({ ...EMPTY, dateDebut: new Date().toISOString().split('T')[0] });
+    setErrors({});
     setModal('create');
   };
 
@@ -129,6 +161,7 @@ export default function ObjectifsPage() {
       equipeId: String(o.equipeId ?? o.equipe?.id ?? ''),
       agentIds: rawAgentIds,
     });
+    setErrors({});
     setModal({ id: o.id });
   };
 
@@ -143,12 +176,9 @@ export default function ObjectifsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.titre.trim() || !form.produitId || !form.cible || !form.dateDebut || !form.dateFin) {
-      toast.error('Titre, produit, cible et dates requis'); return;
-    }
-    if (form.assignationType === 'equipe' && !form.equipeId) { toast.error('Sélectionnez une équipe'); return; }
-    if (form.assignationType === 'agents' && form.agentIds.length === 0) { toast.error('Sélectionnez au moins un agent'); return; }
-
+    const fieldErrors = validateForm(form);
+    if (fieldErrors) { setErrors(fieldErrors); toast.error(Object.values(fieldErrors)[0]); return; }
+    setErrors({});
     setSaving(true);
     try {
       const payload = {
@@ -313,6 +343,7 @@ export default function ObjectifsPage() {
               <div className="space-y-2">
                 <Label>Titre <span className="text-red-500">*</span></Label>
                 <Input value={form.titre} onChange={(e) => setForm({ ...form, titre: e.target.value })} placeholder="ex: Recrutement DAT — Juin" />
+                {errors.titre && <p className="text-xs text-red-500">{errors.titre}</p>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -324,6 +355,7 @@ export default function ObjectifsPage() {
                       {produits.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nom}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {errors.produitId && <p className="text-xs text-red-500">{errors.produitId}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Périodicité</Label>
@@ -341,6 +373,7 @@ export default function ObjectifsPage() {
                 <div className="space-y-2">
                   <Label>Cible <span className="text-red-500">*</span></Label>
                   <Input type="number" min="1" value={form.cible} onChange={(e) => setForm({ ...form, cible: e.target.value })} />
+                  {errors.cible && <p className="text-xs text-red-500">{errors.cible}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Unité</Label>
@@ -357,10 +390,12 @@ export default function ObjectifsPage() {
                 <div className="space-y-2">
                   <Label>Date début <span className="text-red-500">*</span></Label>
                   <Input type="date" value={form.dateDebut} onChange={(e) => setForm({ ...form, dateDebut: e.target.value })} />
+                  {errors.dateDebut && <p className="text-xs text-red-500">{errors.dateDebut}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Date fin <span className="text-red-500">*</span></Label>
                   <Input type="date" value={form.dateFin} onChange={(e) => setForm({ ...form, dateFin: e.target.value })} />
+                  {errors.dateFin && <p className="text-xs text-red-500">{errors.dateFin}</p>}
                 </div>
               </div>
 
@@ -390,6 +425,7 @@ export default function ObjectifsPage() {
                         {equipes.map((eq) => <SelectItem key={eq.id} value={String(eq.id)}>{eq.nom}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {errors.equipeId && <p className="text-xs text-red-500">{errors.equipeId}</p>}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -410,6 +446,7 @@ export default function ObjectifsPage() {
                         );
                       })}
                     </div>
+                    {errors.agentIds && <p className="text-xs text-red-500">{errors.agentIds}</p>}
                   </div>
                 )}
               </div>
