@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma';
 import { JwtPayload } from '../../middleware/auth';
 import { parsePagination, paginationMeta } from '../../lib/pagination';
+import { getResponsableEquipeIds } from '../../lib/teamScope';
 
 function periodFilter(periode?: string): { gte?: Date } {
   const now = new Date();
@@ -118,11 +119,20 @@ export async function getPerformancesIndividuelles(actor: JwtPayload, query: Rec
 
 export async function getPerformancesEquipes(actor: JwtPayload, query: Record<string, unknown>) {
   const { skip, take, page, perPage } = parsePagination(query);
-  const agenceId = actor.role !== 'admin' ? actor.agenceId : (query.agence_id ? parseInt(query.agence_id as string, 10) : undefined);
   const dateFilter = periodFilter(query.periode as string | undefined);
 
+  let where: Record<string, unknown>;
+  if (actor.role === 'backoffice') {
+    // Un chef d'équipe ne voit que la (les) équipe(s) dont il est responsable.
+    const equipeIds = await getResponsableEquipeIds(actor.sub);
+    where = { id: { in: equipeIds.length > 0 ? equipeIds : [-1] } };
+  } else {
+    const agenceId = actor.role !== 'admin' ? actor.agenceId : (query.agence_id ? parseInt(query.agence_id as string, 10) : undefined);
+    where = agenceId ? { agenceId } : {};
+  }
+
   const equipes = await prisma.equipe.findMany({
-    where: agenceId ? { agenceId } : {},
+    where,
     include: {
       agence: { select: { nom: true } },
       _count: { select: { membres: true } },
@@ -143,7 +153,7 @@ export async function getPerformancesEquipes(actor: JwtPayload, query: Record<st
     take,
   });
 
-  const total = await prisma.equipe.count({ where: agenceId ? { agenceId } : {} });
+  const total = await prisma.equipe.count({ where });
 
   const items = equipes.map((e) => {
     let prospects = 0, convertis = 0, clients = 0, collecte = 0, objectifsAtteints = 0, objectifsTotal = 0;

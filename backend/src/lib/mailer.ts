@@ -55,7 +55,7 @@ export async function sendBienvenue(opts: {
 }) {
   const roleLabel: Record<string, string> = {
     admin: 'Administrateur', manager: 'Manager',
-    backoffice: 'Back-office', agent: 'Agent',
+    backoffice: "Chef d'équipe", agent: 'Agent',
   };
   const html = base('Bienvenue sur CECAW CRM', `
     <p>Bonjour <strong>${opts.prenom} ${opts.nom}</strong>,</p>

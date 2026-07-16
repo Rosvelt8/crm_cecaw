@@ -3,6 +3,7 @@
 import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuth } from '@/hooks/useAuth';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ const UNREAD_NOTIF_COUNT = 2;
 
 export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () => void }) {
   const { user, logout } = useAuthStore();
+  const { canAccessParametres } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -76,12 +78,16 @@ export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () =>
               Mon compte
             </Link>
           </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/dashboard/parametres" className="text-sm cursor-pointer">
-              Paramètres
-            </Link>
-          </DropdownMenuItem>
+          {canAccessParametres && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/parametres" className="text-sm cursor-pointer">
+                  Paramètres
+                </Link>
+              </DropdownMenuItem>
+            </>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-sm text-red-500 focus:text-red-600 focus:bg-red-50 cursor-pointer"

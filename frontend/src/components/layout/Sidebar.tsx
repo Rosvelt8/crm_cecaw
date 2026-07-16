@@ -95,15 +95,17 @@ const AGENT_ALLOWED_HREFS = [
 export default function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boolean; onMobileClose: () => void }) {
   const { sidebarOpen, toggleSidebar } = useAppStore();
   const { user, logout } = useAuthStore();
-  const { isAgent } = useAuth();
+  const { isAgent, canAccessParametres } = useAuth();
   const pathname = usePathname();
 
-  // Filter nav for agents
-  const visibleGroups = isAgent
+  // Filter nav for agents, and hide the Paramètres module from anyone without access to it
+  // (chef d'équipe included — it's an admin/manager-only module).
+  const visibleGroups = (isAgent
     ? NAV_GROUPS
         .map((g) => ({ ...g, items: g.items.filter((i) => AGENT_ALLOWED_HREFS.some((h) => i.href.startsWith(h))) }))
         .filter((g) => g.items.length > 0)
-    : NAV_GROUPS;
+    : NAV_GROUPS
+  ).filter((g) => g.id !== 'parametres' || canAccessParametres);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
     () => NAV_GROUPS.reduce((acc, g) => ({ ...acc, [g.id]: true }), {} as Record<string, boolean>)

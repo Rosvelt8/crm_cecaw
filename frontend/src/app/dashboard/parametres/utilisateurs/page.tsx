@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const ROLE_LABELS: Record<BackendRole, string> = {
-  admin: 'Administrateur', manager: 'Manager', backoffice: 'Back-office', agent: 'Agent terrain',
+  admin: 'Administrateur', manager: 'Manager', backoffice: "Chef d'équipe", agent: 'Agent terrain',
 };
 const ROLE_COLORS: Record<BackendRole, string> = {
   admin: 'bg-red-100 text-red-700', manager: 'bg-violet-100 text-violet-700',

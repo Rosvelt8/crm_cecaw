@@ -5,6 +5,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { statsService } from '@/services/statsService';
 import { agenceService } from '@/services/agenceService';
+import { useAuth } from '@/hooks/useAuth';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TrendingUp, Users, Target, Wallet, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
@@ -47,6 +48,9 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 export default function StatistiquesPage() {
+  const { storageRole } = useAuth();
+  const isChefEquipe = storageRole === 'backoffice';
+
   const [agences, setAgences] = useState<any[]>([]);
   const [kpis, setKpis] = useState({ prospects: 0, convertis: 0, clients: 0, collecte: 0, taux: 0, objAtteints: 0, objTotal: 0 });
   const [agentRows, setAgentRows] = useState<AgentRow[]>([]);
@@ -55,13 +59,14 @@ export default function StatistiquesPage() {
 
   const [filterAgence, setFilterAgence] = useState('all');
   const [filterPeriod, setFilterPeriod] = useState<Period>('tout');
-  const [tab, setTab] = useState<TabKey>('individuel');
+  const [tab, setTab] = useState<TabKey>(isChefEquipe ? 'equipes' : 'individuel');
   const [sortKey, setSortKey] = useState<IndivSortKey>('collecte');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   useEffect(() => {
+    if (isChefEquipe) return;
     agenceService.getAgences({ per_page: 100 }).then((r) => setAgences(r.data ?? [])).catch(() => {});
-  }, []);
+  }, [isChefEquipe]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +74,27 @@ export default function StatistiquesPage() {
       const params: Record<string, unknown> = { per_page: 500 };
       if (filterAgence !== 'all') params.agence_id = filterAgence;
       if (filterPeriod !== 'tout') params.periode = filterPeriod;
+
+      // Un chef d'équipe (backoffice) n'a accès qu'à la performance de sa propre équipe :
+      // les endpoints KPIs globaux / performances individuelles / etc. lui sont interdits (403).
+      if (isChefEquipe) {
+        const equipeData = await statsService.getPerformancesEquipes(params);
+        const eqRows: EquipeRow[] = (equipeData ?? []).map((e: any) => ({
+          id:          String(e.equipe_id ?? ''),
+          nom:         e.nom ?? '',
+          agence:      e.agence ?? '—',
+          membres:     e.nb_agents          ?? 0,
+          prospects:   e.prospects          ?? 0,
+          convertis:   e.convertis          ?? 0,
+          clients:     e.clients            ?? 0,
+          collecte:    e.collecte           ?? 0,
+          taux:        e.taux_conversion    ?? 0,
+          objAtteints: e.objectifs_atteints ?? 0,
+          objTotal:    e.objectifs_total    ?? 0,
+        }));
+        setEquipeRows(eqRows);
+        return;
+      }
 
       const [kpisData, perfData, equipeData] = await Promise.all([
         statsService.getKpis(params),
@@ -121,7 +147,7 @@ export default function StatistiquesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterAgence, filterPeriod]);
+  }, [filterAgence, filterPeriod, isChefEquipe]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -159,16 +185,20 @@ export default function StatistiquesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Statistiques & Performance</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Vue d'ensemble et suivi des performances individuelles et collectives.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {isChefEquipe ? 'Performance de votre équipe.' : "Vue d'ensemble et suivi des performances individuelles et collectives."}
+          </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto sm:shrink-0">
-          <Select value={filterAgence} onValueChange={setFilterAgence}>
-            <SelectTrigger className="h-8 text-xs sm:w-44 w-full"><SelectValue placeholder="Toutes agences" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes les agences</SelectItem>
-              {agences.map((ag) => <SelectItem key={ag.id} value={String(ag.id)}>{ag.nom}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {!isChefEquipe && (
+            <Select value={filterAgence} onValueChange={setFilterAgence}>
+              <SelectTrigger className="h-8 text-xs sm:w-44 w-full"><SelectValue placeholder="Toutes agences" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les agences</SelectItem>
+                {agences.map((ag) => <SelectItem key={ag.id} value={String(ag.id)}>{ag.nom}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={filterPeriod} onValueChange={(v) => setFilterPeriod(v as Period)}>
             <SelectTrigger className="h-8 text-xs sm:w-44 w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -178,28 +208,31 @@ export default function StatistiquesPage() {
         </div>
       </div>
 
-      {/* ── KPIs ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-        {[
-          { label: 'Prospects',        value: kpis.prospects,              sub: `${kpis.convertis} convertis`,        color: 'text-brand-600',   icon: Users },
-          { label: 'Clients recrutés', value: kpis.clients,                sub: 'sur la période',                      color: 'text-violet-600',  icon: Users },
-          { label: 'Taux conversion',  value: `${kpis.taux}%`,             sub: `${kpis.convertis}/${kpis.prospects}`, color: 'text-emerald-600', icon: TrendingUp },
-          { label: 'Collecte',         value: formatCurrency(kpis.collecte),sub: 'crédits reçus',                      color: 'text-amber-600',   icon: Wallet, small: true },
-          { label: 'Objectifs',        value: `${kpis.objAtteints}/${kpis.objTotal}`, sub: 'atteints',                color: 'text-rose-600',    icon: Target },
-        ].map((k) => (
-          <Card key={k.label} className="p-3 sm:p-4">
-            <div className="flex items-center justify-between mb-2 gap-1">
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground line-clamp-2">{k.label}</p>
-              <k.icon className={cn('h-3 sm:h-3.5 w-3 sm:w-3.5 shrink-0', k.color)} />
-            </div>
-            <p className={cn('font-black leading-none', k.color, k.small ? 'text-base sm:text-lg' : 'text-2xl sm:text-3xl break-words')}>{k.value}</p>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-1 line-clamp-2">{k.sub}</p>
-          </Card>
-        ))}
-      </div>
+      {/* ── KPIs (admin/manager uniquement) ── */}
+      {!isChefEquipe && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+          {[
+            { label: 'Prospects',        value: kpis.prospects,              sub: `${kpis.convertis} convertis`,        color: 'text-brand-600',   icon: Users },
+            { label: 'Clients recrutés', value: kpis.clients,                sub: 'sur la période',                      color: 'text-violet-600',  icon: Users },
+            { label: 'Taux conversion',  value: `${kpis.taux}%`,             sub: `${kpis.convertis}/${kpis.prospects}`, color: 'text-emerald-600', icon: TrendingUp },
+            { label: 'Collecte',         value: formatCurrency(kpis.collecte),sub: 'crédits reçus',                      color: 'text-amber-600',   icon: Wallet, small: true },
+            { label: 'Objectifs',        value: `${kpis.objAtteints}/${kpis.objTotal}`, sub: 'atteints',                color: 'text-rose-600',    icon: Target },
+          ].map((k) => (
+            <Card key={k.label} className="p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-2 gap-1">
+                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground line-clamp-2">{k.label}</p>
+                <k.icon className={cn('h-3 sm:h-3.5 w-3 sm:w-3.5 shrink-0', k.color)} />
+              </div>
+              <p className={cn('font-black leading-none', k.color, k.small ? 'text-base sm:text-lg' : 'text-2xl sm:text-3xl break-words')}>{k.value}</p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-1 line-clamp-2">{k.sub}</p>
+            </Card>
+          ))}
+        </div>
+      )}
 
-      {/* ── Onglets ── */}
+      {/* ── Onglets (masqués pour le chef d'équipe, qui n'a que la vue équipe) ── */}
       <div>
+        {!isChefEquipe && (
         <div className="flex border-b border-border mb-0">
           {TABS.map((t) => (
             <button
@@ -216,6 +249,7 @@ export default function StatistiquesPage() {
             </button>
           ))}
         </div>
+        )}
 
         {loading && (
           <div className="py-16 text-center text-sm text-muted-foreground">Chargement…</div>

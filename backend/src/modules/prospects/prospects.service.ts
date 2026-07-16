@@ -2,6 +2,7 @@ import prisma from '../../lib/prisma';
 import { createLog } from '../../lib/logger';
 import { JwtPayload } from '../../middleware/auth';
 import { parsePagination, paginationMeta } from '../../lib/pagination';
+import { getResponsableEquipeIds } from '../../lib/teamScope';
 import { StatutProspect } from '@prisma/client';
 import { sendBienvenueClient } from '../../lib/mailer';
 
@@ -20,15 +21,20 @@ const include = {
   _count: { select: { piecesJointes: true } },
 } as const;
 
-function agenceFilter(actor: JwtPayload) {
+async function agenceFilter(actor: JwtPayload) {
   if (actor.role === 'admin') return {};
   if (actor.role === 'agent') return { commercialId: actor.sub };
+  if (actor.role === 'backoffice') {
+    const equipeIds = await getResponsableEquipeIds(actor.sub);
+    if (equipeIds.length === 0) return { id: -1 };
+    return { commercial: { equipeId: { in: equipeIds } } };
+  }
   return { commercial: { agenceId: actor.agenceId } };
 }
 
 export async function list(actor: JwtPayload, query: Record<string, unknown>) {
   const { skip, take, page, perPage } = parsePagination(query);
-  const where: Record<string, unknown> = { ...agenceFilter(actor) };
+  const where: Record<string, unknown> = { ...(await agenceFilter(actor)) };
 
   if (query.statut) where.statut = query.statut;
   if (query.commercial_id) where.commercialId = parseInt(query.commercial_id as string, 10);

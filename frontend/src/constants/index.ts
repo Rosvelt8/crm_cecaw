@@ -27,7 +27,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   // Backend roles
   admin:      'Administrateur',
   manager:    'Manager',
-  backoffice: 'Back-office',
+  backoffice: "Chef d'équipe",
   agent:      'Agent Terrain',
   // Legacy / display-only
   super_admin: 'Super Administrateur',

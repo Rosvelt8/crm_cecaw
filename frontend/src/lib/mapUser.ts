@@ -3,7 +3,7 @@ import type { User, Role, BackendRole } from '@/types/user';
 const ROLE_NAMES: Record<BackendRole, string> = {
   admin:      'Administrateur',
   manager:    'Manager',
-  backoffice: 'Back-office',
+  backoffice: "Chef d'équipe",
   agent:      'Agent Terrain',
 };
 
