@@ -90,6 +90,12 @@ export async function toggle(id: number, actor: JwtPayload) {
 }
 
 export async function resetPassword(id: number, actor: JwtPayload) {
+  if (actor.role === 'manager') {
+    const target = await prisma.utilisateur.findUniqueOrThrow({ where: { id } });
+    if (target.agenceId !== actor.agenceId) {
+      throw Object.assign(new Error("Accès refusé : cet utilisateur n'appartient pas à votre agence"), { status: 403 });
+    }
+  }
   const hash = await bcrypt.hash(env.DEFAULT_PASSWORD, 10);
   const u = await prisma.utilisateur.update({ where: { id }, data: { password: hash } });
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'parametres', action: 'RESET_PASSWORD', entiteType: 'utilisateur', entiteId: id, description: `Réinitialisation du mot de passe de ${u.prenom} ${u.nom}` });

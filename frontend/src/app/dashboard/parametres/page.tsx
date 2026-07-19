@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { agenceService } from '@/services/agenceService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { canEditParametres } = useAuth();
 
   // Agences (réel, via l'API /agences)
   const [agenceList, setAgenceList] = useState<any[]>([]);
@@ -60,9 +62,11 @@ export default function SettingsPage() {
                 <CardDescription>{agenceList.length} agence{agenceList.length !== 1 ? 's' : ''} enregistrée{agenceList.length !== 1 ? 's' : ''}.</CardDescription>
               </div>
             </div>
-            <Button variant="brand" size="sm" onClick={() => router.push('/dashboard/parametres/agences')} className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" /> Nouvelle Agence
-            </Button>
+            {canEditParametres && (
+              <Button variant="brand" size="sm" onClick={() => router.push('/dashboard/parametres/agences')} className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" /> Nouvelle Agence
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             {agencesLoading ? (
@@ -84,14 +88,16 @@ export default function SettingsPage() {
                       <Badge variant={a.actif ? 'success' : 'outline'}>
                         {a.actif ? 'Active' : 'Inactive'}
                       </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs w-full sm:w-auto"
-                        onClick={() => toggleAgence(a)}
-                      >
-                        {a.actif ? 'Désactiver' : 'Activer'}
-                      </Button>
+                      {canEditParametres && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs w-full sm:w-auto"
+                          onClick={() => toggleAgence(a)}
+                        >
+                          {a.actif ? 'Désactiver' : 'Activer'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}

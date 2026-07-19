@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { z } from 'zod';
+import { useAuth } from '@/hooks/useAuth';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { agenceService } from '@/services/agenceService';
@@ -40,6 +41,7 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void 
 );
 
 export default function AgencesPage() {
+  const { canEditParametres } = useAuth();
   const [agences, setAgences] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -134,9 +136,11 @@ export default function AgencesPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="w-full sm:w-auto"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
-          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setErrors({}); setModal('create'); }} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" /> Nouvelle agence
-          </Button>
+          {canEditParametres && (
+            <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setErrors({}); setModal('create'); }} className="w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" /> Nouvelle agence
+            </Button>
+          )}
         </div>
       </div>
 
@@ -167,21 +171,23 @@ export default function AgencesPage() {
                   <td className="px-4 py-3 text-xs text-muted-foreground">{a.adresse || '—'}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{a.telephone || '—'}</td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { openDrawer(a); setEditMode(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
-                      {confirmId === a.id ? (
-                        <>
-                          <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleDelete(a.id)}>
-                            <Check className="mr-1 h-3 w-3" /> Confirmer
+                    {canEditParametres && (
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { openDrawer(a); setEditMode(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                        {confirmId === a.id ? (
+                          <>
+                            <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleDelete(a.id)}>
+                              <Check className="mr-1 h-3 w-3" /> Confirmer
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setConfirmId(null)}><X className="h-3 w-3" /></Button>
+                          </>
+                        ) : (
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setConfirmId(a.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setConfirmId(null)}><X className="h-3 w-3" /></Button>
-                        </>
-                      ) : (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setConfirmId(a.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -210,7 +216,7 @@ export default function AgencesPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {!editMode && <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setEditMode(true)}><Pencil className="h-3 w-3" /> Éditer</Button>}
+                {!editMode && canEditParametres && <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setEditMode(true)}><Pencil className="h-3 w-3" /> Éditer</Button>}
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={closeDrawer}><X className="h-4 w-4" /></Button>
               </div>
             </div>

@@ -12,7 +12,7 @@ const schema = z.object({
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await svc.list(req.query.actif as string | undefined, req.query.search as string | undefined);
+    const data = await svc.list(req.user!, req.query.actif as string | undefined, req.query.search as string | undefined);
     return success(res, data);
   } catch (e) { return next(e); }
 };

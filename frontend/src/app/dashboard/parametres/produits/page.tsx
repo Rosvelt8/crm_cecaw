@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { z } from 'zod';
+import { useAuth } from '@/hooks/useAuth';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { produitService } from '@/services/produitService';
@@ -40,6 +41,7 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void 
 );
 
 export default function ProduitsPage() {
+  const { canEditParametres } = useAuth();
   const [produits, setProduits] = useState<any[]>([]);
   const [groupes, setGroupes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,9 +174,11 @@ export default function ProduitsPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="w-full sm:w-auto"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></Button>
-          <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setErrors({}); setModal('create'); }} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" /> Nouveau produit
-          </Button>
+          {canEditParametres && (
+            <Button variant="brand" size="sm" onClick={() => { setForm(EMPTY); setErrors({}); setModal('create'); }} className="w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" /> Nouveau produit
+            </Button>
+          )}
         </div>
       </div>
 
@@ -234,21 +238,25 @@ export default function ProduitsPage() {
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openDrawer(p)}><Eye className="h-3.5 w-3.5" /></Button>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => toggleActif(p)}>
-                          {p.actif ? 'Désactiver' : 'Activer'}
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { openDrawer(p); setEditMode(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
-                        {confirmId === p.id ? (
+                        {canEditParametres && (
                           <>
-                            <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleDelete(p.id)}>
-                              <Check className="mr-1 h-3 w-3" /> Confirmer
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => toggleActif(p)}>
+                              {p.actif ? 'Désactiver' : 'Activer'}
                             </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setConfirmId(null)}><X className="h-3 w-3" /></Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { openDrawer(p); setEditMode(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                            {confirmId === p.id ? (
+                              <>
+                                <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleDelete(p.id)}>
+                                  <Check className="mr-1 h-3 w-3" /> Confirmer
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setConfirmId(null)}><X className="h-3 w-3" /></Button>
+                              </>
+                            ) : (
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setConfirmId(p.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </>
-                        ) : (
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setConfirmId(p.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
                         )}
                       </div>
                     </td>
@@ -278,7 +286,7 @@ export default function ProduitsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {!editMode && <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setEditMode(true)}><Pencil className="h-3 w-3" /> Éditer</Button>}
+                {!editMode && canEditParametres && <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setEditMode(true)}><Pencil className="h-3 w-3" /> Éditer</Button>}
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={closeDrawer}><X className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -295,11 +303,13 @@ export default function ProduitsPage() {
                       {drawer.actif ? 'Actif' : 'Inactif'}
                     </span>
                   </div>
-                  <div className="pt-3 border-t">
-                    <Button size="sm" variant="outline" className="w-full h-8 text-xs" onClick={() => toggleActif(drawer)}>
-                      {drawer.actif ? 'Désactiver le produit' : 'Activer le produit'}
-                    </Button>
-                  </div>
+                  {canEditParametres && (
+                    <div className="pt-3 border-t">
+                      <Button size="sm" variant="outline" className="w-full h-8 text-xs" onClick={() => toggleActif(drawer)}>
+                        {drawer.actif ? 'Désactiver le produit' : 'Activer le produit'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <form onSubmit={handleUpdate} className="space-y-4">

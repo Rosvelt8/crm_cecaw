@@ -17,8 +17,10 @@ function fmt(a: Awaited<ReturnType<typeof prisma.agence.findMany>>[0] & {
   };
 }
 
-export async function list(actif?: string, search?: string) {
+export async function list(actor: JwtPayload, actif?: string, search?: string) {
   const where: Record<string, unknown> = {};
+  // Un non-admin ne voit que sa propre agence (chef d'agence, chef d'équipe, agent).
+  if (actor.role !== 'admin' && actor.agenceId) where.id = actor.agenceId;
   if (actif !== undefined) where.actif = actif === 'true';
   if (search) where.OR = [
     { nom: { contains: search, mode: 'insensitive' } },

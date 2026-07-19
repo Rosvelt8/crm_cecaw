@@ -8,8 +8,10 @@ const include = {
   _count: { select: { membres: true } },
 } as const;
 
-export async function list(agenceId?: string) {
-  const where = agenceId ? { agenceId: parseInt(agenceId, 10) } : {};
+export async function list(actor: JwtPayload, agenceId?: string) {
+  // Un non-admin ne voit que les équipes de sa propre agence.
+  const scopedAgenceId = actor.role !== 'admin' && actor.agenceId ? actor.agenceId : (agenceId ? parseInt(agenceId, 10) : undefined);
+  const where = scopedAgenceId ? { agenceId: scopedAgenceId } : {};
   const items = await prisma.equipe.findMany({ where, include, orderBy: { nom: 'asc' } });
   return items.map((e) => ({
     id: e.id, nom: e.nom, agence: e.agence, responsable: e.responsable,

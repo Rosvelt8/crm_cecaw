@@ -29,6 +29,10 @@ export interface AuthPerms {
   isAgent: boolean;
   canDelete: boolean;
   canAccessParametres: boolean;
+  /** Create/edit/delete within the Paramètres module — admin only. Manager has read-only access. */
+  canEditParametres: boolean;
+  /** Reset a user's password from Paramètres — admin or manager (scoped to their own agence). */
+  canResetUserPassword: boolean;
   canAccessLogs: boolean;
   canAccessStats: boolean;
   canManageObjectifs: boolean;
@@ -56,6 +60,8 @@ export function useAuth(): AuthPerms {
       isAgent,
       canDelete:           storageRole !== 'agent',
       canAccessParametres: storageRole === 'admin' || storageRole === 'manager',
+      canEditParametres:      storageRole === 'admin',
+      canResetUserPassword:   storageRole === 'admin' || storageRole === 'manager',
       canAccessLogs:       storageRole !== 'agent',
       canAccessStats:      storageRole !== 'agent',
       canManageObjectifs:  storageRole !== 'agent',

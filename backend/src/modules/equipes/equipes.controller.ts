@@ -10,7 +10,7 @@ const schema = z.object({
 });
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {
-  try { return success(res, await svc.list(req.query.agence_id as string | undefined)); } catch (e) { return next(e); }
+  try { return success(res, await svc.list(req.user!, req.query.agence_id as string | undefined)); } catch (e) { return next(e); }
 };
 
 export const getOne = async (req: Request, res: Response, next: NextFunction) => {

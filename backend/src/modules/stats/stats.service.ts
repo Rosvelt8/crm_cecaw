@@ -17,24 +17,28 @@ function periodFilter(periode?: string): { gte?: Date } {
   return { gte: map[periode]() };
 }
 
-function agenceWhere(actor: JwtPayload, agenceIdQ?: string) {
-  if (actor.role === 'admin' && agenceIdQ) return { agenceId: parseInt(agenceIdQ, 10) };
-  if (actor.role !== 'admin' && actor.agenceId) return { agenceId: actor.agenceId };
-  return {};
+/** Returns the agence id to scope by, or undefined for "no restriction" (admin, no filter). */
+function actorAgenceId(actor: JwtPayload, agenceIdQ?: string): number | undefined {
+  if (actor.role === 'admin' && agenceIdQ) return parseInt(agenceIdQ, 10);
+  if (actor.role !== 'admin' && actor.agenceId) return actor.agenceId;
+  return undefined;
 }
 
 export async function getKpis(actor: JwtPayload, query: Record<string, unknown>) {
-  const agence = agenceWhere(actor, query.agence_id as string | undefined);
+  const agenceId = actorAgenceId(actor, query.agence_id as string | undefined);
   const dateFilter = periodFilter(query.periode as string | undefined);
+  // Client a un champ agenceId direct ; Prospect ne l'a que via son commercial assigné.
+  const clientAgence = agenceId ? { agenceId } : {};
+  const prospectAgence = agenceId ? { commercial: { agenceId } } : {};
 
   const [prospects, convertis, clients, objectifs, collecte] = await Promise.all([
-    prisma.prospect.count({ where: { ...agence, createdAt: dateFilter } }),
-    prisma.prospect.count({ where: { ...agence, statut: 'converti', createdAt: dateFilter } }),
-    prisma.client.count({ where: { ...agence, createdAt: dateFilter } }),
+    prisma.prospect.count({ where: { ...prospectAgence, createdAt: dateFilter } }),
+    prisma.prospect.count({ where: { ...prospectAgence, statut: 'converti', createdAt: dateFilter } }),
+    prisma.client.count({ where: { ...clientAgence, createdAt: dateFilter } }),
     prisma.objectif.groupBy({ by: ['statut'], _count: true }),
     prisma.transaction.aggregate({
       _sum: { montant: true },
-      where: { compte: { client: agence }, type: 'credit', createdAt: dateFilter },
+      where: { compte: { client: clientAgence }, type: 'credit', createdAt: dateFilter },
     }),
   ]);
 
@@ -218,7 +222,8 @@ export async function getTransactionsParMois(actor: JwtPayload, query: Record<st
 }
 
 export async function getProspectsParStatut(actor: JwtPayload, query: Record<string, unknown>) {
-  const agence = agenceWhere(actor, query.agence_id as string | undefined);
+  const agenceId = actorAgenceId(actor, query.agence_id as string | undefined);
+  const prospectAgence = agenceId ? { commercial: { agenceId } } : {};
 
   const STATUTS = [
     { statut: 'nouveau', label: 'Nouveau', couleur: '#94a3b8' },
@@ -232,7 +237,7 @@ export async function getProspectsParStatut(actor: JwtPayload, query: Record<str
   return Promise.all(
     STATUTS.map(async (s) => ({
       ...s,
-      count: await prisma.prospect.count({ where: { ...agence, statut: s.statut as never } }),
+      count: await prisma.prospect.count({ where: { ...prospectAgence, statut: s.statut as never } }),
     })),
   );
 }
