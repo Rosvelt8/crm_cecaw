@@ -6,7 +6,7 @@ import { success, created, noContent } from '../../lib/response';
 const schema = z.object({
   nom: z.string().min(1).max(150),
   agence_id: z.number().int().positive(),
-  responsable_id: z.number().int().positive().optional(),
+  responsable_id: z.number().int().positive().optional().nullable(),
 });
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {

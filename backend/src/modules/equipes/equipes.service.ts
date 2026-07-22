@@ -30,7 +30,7 @@ export async function getOne(id: number) {
   });
 }
 
-export async function create(data: { nom: string; agence_id: number; responsable_id?: number }, actor: JwtPayload) {
+export async function create(data: { nom: string; agence_id: number; responsable_id?: number | null }, actor: JwtPayload) {
   const e = await prisma.equipe.create({
     data: { nom: data.nom, agenceId: data.agence_id, responsableId: data.responsable_id },
   });
@@ -38,7 +38,7 @@ export async function create(data: { nom: string; agence_id: number; responsable
   return e;
 }
 
-export async function update(id: number, data: Partial<{ nom: string; agence_id: number; responsable_id: number }>, actor: JwtPayload) {
+export async function update(id: number, data: Partial<{ nom: string; agence_id: number; responsable_id: number | null }>, actor: JwtPayload) {
   const e = await prisma.equipe.update({
     where: { id },
     data: {

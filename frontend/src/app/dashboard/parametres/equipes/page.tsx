@@ -58,9 +58,10 @@ export default function EquipesPage() {
       ]);
       setEquipes(eqRes.data ?? []);
       setAgences(agRes.data ?? []);
+      // Un responsable d'équipe peut être un manager (chef d'agence), un admin, ou un chef d'équipe (backoffice).
       setManagers((usrRes.data ?? []).filter((u: any) => {
         const slug = typeof u.role === 'string' ? u.role : u.role?.slug ?? '';
-        return slug === 'manager' || slug === 'admin';
+        return slug === 'manager' || slug === 'admin' || slug === 'backoffice';
       }));
     } catch { toast.error('Erreur lors du chargement'); }
     finally { setLoading(false); }
@@ -89,8 +90,8 @@ export default function EquipesPage() {
     try {
       await equipeService.create({
         nom: form.nom,
-        agenceId: Number(form.agenceId),
-        responsableId: form.responsableId ? Number(form.responsableId) : null,
+        agence_id: Number(form.agenceId),
+        responsable_id: form.responsableId ? Number(form.responsableId) : undefined,
       });
       toast.success(`Équipe "${form.nom}" créée`);
       setModal(null);
@@ -109,8 +110,8 @@ export default function EquipesPage() {
     try {
       await equipeService.update(drawer.id, {
         nom: form.nom,
-        agenceId: Number(form.agenceId),
-        responsableId: form.responsableId ? Number(form.responsableId) : null,
+        agence_id: Number(form.agenceId),
+        responsable_id: form.responsableId ? Number(form.responsableId) : null,
       });
       toast.success('Équipe mise à jour');
       await load();
@@ -150,7 +151,11 @@ export default function EquipesPage() {
           <SelectTrigger><SelectValue placeholder="Choisir un responsable" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__none__">Aucun</SelectItem>
-            {managers.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.prenom} {u.nom}</SelectItem>)}
+            {managers.map((u) => {
+              const slug = typeof u.role === 'string' ? u.role : u.role?.slug ?? '';
+              const roleLabel = slug === 'manager' ? 'Manager' : slug === 'admin' ? 'Admin' : slug === 'backoffice' ? "Chef d'équipe" : slug;
+              return <SelectItem key={u.id} value={String(u.id)}>{u.prenom} {u.nom} — {roleLabel}</SelectItem>;
+            })}
           </SelectContent>
         </Select>
       </div>
