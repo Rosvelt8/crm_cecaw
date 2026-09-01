@@ -1,5 +1,18 @@
 import apiClient from '@/lib/axios';
+import { fetchAllPages } from '@/lib/fetchAll';
 import type { FilterParams } from '@/types/api';
+
+/**
+ * Contrat backend (agents.controller.ts) — les corps de requête sont en snake_case,
+ * alors que les réponses Prisma sont en camelCase (utilisateurId, dernierePositionAt).
+ */
+export interface AgentCreatePayload {
+  utilisateur_id: number;
+  matricule: string;
+  secteur?: string;
+}
+
+export type AgentUpdatePayload = Partial<Omit<AgentCreatePayload, 'utilisateur_id'>>;
 
 export const agentService = {
   getAgents: async (params: FilterParams = {}) => {
@@ -7,17 +20,20 @@ export const agentService = {
     return { data: body.data ?? [], meta: body.meta };
   },
 
+  /** Toutes les pages agrégées — le backend plafonne `per_page` à 100. */
+  getAllAgents: async (params: FilterParams = {}) => fetchAllPages<any>(agentService.getAgents, params),
+
   getAgent: async (id: number | string) => {
     const { data: body } = await apiClient.get(`/agents/${id}`);
     return body.data;
   },
 
-  create: async (payload: Record<string, unknown>) => {
+  create: async (payload: AgentCreatePayload) => {
     const { data: body } = await apiClient.post('/agents', payload);
     return body.data;
   },
 
-  update: async (id: number | string, payload: Record<string, unknown>) => {
+  update: async (id: number | string, payload: AgentUpdatePayload) => {
     const { data: body } = await apiClient.put(`/agents/${id}`, payload);
     return body.data;
   },

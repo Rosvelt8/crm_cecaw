@@ -100,7 +100,7 @@ export default function ObjectifsPage() {
   useEffect(() => {
     loadObjectifs();
     produitService.getProduits({ actif: true, per_page: 100 }).then((r) => setProduits(r.data ?? [])).catch(() => {});
-    agentService.getAgents({ per_page: 200 }).then((r) => setAgents(r.data ?? [])).catch(() => {});
+    agentService.getAllAgents().then(setAgents).catch(() => {});
     equipeService.getEquipes({ per_page: 100 }).then((r) => setEquipes(r.data ?? [])).catch(() => {});
   }, [loadObjectifs]);
 

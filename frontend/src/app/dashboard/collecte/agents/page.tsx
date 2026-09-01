@@ -59,11 +59,11 @@ export default function AgentsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [agRes, agenceRes] = await Promise.all([
-        agentService.getAgents({ per_page: 200 }),
+      const [agRows, agenceRes] = await Promise.all([
+        agentService.getAllAgents(),
         agenceService.getAgences({ per_page: 100 }),
       ]);
-      setAgents(agRes.data ?? []);
+      setAgents(agRows);
       setAgences(agenceRes.data ?? []);
     } catch { toast.error('Erreur lors du chargement'); }
     finally { setLoading(false); }
@@ -126,13 +126,13 @@ export default function AgentsPage() {
     try {
       if (modal === 'create') {
         await agentService.create({
-          utilisateurId: Number(form.utilisateurId),
-          matricule: form.matricule,
-          secteur: form.secteur,
+          utilisateur_id: Number(form.utilisateurId),
+          matricule: form.matricule.trim(),
+          secteur: form.secteur.trim() || undefined,
         });
         toast.success('Profil agent créé');
       } else if (modal && typeof modal === 'object') {
-        await agentService.update(modal.id, { matricule: form.matricule, secteur: form.secteur });
+        await agentService.update(modal.id, { matricule: form.matricule.trim(), secteur: form.secteur.trim() });
         toast.success('Profil agent mis à jour');
       }
       setModal(null);

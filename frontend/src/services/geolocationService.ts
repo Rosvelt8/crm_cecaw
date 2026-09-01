@@ -8,7 +8,7 @@ export const geolocationService = {
   },
 
   updatePosition: async (agentId: number | string, coords: { latitude: number; longitude: number }) => {
-    const { data: body } = await apiClient.post(`/agents/${agentId}/position`, coords);
+    const { data: body } = await apiClient.patch(`/agents/${agentId}/position`, coords);
     return body.data;
   },
 };

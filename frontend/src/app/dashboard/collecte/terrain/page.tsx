@@ -56,8 +56,8 @@ export default function TerrainPage() {
 
   const loadAgents = useCallback(async () => {
     try {
-      const res = await agentService.getAgents({ per_page: 200 });
-      const enriched = ((res.data ?? []) as any[])
+      const rows = await agentService.getAllAgents();
+      const enriched = (rows as any[])
         .map(toTerrainAgent)
         .filter((a): a is TerrainAgent => a !== null);
       setAgents(enriched);
@@ -75,17 +75,18 @@ export default function TerrainPage() {
 
     socket.on('connect', () => socket.emit('join', 'terrain'));
 
-    socket.on('agent:position', (payload: { agentId: number; latitude: number; longitude: number; dernierePositionAt: string }) => {
-      const id = String(payload.agentId);
+    // Le backend émet un payload snake_case : { agent_id, latitude, longitude, derniere_position_at, en_ligne }
+    socket.on('agent:position', (payload: { agent_id: number; latitude: number; longitude: number; derniere_position_at: string }) => {
+      const id = String(payload.agent_id);
       setAgents((prev) =>
         prev.map((a) => {
           if (a.id !== id) return a;
-          const minutesAgo = Math.round((Date.now() - new Date(payload.dernierePositionAt).getTime()) / 60000);
+          const minutesAgo = Math.round((Date.now() - new Date(payload.derniere_position_at).getTime()) / 60000);
           return {
             ...a,
             lat: payload.latitude,
             lng: payload.longitude,
-            dernierePositionAt: payload.dernierePositionAt,
+            dernierePositionAt: payload.derniere_position_at,
             online: minutesAgo < 60,
             minutesAgo,
           };
