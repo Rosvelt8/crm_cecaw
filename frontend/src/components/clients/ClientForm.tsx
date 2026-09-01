@@ -122,8 +122,8 @@ export default function ClientForm({ title, subtitle, defaultValues, onSubmit, i
 
   React.useEffect(() => {
     agenceService.getAgences({ per_page: 100 }).then((r) => setAgences(r.data ?? [])).catch(() => {});
-    userService.getUsers({ per_page: 200 }).then((r) => {
-      setCommerciaux((r.data ?? []).filter((u: any) => {
+    userService.getAllUsers().then((rows) => {
+      setCommerciaux(rows.filter((u: any) => {
         const slug = typeof u.role === 'string' ? u.role : u.role?.slug ?? '';
         return slug === 'agent' || slug === 'manager';
       }));

@@ -171,8 +171,8 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
 
   React.useEffect(() => {
     produitService.getProduits().then((r) => setProduits(r.data ?? [])).catch(() => {});
-    userService.getUsers({ per_page: 200 }).then((r) => {
-      setCommerciaux((r.data ?? []).filter((u: any) => {
+    userService.getAllUsers().then((rows) => {
+      setCommerciaux(rows.filter((u: any) => {
         const slug = typeof u.role === 'string' ? u.role : u.role?.slug ?? '';
         return slug === 'agent' || slug === 'manager';
       }));

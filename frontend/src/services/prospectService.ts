@@ -1,4 +1,5 @@
 import apiClient from '@/lib/axios';
+import { fetchAllPages } from '@/lib/fetchAll';
 import type { FilterParams } from '@/types/api';
 
 function buildParams(params: FilterParams) {
@@ -17,6 +18,9 @@ export const prospectService = {
     const { data: body } = await apiClient.get('/prospects', { params: buildParams(params) });
     return { data: body.data ?? [], meta: body.meta };
   },
+
+  /** Toutes les pages agrégées — le backend plafonne `per_page` à 100. */
+  getAllProspects: async (params: FilterParams = {}) => fetchAllPages(prospectService.getProspects, params),
 
   getProspect: async (id: number | string) => {
     const { data: body } = await apiClient.get(`/prospects/${id}`);

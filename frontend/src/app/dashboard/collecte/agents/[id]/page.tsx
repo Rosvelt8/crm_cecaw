@@ -34,10 +34,10 @@ export default function AgentDetailPage() {
   useEffect(() => {
     Promise.all([
       agentService.getAgent(id),
-      objectifService.getObjectifs({ agent_id: id, per_page: 50 }),
-    ]).then(([a, objRes]) => {
+      objectifService.getAllObjectifs({ agent_id: id }),
+    ]).then(([a, objRows]) => {
       setAgent(a);
-      setObjectifs(objRes.data ?? []);
+      setObjectifs(objRows);
     }).catch(() => {
       router.back();
     }).finally(() => setLoading(false));

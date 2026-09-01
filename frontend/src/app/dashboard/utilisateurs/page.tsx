@@ -46,11 +46,11 @@ export default function UsersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersRes, agencesData] = await Promise.all([
-        userService.getUsers({ per_page: 100 }),
+      const [userRows, agencesData] = await Promise.all([
+        userService.getAllUsers(),
         userService.getAgences(),
       ]);
-      setUsers(usersRes.data);
+      setUsers(userRows);
       setAgences(agencesData);
     } catch {
       toast.error('Erreur lors du chargement des utilisateurs');

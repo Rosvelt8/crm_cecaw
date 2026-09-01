@@ -71,7 +71,7 @@ export default function StatistiquesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, unknown> = { per_page: 500 };
+      const params: Record<string, unknown> = {};
       if (filterAgence !== 'all') params.agence_id = filterAgence;
       if (filterPeriod !== 'tout') params.periode = filterPeriod;
 

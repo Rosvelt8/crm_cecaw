@@ -21,7 +21,7 @@ export const agentService = {
   },
 
   /** Toutes les pages agrégées — le backend plafonne `per_page` à 100. */
-  getAllAgents: async (params: FilterParams = {}) => fetchAllPages<any>(agentService.getAgents, params),
+  getAllAgents: async (params: FilterParams = {}) => fetchAllPages(agentService.getAgents, params),
 
   getAgent: async (id: number | string) => {
     const { data: body } = await apiClient.get(`/agents/${id}`);

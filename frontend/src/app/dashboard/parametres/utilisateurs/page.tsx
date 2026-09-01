@@ -80,12 +80,12 @@ export default function UtilisateursPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [usrRes, agRes, eqRes] = await Promise.all([
-        userService.getUsers({ per_page: 200 }),
+      const [usrRows, agRes, eqRes] = await Promise.all([
+        userService.getAllUsers(),
         agenceService.getAgences({ per_page: 100 }),
         equipeService.getEquipes({ per_page: 100 }),
       ]);
-      setUtilisateurs(usrRes.data ?? []);
+      setUtilisateurs(usrRows);
       setAgences(agRes.data ?? []);
       setEquipes(eqRes.data ?? []);
     } catch {

@@ -35,10 +35,10 @@ export default function ClientsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, unknown> = { per_page: 200 };
+      const params: Record<string, unknown> = {};
       if (filterStatut !== 'all') params.statut = filterStatut;
-      const res = await clientService.getClients(params as any);
-      setClients(res.data ?? []);
+      const rows = await clientService.getAllClients(params as any);
+      setClients(rows);
     } catch {
       toast.error('Erreur lors du chargement des clients');
     } finally {

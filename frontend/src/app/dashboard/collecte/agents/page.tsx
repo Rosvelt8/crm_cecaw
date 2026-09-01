@@ -73,9 +73,9 @@ export default function AgentsPage() {
 
   const loadUsers = useCallback(async (currentAgentId?: number) => {
     try {
-      const res = await userService.getUsers({ per_page: 200 });
+      const rows = await userService.getAllUsers();
       const usedIds = new Set(agents.filter((a) => a.id !== currentAgentId).map((a) => a.utilisateurId));
-      setAvailableUsers((res.data ?? []).filter((u: any) => !usedIds.has(u.id)));
+      setAvailableUsers(rows.filter((u: any) => !usedIds.has(u.id)));
     } catch { /* silently fail */ }
   }, [agents]);
 

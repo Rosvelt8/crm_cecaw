@@ -51,15 +51,15 @@ export default function EquipesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [eqRes, agRes, usrRes] = await Promise.all([
+      const [eqRes, agRes, usrRows] = await Promise.all([
         equipeService.getEquipes({ per_page: 100 }),
         agenceService.getAgences({ per_page: 100 }),
-        userService.getUsers({ per_page: 100 }),
+        userService.getAllUsers(),
       ]);
       setEquipes(eqRes.data ?? []);
       setAgences(agRes.data ?? []);
       // Un responsable d'équipe peut être un manager (chef d'agence), un admin, ou un chef d'équipe (backoffice).
-      setManagers((usrRes.data ?? []).filter((u: any) => {
+      setManagers(usrRows.filter((u: any) => {
         const slug = typeof u.role === 'string' ? u.role : u.role?.slug ?? '';
         return slug === 'manager' || slug === 'admin' || slug === 'backoffice';
       }));

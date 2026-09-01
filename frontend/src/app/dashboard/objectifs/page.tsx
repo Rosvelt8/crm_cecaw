@@ -26,8 +26,8 @@ export default function ObjectifsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await objectifService.getObjectifs({ per_page: 50 });
-      setObjectifs(res.data ?? []);
+      const rows = await objectifService.getAllObjectifs();
+      setObjectifs(rows);
     } catch { toast.error('Erreur lors du chargement des objectifs'); }
     finally { setLoading(false); }
   }, []);

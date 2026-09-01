@@ -38,10 +38,10 @@ export default function ProspectsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, unknown> = { per_page: 200 };
+      const params: Record<string, unknown> = {};
       if (filterStatut !== 'all') params.statut = filterStatut;
-      const res = await prospectService.getProspects(params as any);
-      setProspects(res.data ?? []);
+      const rows = await prospectService.getAllProspects(params as any);
+      setProspects(rows);
     } catch {
       toast.error('Erreur lors du chargement des prospects');
     } finally {

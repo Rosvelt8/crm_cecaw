@@ -1,7 +1,8 @@
 import apiClient from '@/lib/axios';
+import { fetchAllPages } from '@/lib/fetchAll';
 import { mapBackendUser } from '@/lib/mapUser';
 import type { FilterParams } from '@/types/api';
-import type { CreateUserPayload, UpdateUserPayload } from '@/types/user';
+import type { CreateUserPayload, UpdateUserPayload, User } from '@/types/user';
 
 function buildParams(params: FilterParams) {
   const p: Record<string, string | number> = {};
@@ -16,6 +17,9 @@ export const userService = {
     const { data: body } = await apiClient.get('/utilisateurs', { params: buildParams(params) });
     return { data: (body.data ?? []).map(mapBackendUser), meta: body.meta };
   },
+
+  /** Toutes les pages agrégées — le backend plafonne `per_page` à 100. */
+  getAllUsers: async (params: FilterParams = {}) => fetchAllPages<User>(userService.getUsers, params),
 
   getUser: async (id: number | string) => {
     const { data: body } = await apiClient.get(`/utilisateurs/${id}`);
