@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Cecaw Terrain",
+    "slug": "cecaw-terrain",
+    "scheme": "cecawterrain",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "cm.cecaw.terrain",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ],
+        "NSLocationWhenInUseUsageDescription": "Votre position sert a tracer votre tournee de collecte pendant vos heures de travail.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Votre position est transmise a Cecaw Finance pendant vos heures de travail, meme lorsque l'application est en arriere-plan, afin de suivre votre tournee de collecte.",
+        "NSLocationAlwaysUsageDescription": "Votre position est transmise a Cecaw Finance pendant vos heures de travail afin de suivre votre tournee de collecte."
+      }
+    },
+    "android": {
+      "package": "cm.cecaw.terrain",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Votre position est transmise a Cecaw Finance pendant vos heures de travail afin de suivre votre tournee de collecte.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://10.0.2.2:4000/api/v1"
+    }
+  }
+}

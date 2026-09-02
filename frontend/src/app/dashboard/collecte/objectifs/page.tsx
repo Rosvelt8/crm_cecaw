@@ -145,6 +145,14 @@ export default function ObjectifsPage() {
     setModal('create');
   };
 
+  // L'API renvoie des dates ISO completes ; un <input type="date"> n'accepte
+  // que YYYY-MM-DD et affiche un champ vide pour toute autre forme.
+  const toDateInput = (value: unknown): string => {
+    if (!value) return '';
+    const raw = String(value);
+    return raw.length >= 10 ? raw.slice(0, 10) : '';
+  };
+
   const openEdit = (o: any) => {
     const rawAgentIds: string[] = (o.agentIds ?? o.agents ?? []).map((a: any) =>
       typeof a === 'object' ? String(a.id) : String(a)
@@ -155,8 +163,8 @@ export default function ObjectifsPage() {
       cible: String(o.cible ?? o.valeur_cible ?? o.valeurCible ?? ''),
       unite: o.unite ?? 'clients',
       periodicite: o.periodicite ?? 'mois',
-      dateDebut: o.dateDebut ?? o.date_debut ?? '',
-      dateFin: o.dateFin ?? o.date_fin ?? '',
+      dateDebut: toDateInput(o.dateDebut ?? o.date_debut),
+      dateFin: toDateInput(o.dateFin ?? o.date_fin),
       assignationType: o.assignationType ?? 'agents',
       equipeId: String(o.equipeId ?? o.equipe?.id ?? ''),
       agentIds: rawAgentIds,

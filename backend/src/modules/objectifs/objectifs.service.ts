@@ -86,15 +86,55 @@ export async function create(data: {
 }
 
 export async function update(id: number, data: Record<string, unknown>, actor: JwtPayload) {
-  const o = await prisma.objectif.update({
-    where: { id },
-    data: {
-      ...(data.titre !== undefined && { titre: data.titre as string }),
-      ...(data.cible !== undefined && { cible: data.cible as number }),
-      ...(data.date_debut !== undefined && { dateDebut: new Date(data.date_debut as string) }),
-      ...(data.date_fin !== undefined && { dateFin: new Date(data.date_fin as string) }),
-    },
-    include,
+  const current = await prisma.objectif.findUniqueOrThrow({ where: { id } });
+
+  const assignation = data.assignation_type as 'equipe' | 'agents' | undefined;
+  const agentIds = Array.isArray(data.agent_ids) ? (data.agent_ids as number[]) : undefined;
+
+  const fields: Record<string, unknown> = {
+    ...(data.titre !== undefined && { titre: data.titre as string }),
+    ...(data.produit_id !== undefined && { produitId: data.produit_id as number }),
+    ...(data.cible !== undefined && { cible: data.cible as number }),
+    ...(data.unite !== undefined && { unite: data.unite as never }),
+    ...(data.periodicite !== undefined && { periodicite: data.periodicite as never }),
+    ...(data.date_debut !== undefined && { dateDebut: new Date(data.date_debut as string) }),
+    ...(data.date_fin !== undefined && { dateFin: new Date(data.date_fin as string) }),
+    ...(assignation !== undefined && { assignationType: assignation as never }),
+  };
+
+  // Une cible revue a la hausse ou une echeance repoussee change le verdict :
+  // sans ce recalcul, un objectif reste affiche « atteint » apres coup.
+  if (data.cible !== undefined || data.date_fin !== undefined) {
+    const cible = data.cible !== undefined ? Number(data.cible) : Number(current.cible);
+    const dateFin = data.date_fin !== undefined ? new Date(data.date_fin as string) : current.dateFin;
+    fields.statut = calcStatut(cible, Number(current.realise), dateFin);
+  }
+
+  // Les deux modes d'assignation s'excluent : basculer vers l'un doit vider
+  // l'autre, sinon l'objectif garde une equipe fantome ou d'anciens agents.
+  if (assignation === 'equipe') {
+    fields.equipeId = (data.equipe_id as number | undefined) ?? current.equipeId;
+  } else if (assignation === 'agents') {
+    fields.equipeId = null;
+  } else if (data.equipe_id !== undefined) {
+    fields.equipeId = data.equipe_id as number;
+  }
+
+  // On remplace la liste des agents des qu'elle est fournie, ou que l'objectif
+  // bascule sur une equipe (auquel cas elle doit disparaitre).
+  const replaceAgents = assignation === 'equipe' || agentIds !== undefined;
+
+  const o = await prisma.$transaction(async (tx) => {
+    if (replaceAgents) {
+      await tx.objectifAgent.deleteMany({ where: { objectifId: id } });
+      const next = assignation === 'equipe' ? [] : (agentIds ?? []);
+      if (next.length > 0) {
+        await tx.objectifAgent.createMany({
+          data: next.map((agentId) => ({ objectifId: id, agentId })),
+        });
+      }
+    }
+    return tx.objectif.update({ where: { id }, data: fields, include });
   });
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'collecte', action: 'UPDATE_OBJECTIF', entiteType: 'objectif', entiteId: id, description: `Modification de l'objectif "${o.titre}"` });
   return o;
