@@ -3,6 +3,8 @@ import { Platform } from 'react-native';
 import { LOCATION_TASK, trackingAvailable } from './task';
 import { TRACKING_DISTANCE_M, TRACKING_INTERVAL_MS } from '../config';
 import { getItem, setItem } from '../lib/storage';
+import { sendPosition } from '../api/agents';
+import { queuePosition } from '../lib/queue';
 import { workingHoursLabel } from '../lib/workingHours';
 
 export { LOCATION_TASK, trackingAvailable } from './task';
@@ -94,6 +96,37 @@ export async function stopTracking(): Promise<void> {
 /** État souhaité par l'agent, conservé entre deux lancements de l'application. */
 export async function trackingPreference(): Promise<boolean> {
   return (await getItem('tracking')) === 'on';
+}
+
+/**
+ * Envoi manuel de la position courante.
+ *
+ * Contrairement a la tache de fond, cette action est declenchee par l'agent :
+ * elle ignore donc volontairement la plage horaire de travail. Elle sert aussi
+ * a verifier toute la chaine (telephone vers back-office) hors heures ouvrees.
+ *
+ * En cas d'echec reseau la position est mise en file, comme le fait le suivi.
+ */
+export async function sendCurrentPosition(
+  agentId: number,
+): Promise<{ ok: true; queued: boolean } | { ok: false; reason: 'no-position' | 'denied' }> {
+  const services = await Location.hasServicesEnabledAsync();
+  if (!services) return { ok: false, reason: 'denied' };
+
+  const permission = await Location.requestForegroundPermissionsAsync();
+  if (permission.status !== 'granted') return { ok: false, reason: 'denied' };
+
+  const position = await getCurrentPosition();
+  if (!position) return { ok: false, reason: 'no-position' };
+
+  const { latitude, longitude } = position.coords;
+  try {
+    await sendPosition(agentId, latitude, longitude);
+    return { ok: true, queued: false };
+  } catch {
+    await queuePosition({ latitude, longitude, at: new Date().toISOString() });
+    return { ok: true, queued: true };
+  }
 }
 
 /** Position ponctuelle : disponible partout, Expo Go compris. */

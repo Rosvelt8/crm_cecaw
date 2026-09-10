@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -69,15 +69,19 @@ function FlyToAgent({ selectedId, agents }: { selectedId: string | null; agents:
   return null;
 }
 
+/** Trajet du jour de l'agent selectionne, trace par-dessus la carte. */
+export type TrajetPoint = { latitude: number; longitude: number; releve_at: string };
+
 interface Props {
   agents: TerrainAgent[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  trajet?: TrajetPoint[];
 }
 
 const CENTER: [number, number] = [4.0490, 9.7020];
 
-export default function TerrainMapInner({ agents, selectedId, onSelect }: Props) {
+export default function TerrainMapInner({ agents, selectedId, onSelect, trajet = [] }: Props) {
   useEffect(() => {
     const style = document.createElement('style');
     style.dataset.id = 'terrain-ring';
@@ -114,12 +118,40 @@ export default function TerrainMapInner({ agents, selectedId, onSelect }: Props)
       scrollWheelZoom={true}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        subdomains="abcd"
-        maxZoom={20}
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        subdomains="abc"
+        maxZoom={19}
       />
       <FlyToAgent selectedId={selectedId} agents={agents} />
+
+      {/* Trajet du jour : la ligne relie les releves, les pastilles marquent
+          chaque point transmis par le telephone. */}
+      {trajet.length > 1 && (
+        <Polyline
+          positions={trajet.map((p) => [p.latitude, p.longitude] as [number, number])}
+          pathOptions={{ color: '#b8860b', weight: 4, opacity: 0.75 }}
+        />
+      )}
+      {trajet.map((p, i) => (
+        <CircleMarker
+          key={`${p.releve_at}-${i}`}
+          center={[p.latitude, p.longitude]}
+          radius={4}
+          pathOptions={{ color: '#96670a', fillColor: '#e5b830', fillOpacity: 0.9, weight: 1.5 }}
+        >
+          <Popup>
+            <div style={{ padding: '6px 10px', fontSize: 12 }}>
+              {new Date(p.releve_at).toLocaleTimeString('fr-FR', {
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+              })}
+              <div style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: 10 }}>
+                {p.latitude.toFixed(5)}, {p.longitude.toFixed(5)}
+              </div>
+            </div>
+          </Popup>
+        </CircleMarker>
+      ))}
       {agents.map((a) => (
         <Marker
           key={a.id}

@@ -23,7 +23,7 @@
     "android": {
       "package": "cm.cecaw.terrain",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#2d1e03",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -39,6 +39,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-system-ui",
       "expo-secure-store",
       [
         "expo-location",
@@ -47,10 +48,24 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#2d1e03"
+        }
       ]
     ],
     "extra": {
       "apiUrl": "http://10.0.2.2:4000/api/v1"
+    },
+    "primaryColor": "#b8860b",
+    "androidStatusBar": {
+      "backgroundColor": "#2d1e03",
+      "barStyle": "light-content"
     }
   }
 }

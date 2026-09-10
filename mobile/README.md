@@ -32,6 +32,47 @@ Le téléphone et le poste doivent être sur **le même réseau Wi-Fi**, et le
 pare-feu Windows autoriser le port choisi. En cas de blocage réseau persistant,
 `npx expo start --tunnel` contourne le problème.
 
+### Le téléphone ne voit pas le backend
+
+Symptôme : l'application se lance mais aucune donnée n'arrive, ou « Pas de
+connexion ».
+
+Le `.env` pointe sur `http://localhost:4000`. Côté téléphone, `localhost`
+désigne le téléphone lui-même : cela ne mène au poste que grâce à
+`adb reverse`. **Ces redirections sont perdues à chaque débranchement du câble,
+redémarrage du téléphone ou relance du démon adb.**
+
+`npm start` et `npm run android` les rétablissent désormais automatiquement
+(`scripts/adb-reverse.js`). Pour les remettre sans relancer Metro :
+
+```bash
+npm run adb:link
+```
+
+Vérifier depuis le téléphone lui-même :
+
+```bash
+adb shell 'nc -z localhost 4000; echo $?'   # 0 = le poste est joignable
+```
+
+Le script n'échoue jamais le démarrage : sans appareil branché, il avertit et
+laisse Metro démarrer.
+
+### Adresse du backend
+
+L'application **deduit l'adresse du backend de celle de Metro**
+(`src/config.ts`) : meme hote, port 4000. Elle suit donc automatiquement les
+changements d'IP du poste, et fonctionne indifferemment par cable ou en Wi-Fi.
+
+| Contexte | `hostUri` de Metro | Adresse deduite |
+|---|---|---|
+| Wi-Fi | `192.168.1.9:8090` | `http://192.168.1.9:4000/api/v1` |
+| Cable (adb reverse) | `localhost:8090` | `http://localhost:4000/api/v1` |
+| Emulateur | `10.0.2.2:8090` | `http://10.0.2.2:4000/api/v1` |
+
+`EXPO_PUBLIC_API_URL` ne sert que de **repli**, quand Metro n'est pas joignable :
+version installee lancee seule, ou build de production.
+
 `EXPO_PUBLIC_API_URL` doit pointer vers le backend :
 
 | Contexte | Valeur |
@@ -42,6 +83,28 @@ pare-feu Windows autoriser le port choisi. En cas de blocage réseau persistant,
 
 Sur téléphone réel, le backend doit écouter sur l'interface réseau (pas
 uniquement `localhost`) et le pare-feu autoriser le port 4000.
+
+## Identité visuelle
+
+Reprise du back-office pour que les deux outils se ressemblent :
+
+- **Couleur de marque** : or foncé `#B8860B`, avec l'échelle complète copiée de
+  `frontend/tailwind.config.ts`. Elle porte les actions principales ; les statuts
+  gardent le vert / ambre / rouge universels.
+- **Fond sombre** `#2d1e03` (brand 950) pour les bandeaux d'identité, l'écran de
+  lancement, le verrouillage et le montant de collecte.
+- **Polices** : Poppins (texte), Playfair Display (nom de marque), JetBrains Mono
+  (matricules, numéros de compte, montants). Les trois viennent du web.
+- **Logo** : `assets/logo.png`, copie de `frontend/public/logo.png`.
+
+Les jetons vivent dans `src/theme.ts` (`colors`, `fonts`, `spacing`, `radius`,
+`shadow`), et les composants partagés dans `src/components/ui.tsx`.
+
+> Les polices sont importées **par graisse**
+> (`@expo-google-fonts/poppins/400Regular`), jamais depuis l'index du paquet :
+> celui-ci réexporte les 18 variantes, qui finiraient toutes dans l'APK. Même
+> raison pour `@expo/vector-icons/Feather` plutôt que l'index, qui embarque les
+> 20 polices d'icônes. L'export est passé de 66 à 9 fichiers `.ttf`.
 
 ## Sécurité : code PIN et verrouillage
 

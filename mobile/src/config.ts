@@ -1,13 +1,37 @@
 import Constants from 'expo-constants';
 
+/** Port sur lequel le backend ecoute. */
+const API_PORT = 4000;
+
 /**
- * URL de l'API. `EXPO_PUBLIC_API_URL` (fichier .env) prime, sinon on retombe sur
- * la valeur d'app.json. 10.0.2.2 est l'alias de localhost vu depuis l'emulateur Android.
+ * Adresse du poste de developpement, deduite de celle de Metro.
+ *
+ * `hostUri` vaut par exemple « 192.168.1.9:8090 » en Wi-Fi, ou
+ * « localhost:8090 » quand le telephone passe par le cable (adb reverse).
+ * Dans les deux cas, le backend se trouve sur le meme hote, port 4000 : on
+ * evite ainsi de coder une adresse en dur, qui change a chaque bail DHCP.
+ */
+function inferredApiUrl(): string | null {
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants.expoGoConfig as { debuggerHost?: string } | undefined)?.debuggerHost;
+  const host = hostUri?.split(':')[0];
+  return host ? `http://${host}:${API_PORT}/api/v1` : null;
+}
+
+/**
+ * URL de l'API.
+ *
+ * L'adresse deduite passe en premier : c'est la seule qui reste juste quand
+ * l'IP du poste change ou qu'on alterne cable et Wi-Fi. `EXPO_PUBLIC_API_URL`
+ * sert de repli, notamment pour une version installee ou l'adresse de Metro
+ * n'existe plus.
  */
 export const API_URL: string =
+  inferredApiUrl() ??
   process.env.EXPO_PUBLIC_API_URL ??
   (Constants.expoConfig?.extra?.apiUrl as string | undefined) ??
-  'http://10.0.2.2:4000/api/v1';
+  `http://10.0.2.2:${API_PORT}/api/v1`;
 
 /** Seul ce role peut se connecter : l'application est reservee aux agents terrain. */
 export const ALLOWED_ROLE = 'agent';

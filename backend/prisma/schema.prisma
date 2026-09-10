@@ -204,9 +204,28 @@ model Agent {
   utilisateur  Utilisateur     @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   objectifs    ObjectifAgent[]
+  positions    AgentPosition[]
 
   @@index([utilisateurId])
   @@map("agents")
+}
+
+/// Historique des positions transmises par l'application mobile.
+/// `Agent` ne conserve que la derniere position ; cette table permet de
+/// reconstituer le trajet parcouru sur une journee de service.
+model AgentPosition {
+  id        Int      @id @default(autoincrement())
+  agentId   Int      @map("agent_id")
+  latitude  Decimal  @db.Decimal(10, 7)
+  longitude Decimal  @db.Decimal(10, 7)
+  /// Horodatage du releve, fourni par le serveur a la reception.
+  releveAt  DateTime @default(now()) @map("releve_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  /// Index compose : toutes les requetes filtrent par agent puis par periode.
+  @@index([agentId, releveAt])
+  @@map("agents_positions")
 }
 
 model Prospect {

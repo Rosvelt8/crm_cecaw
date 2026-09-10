@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { EmptyState, ErrorNote, Loading } from '../../src/components/ui';
+// Import direct de la famille : l'index de @expo/vector-icons embarque
+// les 20 polices d'icones, alors qu'une seule est utilisee.
+import Feather from '@expo/vector-icons/Feather';
+import { Avatar, EmptyState, ErrorNote, Loading, Mono } from '../../src/components/ui';
 import { listClients } from '../../src/api/clients';
 import { errorMessage } from '../../src/api/client';
+import { initials } from '../../src/lib/format';
 import type { Client } from '../../src/types';
-import { colors, radius, spacing } from '../../src/theme';
+import { colors, fonts, radius, shadow, spacing } from '../../src/theme';
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -43,17 +47,27 @@ export default function ClientsScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.toolbar}>
+      <View style={styles.searchWrap}>
+        <Feather name="search" size={16} color={colors.mutedLight} />
         <TextInput
           value={search}
           onChangeText={setSearch}
           placeholder="Nom, téléphone, ville..."
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={colors.mutedLight}
           style={styles.search}
         />
+        {search ? (
+          <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <Feather name="x" size={16} color={colors.mutedLight} />
+          </Pressable>
+        ) : null}
       </View>
 
-      {error ? <ErrorNote message={error} /> : null}
+      {error ? (
+        <View style={{ paddingHorizontal: spacing.md }}>
+          <ErrorNote message={error} />
+        </View>
+      ) : null}
 
       <FlatList
         data={filtered}
@@ -70,18 +84,29 @@ export default function ClientsScreen() {
             hint="Vos clients apparaissent ici une fois un prospect converti."
           />
         }
-        renderItem={({ item }) => (
-          <Pressable style={styles.row} onPress={() => router.push(`/client/${item.id}`)}>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.name}>{`${item.prenom ?? ''} ${item.nom}`.trim()}</Text>
-              <Text style={styles.muted}>{item.telephone}</Text>
-              <Text style={styles.muted}>{item.ville ?? '--'}</Text>
-            </View>
-            <Text style={styles.comptes}>
-              {item.nb_comptes ?? 0} compte{(item.nb_comptes ?? 0) > 1 ? 's' : ''}
-            </Text>
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          const nbComptes = item.nb_comptes ?? 0;
+          return (
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              onPress={() => router.push(`/client/${item.id}`)}
+            >
+              <Avatar initials={initials(item.prenom, item.nom)} size={42} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.name}>{`${item.prenom ?? ''} ${item.nom}`.trim()}</Text>
+                <Mono>{item.telephone}</Mono>
+                <Text style={styles.muted}>{item.ville ?? '--'}</Text>
+              </View>
+              <View style={styles.rowRight}>
+                <View style={styles.comptePill}>
+                  <Feather name="credit-card" size={12} color={colors.brandDark} />
+                  <Text style={styles.comptePillText}>{nbComptes}</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.mutedLight} />
+              </View>
+            </Pressable>
+          );
+        }}
       />
     </View>
   );
@@ -89,17 +114,21 @@ export default function ClientsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  toolbar: { padding: spacing.md },
-  search: {
-    height: 44,
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    margin: spacing.md,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    height: 46,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
     backgroundColor: colors.surface,
-    color: colors.text,
   },
-  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
+  search: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.text },
+  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm, flexGrow: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -107,10 +136,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.md,
+    ...shadow.card,
   },
-  name: { fontSize: 15, fontWeight: '700', color: colors.text },
-  muted: { color: colors.muted, fontSize: 13 },
-  comptes: { color: colors.brand, fontSize: 12, fontWeight: '700' },
+  rowPressed: { backgroundColor: colors.brandLight },
+  rowRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  name: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text },
+  muted: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  comptePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.brandLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  comptePillText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.brandDark },
 });

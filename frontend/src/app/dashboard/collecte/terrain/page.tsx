@@ -1,17 +1,15 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { agentService } from '@/services/agentService';
+import type { TrajetPoint } from '@/components/collecte/terrain-map-inner';
 import { agenceService } from '@/services/agenceService';
+import { useAgentsLive } from '@/hooks/useAgentsLive';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search, Signal, WifiOff, RefreshCw, MapPin } from 'lucide-react';
+import { Search, Signal, WifiOff, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
-import type { TerrainAgent } from '@/components/collecte/terrain-map-inner';
-import { io, Socket } from 'socket.io-client';
 
 const TerrainMap = dynamic(() => import('@/components/collecte/terrain-map-inner'), {
   ssr: false,
@@ -25,76 +23,35 @@ const TerrainMap = dynamic(() => import('@/components/collecte/terrain-map-inner
   ),
 });
 
-function toTerrainAgent(a: any): TerrainAgent | null {
-  if (a.latitude == null || a.longitude == null) return null;
-  const u = a.utilisateur;
-  const minutesAgo = a.dernierePositionAt
-    ? Math.round((Date.now() - new Date(a.dernierePositionAt).getTime()) / 60000)
-    : null;
-  return {
-    id: String(a.id),
-    lat: Number(a.latitude),
-    lng: Number(a.longitude),
-    initials: u ? `${(u.prenom ?? '?')[0]}${(u.nom ?? '?')[0]}` : '??',
-    nom: u ? `${u.prenom} ${u.nom}` : a.matricule,
-    matricule: a.matricule ?? '',
-    secteur: a.secteur ?? '',
-    equipe: u?.equipe?.nom ?? '',
-    agenceId: String(u?.agence?.id ?? u?.agenceId ?? ''),
-    online: minutesAgo !== null && minutesAgo < 60,
-    minutesAgo,
-    dernierePositionAt: a.dernierePositionAt ?? null,
-  };
-}
-
 export default function TerrainPage() {
-  const [agents, setAgents] = useState<TerrainAgent[]>([]);
-  const [agences, setAgences] = useState<any[]>([]);
+  // Positions et flux temps reel partages avec la page Geolocalisation.
+  const { agents } = useAgentsLive();
+  const [agences, setAgences] = useState<{ id: number; nom: string }[]>([]);
   const [search, setSearch] = useState('');
   const [filterAgence, setFilterAgence] = useState('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [trajet, setTrajet] = useState<TrajetPoint[]>([]);
+  const [trajetKm, setTrajetKm] = useState<number>(0);
 
-  const loadAgents = useCallback(async () => {
-    try {
-      const rows = await agentService.getAllAgents();
-      const enriched = (rows as any[])
-        .map(toTerrainAgent)
-        .filter((a): a is TerrainAgent => a !== null);
-      setAgents(enriched);
-    } catch { /* silently ignore on background refresh */ }
-  }, []);
+  // Trajet du jour de l'agent selectionne, rafraichi a chaque nouvelle position.
+  useEffect(() => {
+    if (!selectedId) return;
+    let annule = false;
+    agentService
+      .getTrajet(selectedId)
+      .then((t) => {
+        if (annule) return;
+        setTrajet(t.points);
+        setTrajetKm(t.distance_km);
+      })
+      .catch(() => undefined);
+    return () => {
+      annule = true;
+    };
+  }, [selectedId, agents]);
 
   useEffect(() => {
     agenceService.getAgences({ per_page: 100 }).then((r) => setAgences(r.data ?? [])).catch(() => {});
-    loadAgents();
-  }, [loadAgents]);
-
-  useEffect(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:4000';
-    const socket: Socket = io(wsUrl, { transports: ['websocket'] });
-
-    socket.on('connect', () => socket.emit('join', 'terrain'));
-
-    // Le backend émet un payload snake_case : { agent_id, latitude, longitude, derniere_position_at, en_ligne }
-    socket.on('agent:position', (payload: { agent_id: number; latitude: number; longitude: number; derniere_position_at: string }) => {
-      const id = String(payload.agent_id);
-      setAgents((prev) =>
-        prev.map((a) => {
-          if (a.id !== id) return a;
-          const minutesAgo = Math.round((Date.now() - new Date(payload.derniere_position_at).getTime()) / 60000);
-          return {
-            ...a,
-            lat: payload.latitude,
-            lng: payload.longitude,
-            dernierePositionAt: payload.derniere_position_at,
-            online: minutesAgo < 60,
-            minutesAgo,
-          };
-        })
-      );
-    });
-
-    return () => { socket.disconnect(); };
   }, []);
 
   const filtered = agents.filter((a) => {
@@ -106,18 +63,6 @@ export default function TerrainPage() {
 
   const onlineCount = agents.filter((a) => a.online).length;
   const selectedAgent = agents.find((a) => a.id === selectedId);
-
-  const simulatePosition = async (agentId: string) => {
-    const lat = 4.038 + Math.random() * 0.028;
-    const lng = 9.692 + Math.random() * 0.020;
-    try {
-      await agentService.updatePosition(agentId, lat, lng);
-      toast.success('Position simulée mise à jour');
-      loadAgents();
-    } catch {
-      toast.error('Erreur lors de la mise à jour de position');
-    }
-  };
 
   return (
     <div
@@ -230,20 +175,17 @@ export default function TerrainPage() {
         {/* Footer */}
         <div className="p-2 sm:p-3 border-t space-y-2 bg-muted/20">
           {selectedAgent ? (
-            <div className="space-y-2">
+            <div className="space-y-1">
               <div className="text-[9px] sm:text-[11px] text-muted-foreground text-center truncate">
                 Sélectionné : <span className="font-semibold text-foreground">{selectedAgent.nom}</span>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full h-6 sm:h-7 text-xs gap-1.5"
-                onClick={() => simulatePosition(selectedAgent.id)}
-              >
-                <RefreshCw className="h-3 w-3" />
-                <span className="hidden sm:inline">Simuler position GPS</span>
-                <span className="sm:hidden">Simuler GPS</span>
-              </Button>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground text-center">
+                {selectedAgent.minutesAgo === null
+                  ? 'Aucune position reçue de son téléphone'
+                  : selectedAgent.minutesAgo < 60
+                    ? `Position reçue il y a ${selectedAgent.minutesAgo} min`
+                    : `Dernière position il y a ${Math.floor(selectedAgent.minutesAgo / 60)} h`}
+              </p>
             </div>
           ) : (
             <p className="text-[9px] sm:text-[10px] text-muted-foreground text-center flex items-center justify-center gap-1">
@@ -260,7 +202,17 @@ export default function TerrainPage() {
           agents={filtered}
           selectedId={selectedId}
           onSelect={(id) => setSelectedId(id === selectedId ? null : id)}
+          trajet={selectedId ? trajet : []}
         />
+
+        {selectedId ? (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[400] bg-white/95 border border-brand-100 rounded-full px-4 py-1.5 shadow-sm text-[11px] font-semibold flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-brand-500" />
+            {trajet.length > 0
+              ? `Trajet du jour : ${trajet.length} relevés · ${trajetKm} km`
+              : "Aucun relevé transmis aujourd'hui"}
+          </div>
+        ) : null}
       </div>
     </div>
   );

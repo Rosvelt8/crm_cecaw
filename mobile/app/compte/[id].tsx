@@ -10,16 +10,31 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Badge, Button, Card, ErrorNote, Field, Loading } from '../../src/components/ui';
+// Import direct de la famille : l'index de @expo/vector-icons embarque
+// les 20 polices d'icones, alors qu'une seule est utilisee.
+import Feather from '@expo/vector-icons/Feather';
+import {
+  Badge,
+  Button,
+  Card,
+  ErrorNote,
+  Field,
+  Loading,
+  Mono,
+  SectionTitle,
+} from '../../src/components/ui';
 import { createTransaction, listTransactions } from '../../src/api/comptes';
 import { errorMessage } from '../../src/api/client';
 import { queueTransaction } from '../../src/lib/queue';
 import { useSession } from '../../src/store/session';
 import { formatDateTime, formatMontant } from '../../src/lib/format';
 import type { Transaction } from '../../src/types';
-import { colors, radius, spacing } from '../../src/theme';
+import { colors, fonts, radius, shadow, spacing } from '../../src/theme';
 
 type TypeOperation = 'credit' | 'debit';
+
+/** Montants proposes en un geste : les coupures les plus courantes en collecte. */
+const RACCOURCIS = [1000, 2000, 5000, 10000, 25000];
 
 export default function CollecteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -50,14 +65,15 @@ export default function CollecteScreen() {
     load();
   }, [load]);
 
+  const value = Number(montant.replace(/[^0-9]/g, ''));
+
   const submit = async () => {
-    const value = Number(montant.replace(/[^0-9]/g, ''));
     if (!Number.isFinite(value) || value <= 0) {
       setError('Saisissez un montant supérieur à zéro.');
       return;
     }
     if (!agent) {
-      setError("Aucune fiche agent rattachée à ce compte : opération impossible.");
+      setError('Aucune fiche agent rattachée à ce compte : opération impossible.');
       return;
     }
 
@@ -105,32 +121,65 @@ export default function CollecteScreen() {
         {error ? <ErrorNote message={error} /> : null}
 
         <Card>
-          <Text style={styles.label}>Type d&apos;opération</Text>
+          <SectionTitle>Type d&apos;opération</SectionTitle>
           <View style={styles.segmented}>
             {(
               [
-                ['credit', 'Dépôt'],
-                ['debit', 'Retrait'],
+                ['credit', 'Dépôt', 'arrow-down-left'],
+                ['debit', 'Retrait', 'arrow-up-right'],
               ] as const
-            ).map(([value, label]) => (
+            ).map(([v, label, icon]) => {
+              const active = type === v;
+              const tint = v === 'credit' ? colors.success : colors.warning;
+              return (
+                <Pressable
+                  key={v}
+                  onPress={() => setType(v)}
+                  style={[
+                    styles.segment,
+                    active && { borderColor: tint, backgroundColor: `${tint}14` },
+                  ]}
+                >
+                  <Feather name={icon} size={16} color={active ? tint : colors.mutedLight} />
+                  <Text style={[styles.segmentText, active && { color: tint }]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Montant mis en avant : c'est le geste central de la collecte. */}
+          <View style={styles.amountBox}>
+            <Text style={styles.amountLabel}>Montant</Text>
+            <View style={styles.amountRow}>
+              <Mono style={styles.amountValue}>
+                {value > 0 ? value.toLocaleString('fr-FR') : '0'}
+              </Mono>
+              <Text style={styles.amountCurrency}>FCFA</Text>
+            </View>
+          </View>
+
+          <View style={styles.shortcuts}>
+            {RACCOURCIS.map((m) => (
               <Pressable
-                key={value}
-                onPress={() => setType(value)}
-                style={[styles.segment, type === value && styles.segmentActive]}
+                key={m}
+                style={styles.shortcut}
+                onPress={() => setMontant(String((value || 0) + m))}
               >
-                <Text style={[styles.segmentText, type === value && styles.segmentTextActive]}>
-                  {label}
-                </Text>
+                <Text style={styles.shortcutText}>+{m.toLocaleString('fr-FR')}</Text>
               </Pressable>
             ))}
+            <Pressable style={styles.shortcut} onPress={() => setMontant('')}>
+              <Feather name="rotate-ccw" size={12} color={colors.muted} />
+            </Pressable>
           </View>
 
           <Field
-            label="Montant (FCFA)"
+            label="Saisie manuelle (FCFA)"
             value={montant}
             onChangeText={setMontant}
             keyboardType="number-pad"
             placeholder="10000"
+            mono
           />
 
           <Field
@@ -148,7 +197,7 @@ export default function CollecteScreen() {
           />
         </Card>
 
-        <Text style={styles.section}>Dernières opérations</Text>
+        <SectionTitle>Dernières opérations</SectionTitle>
 
         {loading ? (
           <Loading label="Chargement de l'historique..." />
@@ -157,7 +206,19 @@ export default function CollecteScreen() {
         ) : (
           history.slice(0, 15).map((t) => (
             <View key={t.id} style={styles.historyRow}>
-              <View style={{ flex: 1, gap: 2 }}>
+              <View
+                style={[
+                  styles.historyIcon,
+                  { backgroundColor: t.type === 'credit' ? colors.successLight : colors.warningLight },
+                ]}
+              >
+                <Feather
+                  name={t.type === 'credit' ? 'arrow-down-left' : 'arrow-up-right'}
+                  size={15}
+                  color={t.type === 'credit' ? colors.successDark : colors.warningDark}
+                />
+              </View>
+              <View style={{ flex: 1, gap: 3 }}>
                 <Badge
                   label={t.type === 'credit' ? 'Dépôt' : 'Retrait'}
                   tone={t.type === 'credit' ? 'success' : 'warning'}
@@ -179,32 +240,70 @@ export default function CollecteScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
-  label: { fontSize: 13, fontWeight: '600', color: colors.text },
+
   segmented: { flexDirection: 'row', gap: spacing.sm },
   segment: {
     flex: 1,
-    height: 44,
+    height: 48,
+    flexDirection: 'row',
+    gap: 6,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
   },
-  segmentActive: { borderColor: colors.brand, backgroundColor: colors.brandLight },
-  segmentText: { fontWeight: '600', color: colors.muted },
-  segmentTextActive: { color: colors.brandDark },
-  section: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: spacing.sm },
+  segmentText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.mutedLight },
+
+  amountBox: {
+    backgroundColor: colors.brandDeep,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    gap: 2,
+  },
+  amountLabel: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  amountValue: { fontSize: 30, color: colors.onBrand },
+  amountCurrency: { fontFamily: fonts.medium, fontSize: 13, color: colors.brandAccent },
+
+  shortcuts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  shortcut: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+  },
+  shortcutText: { fontFamily: fonts.medium, fontSize: 12, color: colors.textSoft },
+
   historyRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.md,
+    ...shadow.card,
   },
-  amount: { fontSize: 15, fontWeight: '800', color: colors.text },
-  date: { fontSize: 11, color: colors.muted },
-  muted: { color: colors.muted, fontSize: 13 },
+  historyIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  amount: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
+  date: { fontFamily: fonts.regular, fontSize: 10, color: colors.mutedLight },
+  muted: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
 });

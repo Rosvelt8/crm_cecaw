@@ -1,12 +1,24 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Badge, Card, EmptyState, ErrorNote, Loading } from '../../src/components/ui';
+// Import direct de la famille : l'index de @expo/vector-icons embarque
+// les 20 polices d'icones, alors qu'une seule est utilisee.
+import Feather from '@expo/vector-icons/Feather';
+import {
+  Avatar,
+  Badge,
+  Card,
+  EmptyState,
+  ErrorNote,
+  Loading,
+  Mono,
+  SectionTitle,
+} from '../../src/components/ui';
 import { getClient, listComptes } from '../../src/api/clients';
 import { errorMessage } from '../../src/api/client';
-import { formatMontant } from '../../src/lib/format';
+import { formatMontant, initials } from '../../src/lib/format';
 import type { Client, Compte } from '../../src/types';
-import { colors, radius, spacing } from '../../src/theme';
+import { colors, fonts, radius, shadow, spacing } from '../../src/theme';
 
 export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,22 +49,40 @@ export default function ClientDetailScreen() {
   }, [load]);
 
   if (loading) return <Loading label="Chargement de la fiche..." />;
-  if (error) return <ErrorNote message={error} />;
+  if (error) {
+    return (
+      <View style={{ padding: spacing.md }}>
+        <ErrorNote message={error} />
+      </View>
+    );
+  }
   if (!client) return <EmptyState title="Client introuvable" />;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Card>
-        <Text style={styles.name}>{`${client.prenom ?? ''} ${client.nom}`.trim()}</Text>
-        <Text style={styles.muted}>{client.telephone}</Text>
-        {client.email ? <Text style={styles.muted}>{client.email}</Text> : null}
-        {client.ville ? <Text style={styles.muted}>{client.ville}</Text> : null}
-        <Badge label={client.statut} tone="muted" />
-      </Card>
+      {/* Bandeau identite, dans l'or profond de la marque. */}
+      <View style={styles.hero}>
+        <Avatar initials={initials(client.prenom, client.nom)} size={58} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={styles.heroName}>
+            {`${client.prenom ?? ''} ${client.nom}`.trim()}
+          </Text>
+          <Mono style={styles.heroMono}>{client.telephone}</Mono>
+          {client.ville ? <Text style={styles.heroMeta}>{client.ville}</Text> : null}
+        </View>
+        <Badge label={client.statut} tone="brand" />
+      </View>
 
-      <Text style={styles.section}>
-        Comptes ({comptes.length})
-      </Text>
+      {client.email ? (
+        <Card>
+          <View style={styles.infoRow}>
+            <Feather name="mail" size={14} color={colors.muted} />
+            <Text style={styles.info}>{client.email}</Text>
+          </View>
+        </Card>
+      ) : null}
+
+      <SectionTitle>Comptes ({comptes.length})</SectionTitle>
 
       {comptes.length === 0 ? (
         <EmptyState
@@ -63,16 +93,22 @@ export default function ClientDetailScreen() {
         comptes.map((compte) => (
           <Pressable
             key={compte.id}
-            style={styles.compte}
+            style={({ pressed }) => [styles.compte, pressed && styles.comptePressed]}
             onPress={() => router.push(`/compte/${compte.id}`)}
           >
+            <View style={styles.compteIcon}>
+              <Feather name="credit-card" size={17} color={colors.brandDark} />
+            </View>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.numero}>{compte.numero}</Text>
+              <Mono style={styles.numero}>{compte.numero}</Mono>
               <Text style={styles.muted}>{compte.produit?.nom ?? 'Produit inconnu'}</Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
               <Text style={styles.solde}>{formatMontant(compte.solde)}</Text>
-              <Text style={styles.action}>Collecter</Text>
+              <View style={styles.collecteRow}>
+                <Text style={styles.action}>Collecter</Text>
+                <Feather name="chevron-right" size={13} color={colors.brand} />
+              </View>
             </View>
           </Pressable>
         ))
@@ -83,10 +119,23 @@ export default function ClientDetailScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.md, gap: spacing.md },
-  name: { fontSize: 18, fontWeight: '700', color: colors.text },
-  muted: { color: colors.muted, fontSize: 13 },
-  section: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: spacing.sm },
+  content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.brandDeep,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+  heroName: { fontFamily: fonts.bold, fontSize: 18, color: colors.onBrand },
+  heroMono: { color: colors.brandAccent, fontSize: 12 },
+  heroMeta: { fontFamily: fonts.regular, fontSize: 12, color: 'rgba(255,255,255,0.6)' },
+
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  info: { fontFamily: fonts.regular, fontSize: 13, color: colors.textSoft },
+
   compte: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -94,10 +143,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.md,
+    ...shadow.card,
   },
-  numero: { fontSize: 15, fontWeight: '700', color: colors.text },
-  solde: { fontSize: 15, fontWeight: '800', color: colors.brand },
-  action: { fontSize: 11, color: colors.muted },
+  comptePressed: { backgroundColor: colors.brandLight },
+  compteIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  numero: { fontSize: 14, color: colors.text },
+  muted: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  solde: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  collecteRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  action: { fontFamily: fonts.medium, fontSize: 11, color: colors.brand },
 });

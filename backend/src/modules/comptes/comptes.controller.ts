@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import * as svc from './comptes.service';
-import { success, created } from '../../lib/response';
+import { success, created, noContent } from '../../lib/response';
 import { StatutCompte } from '@prisma/client';
 
 const compteSchema = z.object({
@@ -50,5 +50,12 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
   try {
     const body = transactionSchema.parse(req.body);
     return created(res, await svc.createTransaction(parseInt(req.params.compte_id, 10), body));
+  } catch (e) { return next(e); }
+};
+
+export const remove = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await svc.remove(parseInt(req.params.id, 10), req.user!);
+    return noContent(res);
   } catch (e) { return next(e); }
 };

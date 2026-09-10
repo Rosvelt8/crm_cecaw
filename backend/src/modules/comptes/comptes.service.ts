@@ -1,4 +1,5 @@
 import prisma from '../../lib/prisma';
+import { createLog } from '../../lib/logger';
 import { JwtPayload } from '../../middleware/auth';
 import { StatutCompte } from '@prisma/client';
 import { parsePagination, paginationMeta } from '../../lib/pagination';
@@ -114,5 +115,43 @@ export async function createTransaction(compteId: number, data: { type: 'credit'
 
     await tx.compteClient.update({ where: { id: compteId }, data: { solde: soldeApres } });
     return txn;
+  });
+}
+
+/**
+ * Suppression d'un compte.
+ *
+ * Refusee des qu'une ecriture existe : les transactions portent le solde avant
+ * et apres, elles constituent la piste d'audit du compte et ne doivent jamais
+ * devenir orphelines. Un compte a fermer se met au statut « cloture ».
+ */
+export async function remove(id: number, actor: JwtPayload) {
+  const compte = await prisma.compteClient.findUniqueOrThrow({
+    where: { id },
+    include: { _count: { select: { transactions: true } } },
+  });
+
+  if (compte._count.transactions > 0) {
+    throw Object.assign(
+      new Error("Impossible de supprimer : le compte porte des transactions. Clôturez-le."),
+      { status: 409 },
+    );
+  }
+  if (Number(compte.solde) !== 0) {
+    throw Object.assign(new Error("Impossible de supprimer : le solde n'est pas nul."), {
+      status: 409,
+    });
+  }
+
+  await prisma.compteClient.delete({ where: { id } });
+  await createLog({
+    utilisateurId: actor.sub,
+    utilisateurLabel: actor.email,
+    agenceId: actor.agenceId ?? undefined,
+    module: 'collecte',
+    action: 'DELETE_COMPTE',
+    entiteType: 'compte',
+    entiteId: id,
+    description: `Suppression du compte ${compte.numero}`,
   });
 }

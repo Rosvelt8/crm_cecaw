@@ -42,6 +42,22 @@ export const agentService = {
     await apiClient.delete(`/agents/${id}`);
   },
 
+  /** Trajet parcouru sur une journee (YYYY-MM-DD, defaut : aujourd'hui). */
+  getTrajet: async (id: number | string, date?: string) => {
+    const { data: body } = await apiClient.get(`/agents/${id}/trajet`, {
+      params: date ? { date } : {},
+    });
+    return body.data as {
+      agent_id: number;
+      date: string;
+      nb_points: number;
+      distance_km: number;
+      premier_point: string | null;
+      dernier_point: string | null;
+      points: { latitude: number; longitude: number; releve_at: string }[];
+    };
+  },
+
   updatePosition: async (id: number | string, latitude: number, longitude: number) => {
     const { data: body } = await apiClient.patch(`/agents/${id}/position`, { latitude, longitude });
     return body.data;

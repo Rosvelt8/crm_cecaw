@@ -1,207 +1,198 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { Badge, Button, Card, ErrorNote } from '../../src/components/ui';
-import { useSession } from '../../src/store/session';
-import { isTrackingRunning, startTracking, stopTracking, trackingAvailable } from '../../src/tracking';
-import {
-  flushPositions,
-  flushTransactions,
-  queuedPositionCount,
-  queuedTransactionCount,
-} from '../../src/lib/queue';
-import { isWithinWorkingHours, workingHoursLabel } from '../../src/lib/workingHours';
-import { formatDateTime, initials } from '../../src/lib/format';
-import { colors, radius, spacing } from '../../src/theme';
+import React, { useCallback, useMemo, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import Feather from '@expo/vector-icons/Feather';
+import { Avatar, Badge, EmptyState, ErrorNote, Loading, Mono } from '../../src/components/ui';
+import { SelectField } from '../../src/components/FormFields';
+import { listProspects } from '../../src/api/prospects';
+import { errorMessage } from '../../src/api/client';
+import { formatDate, initials } from '../../src/lib/format';
+import { LABEL_STATUT_PROSPECT, type Prospect, type StatutProspect } from '../../src/types';
+import { colors, fonts, radius, shadow, spacing } from '../../src/theme';
 
-const PERMISSION_MESSAGES = {
-  'services-off': 'Activez la localisation du téléphone, puis réessayez.',
-  'foreground-denied': "L'accès à la position a été refusé.",
-  'background-denied':
-    "Autorisez la position « Toujours » dans les réglages : sans cela, la tournée s'interrompt dès que l'écran s'éteint.",
-  unavailable:
-    "Le suivi en arrière-plan n'existe pas dans Expo Go sur Android. Il faut une version installée de l'application (development build ou APK).",
-} as const;
+const TONE: Record<StatutProspect, 'muted' | 'success' | 'warning' | 'danger' | 'brand'> = {
+  nouveau: 'muted',
+  contacte: 'brand',
+  interesse: 'warning',
+  negocie: 'warning',
+  converti: 'success',
+  perdu: 'danger',
+};
 
-export default function TourneeScreen() {
-  const user = useSession((s) => s.user);
-  const agent = useSession((s) => s.agent);
-  const signOut = useSession((s) => s.signOut);
+const FILTRES = (Object.keys(LABEL_STATUT_PROSPECT) as StatutProspect[]).map((s) => ({
+  value: s,
+  label: LABEL_STATUT_PROSPECT[s],
+}));
 
-  const [tracking, setTracking] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [pendingPositions, setPendingPositions] = useState(0);
-  const [pendingTransactions, setPendingTransactions] = useState(0);
-  const [syncing, setSyncing] = useState(false);
+export default function ProspectsScreen() {
+  const router = useRouter();
+  const [rows, setRows] = useState<Prospect[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statut, setStatut] = useState<StatutProspect | ''>('');
+  const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    const [running, positions, transactions] = await Promise.all([
-      isTrackingRunning(),
-      queuedPositionCount(),
-      queuedTransactionCount(),
-    ]);
-    setTracking(running);
-    setPendingPositions(positions);
-    setPendingTransactions(transactions);
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      setRows(await listProspects());
+    } catch (e) {
+      setError(errorMessage(e, 'Impossible de charger les prospects.'));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  // Recharge au retour sur l'onglet : une fiche vient peut-être d'être modifiée.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
-  const toggleTracking = async (next: boolean) => {
-    if (!agent) {
-      setNotice('Aucune fiche agent rattachée à ce compte : le suivi ne peut pas démarrer.');
-      return;
-    }
-    setBusy(true);
-    setNotice(null);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((p) => {
+      if (statut && p.statut !== statut) return false;
+      if (!q) return true;
+      return `${p.prenom ?? ''} ${p.nom} ${p.telephone} ${p.ville ?? ''}`
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [rows, search, statut]);
 
-    if (!next) {
-      await stopTracking();
-      setTracking(false);
-      setBusy(false);
-      return;
-    }
-
-    const result = await startTracking(agent.id);
-    if (result.ok) {
-      setTracking(true);
-    } else {
-      setNotice(PERMISSION_MESSAGES[result.reason]);
-      setTracking(false);
-    }
-    setBusy(false);
-  };
-
-  const sync = async () => {
-    if (!agent) return;
-    setSyncing(true);
-    const positions = await flushPositions(agent.id);
-    const transactions = await flushTransactions();
-    await refresh();
-    setSyncing(false);
-    Alert.alert(
-      'Synchronisation',
-      positions + transactions === 0
-        ? 'Rien à transmettre.'
-        : `${positions} position(s) et ${transactions} opération(s) transmises.`,
-    );
-  };
-
-  const withinHours = isWithinWorkingHours();
+  if (loading) return <Loading label="Chargement des prospects..." />;
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={async () => {
-            setRefreshing(true);
-            await refresh();
-            setRefreshing(false);
-          }}
+    <View style={styles.screen}>
+      <View style={styles.toolbar}>
+        <View style={styles.searchWrap}>
+          <Feather name="search" size={16} color={colors.mutedLight} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Nom, téléphone, ville..."
+            placeholderTextColor={colors.mutedLight}
+            style={styles.search}
+          />
+          {search ? (
+            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+              <Feather name="x" size={16} color={colors.mutedLight} />
+            </Pressable>
+          ) : null}
+        </View>
+        <SelectField
+          label="Statut"
+          value={statut}
+          options={FILTRES}
+          onChange={(v) => setStatut(v as StatutProspect | '')}
+          clearable
+          placeholder="Tous les statuts"
         />
-      }
-    >
-      <Card>
-        <View style={styles.identity}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials(user?.prenom, user?.nom)}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{user ? `${user.prenom} ${user.nom}` : 'Agent'}</Text>
-            <Text style={styles.muted}>
-              {agent
-                ? `${agent.matricule}${agent.secteur ? ` - ${agent.secteur}` : ''}`
-                : 'Fiche agent introuvable'}
-            </Text>
-            <Text style={styles.muted}>{user?.agence?.nom ?? ''}</Text>
-          </View>
+      </View>
+
+      {error ? (
+        <View style={{ paddingHorizontal: spacing.md }}>
+          <ErrorNote message={error} />
         </View>
-      </Card>
+      ) : null}
 
-      {notice ? <ErrorNote message={notice} /> : null}
-
-      <Card>
-        <View style={styles.rowBetween}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle}>Suivi de tournée</Text>
-            <Text style={styles.muted}>{workingHoursLabel()}</Text>
-          </View>
-          <Switch
-            value={tracking}
-            onValueChange={toggleTracking}
-            disabled={busy || !agent || !trackingAvailable}
-            trackColor={{ true: colors.brand, false: colors.border }}
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={styles.list}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          load();
+        }}
+        ListEmptyComponent={
+          <EmptyState
+            title="Aucun prospect"
+            hint="Créez votre premier prospect avec le bouton en bas à droite."
           />
-        </View>
+        }
+        renderItem={({ item }) => (
+          <Pressable
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            onPress={() => router.push(`/prospect/${item.id}`)}
+          >
+            <Avatar initials={initials(item.prenom ?? item.nom, item.nom)} size={42} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.name}>
+                {`${item.prenom ?? ''} ${item.nom}`.trim()}
+                {item.typePersonne === 'morale' ? ' (Sté)' : ''}
+              </Text>
+              <Mono>{item.telephone}</Mono>
+              <Text style={styles.muted}>
+                {[item.ville, item.profession].filter(Boolean).join(' · ') || '--'}
+              </Text>
+            </View>
+            <View style={styles.rowRight}>
+              <Badge label={LABEL_STATUT_PROSPECT[item.statut]} tone={TONE[item.statut]} />
+              <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+            </View>
+          </Pressable>
+        )}
+      />
 
-        <View style={styles.statusRow}>
-          <Badge
-            label={tracking ? 'Suivi actif' : 'Suivi arrêté'}
-            tone={tracking ? 'success' : 'muted'}
-          />
-          <Badge
-            label={withinHours ? 'Heures de travail' : 'Hors heures'}
-            tone={withinHours ? 'success' : 'warning'}
-          />
-        </View>
-
-        <Text style={styles.hint}>
-          {!trackingAvailable
-            ? "Suivi indisponible sur cet environnement : Expo Go sur Android ne gère pas la géolocalisation en arrière-plan. Le reste de l'application fonctionne normalement."
-            : tracking && !withinHours
-            ? "Le suivi est actif, mais aucune position n'est transmise en dehors des heures de travail."
-            : 'La position est transmise même téléphone en veille, pendant les heures de travail uniquement.'}
-        </Text>
-
-        {agent?.dernierePositionAt ? (
-          <Text style={styles.muted}>
-            Dernière position connue : {formatDateTime(agent.dernierePositionAt)}
-          </Text>
-        ) : null}
-      </Card>
-
-      <Card>
-        <Text style={styles.cardTitle}>En attente d&apos;envoi</Text>
-        <Text style={styles.muted}>
-          {pendingPositions} position(s) et {pendingTransactions} opération(s) conservées hors
-          ligne.
-        </Text>
-        <Button
-          title="Synchroniser maintenant"
-          onPress={sync}
-          loading={syncing}
-          disabled={!agent || pendingPositions + pendingTransactions === 0}
-        />
-      </Card>
-
-      <Button title="Se déconnecter" variant="ghost" onPress={signOut} />
-    </ScrollView>
+      {/* Action principale flottante, dans l'or de la marque. */}
+      <Pressable
+        style={({ pressed }) => [styles.fab, pressed && { opacity: 0.9 }]}
+        onPress={() => router.push('/prospect/nouveau')}
+        accessibilityRole="button"
+        accessibilityLabel="Nouveau prospect"
+      >
+        <Feather name="plus" size={24} color={colors.onBrand} />
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.md, gap: spacing.md },
-  identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.full,
-    backgroundColor: colors.brandLight,
+  toolbar: { padding: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    height: 46,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  search: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.text },
+  list: { paddingHorizontal: spacing.md, paddingBottom: 96, gap: spacing.sm, flexGrow: 1 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    ...shadow.card,
+  },
+  rowPressed: { backgroundColor: colors.brandLight },
+  rowRight: { alignItems: 'flex-end', gap: spacing.xs },
+  name: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text },
+  muted: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  date: { fontFamily: fonts.regular, fontSize: 10, color: colors.mutedLight },
+  fab: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: spacing.lg,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadow.raised,
   },
-  avatarText: { color: colors.brandDark, fontWeight: '800' },
-  name: { fontSize: 16, fontWeight: '700', color: colors.text },
-  muted: { color: colors.muted, fontSize: 13 },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  statusRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
-  hint: { color: colors.muted, fontSize: 12, lineHeight: 18 },
 });

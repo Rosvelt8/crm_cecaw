@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { agentService } from '@/services/agentService';
 import {
   ArrowLeft, Pencil, Plus, Trash2, Check, X,
   ArrowUpCircle, ArrowDownCircle, BookOpen, ArrowLeftRight,
@@ -49,7 +50,13 @@ function validateCompteForm(form: CompteForm): Record<string, string> | null {
   return errors;
 }
 
-type TxForm = { type: 'credit' | 'debit'; montant: string; motif: string };
+type TxForm = {
+  type: 'credit' | 'debit';
+  montant: string;
+  motif: string;
+  /** Agent collecteur : la colonne est non nulle en base, c'est la piste d'audit. */
+  agentId: string;
+};
 
 const SituationLabel: Record<string, string> = {
   celibataire: 'Célibataire', marie: 'Marié(e)', divorce: 'Divorcé(e)', veuf: 'Veuf/Veuve',
@@ -73,7 +80,16 @@ export default function ClientDetailPage() {
   const [savingCompte, setSavingCompte] = useState(false);
 
   const [txModal, setTxModal] = useState<any | null>(null);
-  const [txForm, setTxForm] = useState<TxForm>({ type: 'credit', montant: '', motif: '' });
+  const [agents, setAgents] = useState<any[]>([]);
+
+  // Liste des agents collecteurs, requise pour rattacher toute ecriture.
+  useEffect(() => {
+    agentService
+      .getAllAgents()
+      .then((rows) => setAgents(rows as any[]))
+      .catch(() => undefined);
+  }, []);
+  const [txForm, setTxForm] = useState<TxForm>({ type: 'credit', montant: '', motif: '', agentId: '' });
   const [savingTx, setSavingTx] = useState(false);
 
   const loadComptes = useCallback(async () => {
@@ -160,18 +176,17 @@ export default function ClientDetailPage() {
     setSavingCompte(true);
     try {
       if (compteModal === 'create') {
+        // Le backend attend du snake_case (comptes.controller.ts). `statut` et
+        // `date_ouverture` : seul le second est accepte a la creation.
         await clientService.createCompte(id, {
-          produitId: Number(compteForm.produitId),
-          soldeInitial: parseFloat(compteForm.solde) || 0,
-          statut: compteForm.statut,
-          dateOuverture: compteForm.dateOuverture,
+          produit_id: Number(compteForm.produitId),
+          solde_initial: parseFloat(compteForm.solde) || 0,
+          date_ouverture: compteForm.dateOuverture || undefined,
         });
         toast.success('Compte créé');
       } else if (compteModal && typeof compteModal === 'object') {
-        await compteService.update(compteModal.id, {
-          statut: compteForm.statut,
-          dateOuverture: compteForm.dateOuverture,
-        });
+        // Seul le statut est modifiable cote backend, via PATCH /comptes/:id/statut.
+        await compteService.updateStatut(compteModal.id, compteForm.statut);
         toast.success('Compte mis à jour');
       }
       setCompteModal(null);
@@ -203,17 +218,18 @@ export default function ClientDetailPage() {
     if (txForm.type === 'debit' && montant > (txModal.solde ?? 0)) {
       toast.error(`Solde insuffisant (${formatCurrency(txModal.solde)} disponible)`); return;
     }
+    if (!txForm.agentId) { toast.error("Choisissez l'agent collecteur"); return; }
     setSavingTx(true);
     try {
-      const payload = { montant, description: txForm.motif };
-      if (txForm.type === 'credit') {
-        await compteService.depot(txModal.id, payload);
-      } else {
-        await compteService.retrait(txModal.id, payload);
-      }
+      await compteService.transaction(txModal.id, {
+        type: txForm.type,
+        montant,
+        motif: txForm.motif || undefined,
+        agent_id: Number(txForm.agentId),
+      });
       toast.success('Transaction enregistrée');
       setTxModal(null);
-      setTxForm({ type: 'credit', montant: '', motif: '' });
+      setTxForm({ type: 'credit', montant: '', motif: '', agentId: '' });
       await loadComptes();
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? 'Erreur lors de la transaction');
@@ -387,7 +403,7 @@ export default function ClientDetailPage() {
                 <div className="flex items-center gap-1 shrink-0 w-full sm:w-auto justify-end sm:justify-start" onClick={(e) => e.stopPropagation()}>
                   {cp.statut === 'actif' && (
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-brand-600 border-brand-200 hover:bg-brand-50"
-                      onClick={() => { setTxModal(cp); setTxForm({ type: 'credit', montant: '', motif: '' }); }}>
+                      onClick={() => { setTxModal(cp); setTxForm({ type: 'credit', montant: '', motif: '', agentId: '' }); }}>
                       <ArrowLeftRight className="h-3 w-3" /> Transaction
                     </Button>
                   )}
@@ -535,6 +551,23 @@ export default function ClientDetailPage() {
                   placeholder="0"
                   autoFocus
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Agent collecteur <span className="text-red-500">*</span></Label>
+                <Select value={txForm.agentId} onValueChange={(v) => setTxForm({ ...txForm, agentId: v })}>
+                  <SelectTrigger><SelectValue placeholder="Au nom de quel agent ?" /></SelectTrigger>
+                  <SelectContent>
+                    {agents.map((a) => (
+                      <SelectItem key={a.id} value={String(a.id)}>
+                        {a.utilisateur ? `${a.utilisateur.prenom} ${a.utilisateur.nom}` : a.matricule}
+                        {' — '}{a.matricule}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Toute écriture est rattachée à un agent : c&apos;est la piste d&apos;audit du compte.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label>Motif</Label>

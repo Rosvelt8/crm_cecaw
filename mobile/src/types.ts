@@ -23,30 +23,122 @@ export interface Agent {
   dernierePositionAt: string | null;
 }
 
-export type StatutProspect = 'nouveau' | 'en_cours' | 'converti' | 'perdu';
+/** Valeurs exactes de l'enum Prisma `StatutProspect`. */
+export type StatutProspect =
+  | 'nouveau'
+  | 'contacte'
+  | 'interesse'
+  | 'negocie'
+  | 'converti'
+  | 'perdu';
+
+export type TypePersonne = 'physique' | 'morale';
+export type Genre = 'M' | 'F' | '';
+export type SituationFamiliale = 'celibataire' | 'marie' | 'divorce' | 'veuf' | '';
+export type StatutClient = 'actif' | 'inactif' | 'blackliste';
+
+/**
+ * Transitions autorisees par le backend (prospects.service.ts).
+ * L'application ne propose que les statuts atteignables, plutot que de laisser
+ * l'agent decouvrir le refus apres coup.
+ */
+export const TRANSITIONS_PROSPECT: Record<StatutProspect, StatutProspect[]> = {
+  nouveau: ['contacte', 'interesse', 'negocie', 'converti', 'perdu'],
+  contacte: ['interesse', 'negocie', 'converti', 'perdu'],
+  interesse: ['negocie', 'converti', 'perdu'],
+  negocie: ['converti', 'perdu'],
+  converti: [],
+  perdu: ['nouveau'],
+};
+
+export const LABEL_STATUT_PROSPECT: Record<StatutProspect, string> = {
+  nouveau: 'Nouveau',
+  contacte: 'Contacté',
+  interesse: 'Intéressé',
+  negocie: 'En négociation',
+  converti: 'Converti',
+  perdu: 'Perdu',
+};
 
 export interface Prospect {
   id: number;
+  typePersonne: TypePersonne;
   nom: string;
   prenom: string | null;
+  genre: Genre | null;
+  dateNaissance: string | null;
+  lieuNaissance: string | null;
+  nationalite: string | null;
+  numeroCni: string | null;
+  nui: string | null;
+  sigle: string | null;
+  formeJuridique: string | null;
+  rccm: string | null;
+  capitalSocial: string | null;
   telephone: string;
+  telephoneSecondaire: string | null;
   email: string | null;
+  adresse: string | null;
+  quartier: string | null;
   ville: string | null;
   profession: string | null;
+  employeur: string | null;
+  secteurActivite: string | null;
+  revenuMensuel: string | null;
+  situationFamiliale: SituationFamiliale | null;
+  nombreEnfants: number | null;
+  referentNom: string | null;
+  referentTelephone: string | null;
+  referentRelation: string | null;
   statut: StatutProspect;
+  produitInteretId: number | null;
+  produitInteret?: { id: number; nom: string } | null;
   commercialId: number | null;
+  notes: string | null;
+  latitude: string | number | null;
+  longitude: string | number | null;
   createdAt: string;
+}
+
+export interface Produit {
+  id: number;
+  nom: string;
+  actif?: boolean;
 }
 
 export interface Client {
   id: number;
+  typePersonne: TypePersonne;
   nom: string;
   prenom: string | null;
+  genre: Genre | null;
+  dateNaissance: string | null;
+  lieuNaissance: string | null;
+  nationalite: string | null;
+  numeroCni: string | null;
+  nui: string | null;
+  sigle: string | null;
+  formeJuridique: string | null;
+  rccm: string | null;
+  capitalSocial: string | null;
   telephone: string;
+  telephoneSecondaire: string | null;
   email: string | null;
+  adresse: string | null;
+  quartier: string | null;
   ville: string | null;
-  statut: string;
+  profession: string | null;
+  employeur: string | null;
+  secteurActivite: string | null;
+  revenuMensuel: string | null;
+  situationFamiliale: SituationFamiliale | null;
+  nombreEnfants: number | null;
+  referentNom: string | null;
+  referentTelephone: string | null;
+  referentRelation: string | null;
+  statut: StatutClient;
   commercialId: number | null;
+  notes: string | null;
   nb_comptes?: number;
 }
 

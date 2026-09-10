@@ -6,6 +6,7 @@ import { ALLOWED_ROLE, DEFAULT_LOCK_DELAY_MIN, MAX_PIN_ATTEMPTS } from '../confi
 import { definePin, hasPin, verifyPin, bumpAttempts, resetAttempts, getAttempts } from '../lib/pin';
 import { getItem, getJson, setItem, setJson, setSecure, wipeAll } from '../lib/storage';
 import { stopTracking } from '../tracking';
+import { connectLiveLink, disconnectLiveLink } from '../tracking/liveLink';
 import type { Agent, User } from '../types';
 
 /**
@@ -31,6 +32,7 @@ interface SessionState {
   bootstrap: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   configurePin: (pin: string, lockDelayMin: number) => Promise<void>;
+  setLockDelay: (minutes: number) => Promise<void>;
   unlock: (pin: string) => Promise<boolean>;
   lock: () => void;
   signOut: () => Promise<void>;
@@ -39,6 +41,7 @@ interface SessionState {
 
 /** Purge locale complete : jetons, code PIN, identite, files d'attente, tracking. */
 async function purge() {
+  disconnectLiveLink();
   await stopTracking().catch(() => undefined);
   await wipeAll();
 }
@@ -70,6 +73,10 @@ export const useSession = create<SessionState>((set, get) => ({
       set({ status: 'signedOut', lockDelayMin, attemptsLeft });
       return;
     }
+
+    // Le canal reste ouvert meme application verrouillee : un superviseur doit
+    // pouvoir localiser un agent sans que celui-ci deverrouille son telephone.
+    if (agent?.id) connectLiveLink(agent.id).catch(() => undefined);
 
     set({
       user,
@@ -108,7 +115,10 @@ export const useSession = create<SessionState>((set, get) => ({
       } catch {
         agent = null;
       }
-      if (agent) await setJson('agentProfile', agent);
+      if (agent) {
+        await setJson('agentProfile', agent);
+        connectLiveLink(agent.id).catch(() => undefined);
+      }
 
       set({
         user: result.user,
@@ -133,6 +143,11 @@ export const useSession = create<SessionState>((set, get) => ({
     await definePin(pin);
     await setItem('lockDelay', String(lockDelayMin));
     set({ status: 'ready', lockDelayMin, attemptsLeft: MAX_PIN_ATTEMPTS, error: null });
+  },
+
+  setLockDelay: async (minutes) => {
+    await setItem('lockDelay', String(minutes));
+    set({ lockDelayMin: minutes });
   },
 
   unlock: async (pin) => {

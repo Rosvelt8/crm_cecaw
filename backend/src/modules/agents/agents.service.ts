@@ -81,10 +81,20 @@ export async function update(id: number, data: Partial<{ matricule: string; sect
 }
 
 export async function updatePosition(id: number, latitude: number, longitude: number, actor: JwtPayload) {
-  const a = await prisma.agent.update({
-    where: { id },
-    data: { latitude, longitude, dernierePositionAt: new Date() },
-  });
+  const releveAt = new Date();
+
+  // La fiche agent ne porte que la derniere position ; l'historique separe
+  // permet de reconstituer le trajet de la journee. Les deux ecritures sont
+  // liees : une position affichee sans trace correspondante serait un trou.
+  const [a] = await prisma.$transaction([
+    prisma.agent.update({
+      where: { id },
+      data: { latitude, longitude, dernierePositionAt: releveAt },
+    }),
+    prisma.agentPosition.create({
+      data: { agentId: id, latitude, longitude, releveAt },
+    }),
+  ]);
 
   // Broadcast GPS update to connected terrain monitors
   try {
@@ -97,6 +107,64 @@ export async function updatePosition(id: number, latitude: number, longitude: nu
 
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'collecte', action: 'UPDATE_POSITION', entiteType: 'agent', entiteId: id, description: `Position mise à jour pour l'agent #${id}` });
   return { id: a.id, latitude: a.latitude, longitude: a.longitude, derniere_position_at: a.dernierePositionAt };
+}
+
+/**
+ * Trajet parcouru par un agent sur une journee.
+ *
+ * `date` est attendue au format YYYY-MM-DD et interpretee dans le fuseau du
+ * serveur. Sans date, on renvoie la journee en cours.
+ */
+export async function getTrajet(id: number, date?: string) {
+  const jour = date ? new Date(`${date}T00:00:00`) : new Date();
+  if (Number.isNaN(jour.getTime())) {
+    throw Object.assign(new Error('Date invalide'), { status: 400 });
+  }
+
+  const debut = new Date(jour);
+  debut.setHours(0, 0, 0, 0);
+  const fin = new Date(debut);
+  fin.setDate(fin.getDate() + 1);
+
+  const points = await prisma.agentPosition.findMany({
+    where: { agentId: id, releveAt: { gte: debut, lt: fin } },
+    orderBy: { releveAt: 'asc' },
+    select: { latitude: true, longitude: true, releveAt: true },
+  });
+
+  const coords = points.map((p: { latitude: unknown; longitude: unknown; releveAt: Date }) => ({
+    latitude: Number(p.latitude),
+    longitude: Number(p.longitude),
+    releve_at: p.releveAt,
+  }));
+
+  return {
+    agent_id: id,
+    date: debut.toISOString().slice(0, 10),
+    nb_points: coords.length,
+    distance_km: Math.round(totalDistanceKm(coords) * 100) / 100,
+    premier_point: coords[0]?.releve_at ?? null,
+    dernier_point: coords[coords.length - 1]?.releve_at ?? null,
+    points: coords,
+  };
+}
+
+/** Distance cumulee entre points successifs, formule de haversine. */
+function totalDistanceKm(points: { latitude: number; longitude: number }[]): number {
+  const R = 6371;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  let total = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    const a = points[i - 1];
+    const b = points[i];
+    const dLat = rad(b.latitude - a.latitude);
+    const dLon = rad(b.longitude - a.longitude);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLon / 2) ** 2;
+    total += 2 * R * Math.asin(Math.sqrt(h));
+  }
+  return total;
 }
 
 export async function getTerrainAgents(agenceId?: string) {
