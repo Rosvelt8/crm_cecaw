@@ -5,8 +5,10 @@ import { env } from '../../config/env';
 import { AuthJwtPayload } from '../../middleware/auth';
 import { createLog } from '../../lib/logger';
 
-function signAccess(payload: Omit<AuthJwtPayload, 'iat' | 'exp'>) {
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions);
+function signAccess(payload: Omit<AuthJwtPayload, 'iat' | 'exp'>, duree?: string) {
+  return jwt.sign(payload, env.JWT_SECRET, {
+    expiresIn: duree ?? env.JWT_EXPIRES_IN,
+  } as jwt.SignOptions);
 }
 
 function signRefresh(sub: number) {
@@ -46,11 +48,48 @@ function isRefreshPayload(payload: unknown): payload is { sub: number } {
   );
 }
 
-export async function login(email: string, password: string) {
-  const u = await prisma.utilisateur.findUnique({
-    where: { email },
+/**
+ * Duree de vie du jeton d'acces selon le client.
+ *
+ * Un agent de collecte est sur le terrain, souvent sans reseau : une session de
+ * quinze minutes l'obligerait a se reconnecter sans cesse, et le
+ * rafraichissement echouerait justement quand la couverture manque. Le
+ * back-office, lui, conserve une fenetre courte.
+ */
+function dureeAcces(client?: string) {
+  return client === 'mobile' ? env.JWT_MOBILE_EXPIRES_IN : env.JWT_EXPIRES_IN;
+}
+
+/**
+ * Recherche par email ou par matricule d'agent.
+ *
+ * Sur le terrain, saisir « AGT-004 » est plus rapide et moins faillible qu'une
+ * adresse complete au clavier tactile.
+ */
+async function trouverUtilisateur(identifiant: string) {
+  const valeur = identifiant.trim();
+
+  if (valeur.includes('@')) {
+    return prisma.utilisateur.findUnique({
+      where: { email: valeur.toLowerCase() },
+      include: userInclude,
+    });
+  }
+
+  const agent = await prisma.agent.findUnique({
+    where: { matricule: valeur.toUpperCase() },
+    select: { utilisateurId: true },
+  });
+  if (!agent) return null;
+
+  return prisma.utilisateur.findUnique({
+    where: { id: agent.utilisateurId },
     include: userInclude,
   });
+}
+
+export async function login(identifiant: string, password: string, client?: string) {
+  const u = await trouverUtilisateur(identifiant);
   if (!u || !(await bcrypt.compare(password, u.password))) {
     return { error: 'Identifiants incorrects', status: 401 };
   }
@@ -61,7 +100,7 @@ export async function login(email: string, password: string) {
   const payload: Omit<AuthJwtPayload, 'iat' | 'exp'> = {
     sub: u.id, email: u.email, role: u.role, agenceId: u.agenceId,
   };
-  const access_token = signAccess(payload);
+  const access_token = signAccess(payload, dureeAcces(client));
   const refresh_token = signRefresh(u.id);
 
   await createLog({
@@ -84,7 +123,7 @@ export async function login(email: string, password: string) {
   };
 }
 
-export async function refresh(refreshToken: string) {
+export async function refresh(refreshToken: string, client?: string) {
   try {
     const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET);
     if (!isRefreshPayload(decoded)) {
@@ -99,8 +138,9 @@ export async function refresh(refreshToken: string) {
     const payload: Omit<AuthJwtPayload, 'iat' | 'exp'> = {
       sub: u.id, email: u.email, role: u.role, agenceId: u.agenceId,
     };
-    const access_token = signAccess(payload);
-    return { access_token, expires_in: 900 };
+    const duree = dureeAcces(client);
+    const access_token = signAccess(payload, duree);
+    return { access_token, expires_in: duree };
   } catch {
     return { error: 'Refresh token invalide', status: 401 };
   }
@@ -136,4 +176,33 @@ export async function changeMyPassword(
   const hash = await bcrypt.hash(newPassword, 10);
   await prisma.utilisateur.update({ where: { id: userId }, data: { password: hash } });
   return { success: true };
+}
+
+/**
+ * Code PIN de l'application mobile.
+ *
+ * Hache en bcrypt, comme un mot de passe : le serveur ne doit jamais pouvoir
+ * relire le code d'un agent. La verification locale, sur l'appareil, reste la
+ * voie normale de deverrouillage — celle-ci sert de recours.
+ */
+export async function definirPin(utilisateurId: number, pin: string) {
+  const pinHash = await bcrypt.hash(pin, 10);
+  await prisma.utilisateur.update({ where: { id: utilisateurId }, data: { pinHash } });
+}
+
+export async function verifierPin(utilisateurId: number, pin: string): Promise<boolean> {
+  const u = await prisma.utilisateur.findUnique({
+    where: { id: utilisateurId },
+    select: { pinHash: true },
+  });
+  if (!u?.pinHash) return false;
+  return bcrypt.compare(pin, u.pinHash);
+}
+
+export async function aCodePin(utilisateurId: number): Promise<boolean> {
+  const u = await prisma.utilisateur.findUnique({
+    where: { id: utilisateurId },
+    select: { pinHash: true },
+  });
+  return Boolean(u?.pinHash);
 }

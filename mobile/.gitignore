@@ -42,3 +42,6 @@ yarn-error.*
 
 # Configuration locale (URL de l'API selon le poste)
 .env
+
+# Cle de signature de l' APK : ne jamais versionner.
+/credentials

@@ -17,14 +17,14 @@ export default function LoginScreen() {
   const error = useSession((s) => s.error);
   const clearError = useSession((s) => s.clearError);
 
-  const [email, setEmail] = useState('');
+  const [identifiant, setIdentifiant] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
-    if (!email.trim() || !password) return;
+    if (!identifiant.trim() || !password) return;
     setSubmitting(true);
-    await signIn(email, password);
+    await signIn(identifiant, password);
     setSubmitting(false);
   };
 
@@ -57,16 +57,16 @@ export default function LoginScreen() {
             {error ? <ErrorNote message={error} /> : null}
 
             <Field
-              label="Adresse email"
-              value={email}
+              label="Matricule ou email"
+              hint="Votre matricule d'agent suffit, par exemple AGT-004."
+              value={identifiant}
               onChangeText={(v) => {
                 clearError();
-                setEmail(v);
+                setIdentifiant(v);
               }}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              placeholder="agent@cecaw.cm"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder="AGT-004"
             />
 
             <Field
@@ -84,7 +84,7 @@ export default function LoginScreen() {
               title="Se connecter"
               onPress={submit}
               loading={submitting}
-              disabled={!email.trim() || !password}
+              disabled={!identifiant.trim() || !password}
             />
 
             <View style={styles.noteRow}>

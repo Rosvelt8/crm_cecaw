@@ -22,6 +22,8 @@ const PLAIN = {
   lockDelay: 'cecaw.lock_delay',
   pinAttempts: 'cecaw.pin_attempts',
   tracking: 'cecaw.tracking',
+  dernierEnvoi: 'cecaw.dernier_envoi',
+  dernierEnvoiSource: 'cecaw.dernier_envoi_source',
   queuePositions: 'cecaw.queue.positions',
   queueTransactions: 'cecaw.queue.transactions',
 } as const;

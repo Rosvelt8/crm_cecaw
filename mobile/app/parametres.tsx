@@ -14,10 +14,13 @@ import { ConfirmSheet, Sheet, SheetOption } from '../src/components/Modal';
 import { useSession } from '../src/store/session';
 import {
   isTrackingRunning,
+  lireSante,
   sendCurrentPosition,
   startTracking,
   stopTracking,
   trackingAvailable,
+  SEUIL_ALERTE_MINUTES,
+  type SanteSuivi,
 } from '../src/tracking';
 import {
   flushPositions,
@@ -61,6 +64,7 @@ export default function ParametresScreen() {
   const [positions, setPositions] = useState(0);
   const [transactions, setTransactions] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sante, setSante] = useState<SanteSuivi | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [delaiOpen, setDelaiOpen] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -74,7 +78,15 @@ export default function ParametresScreen() {
     setTracking(running);
     setPositions(p);
     setTransactions(t);
+    setSante(await lireSante(running));
   }, []);
+
+  // Le diagnostic se rafraichit seul : une coupure du service doit se voir
+  // sans que l'agent ait a tirer sur la liste.
+  useEffect(() => {
+    const minuteur = setInterval(refresh, 30_000);
+    return () => clearInterval(minuteur);
+  }, [refresh]);
 
   useEffect(() => {
     refresh();
@@ -247,6 +259,60 @@ export default function ParametresScreen() {
         </Text>
       </Card>
 
+      {/* Diagnostic : rendre visible une coupure silencieuse du service. */}
+      <Card>
+        <SectionTitle>État du suivi</SectionTitle>
+
+        <View style={styles.ligne}>
+          <Text style={styles.ligneLabel}>Dernier point transmis</Text>
+          <Text style={styles.ligneValeur}>
+            {sante?.dernierEnvoi ? formatDateTime(sante.dernierEnvoi.toISOString()) : 'Aucun'}
+          </Text>
+        </View>
+
+        {sante?.silenceMinutes !== null && sante?.silenceMinutes !== undefined ? (
+          <View style={styles.ligne}>
+            <Text style={styles.ligneLabel}>Silence</Text>
+            <Text style={styles.ligneValeur}>
+              {sante.silenceMinutes < 1 ? "moins d'une minute" : `${sante.silenceMinutes} min`}
+            </Text>
+          </View>
+        ) : null}
+
+        {sante?.source ? (
+          <View style={styles.ligne}>
+            <Text style={styles.ligneLabel}>Origine</Text>
+            <Text style={styles.ligneValeur}>
+              {sante.source === 'direct'
+                ? 'Application ouverte'
+                : sante.source === 'fond'
+                  ? 'Arrière-plan'
+                  : 'Envoi manuel'}
+            </Text>
+          </View>
+        ) : null}
+
+        {sante?.alerte ? (
+          <View style={styles.alerte}>
+            <Feather name="alert-triangle" size={16} color={colors.warningDark} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alerteTitre}>Le suivi semble interrompu</Text>
+              <Text style={styles.alerteTexte}>
+                Aucune position depuis plus de {SEUIL_ALERTE_MINUTES} minutes alors que votre
+                tournée est active. Votre téléphone a probablement mis l&apos;application en
+                veille. Dans les réglages Android : batterie « Sans restriction », démarrage
+                automatique activé, et verrouillez l&apos;application dans les tâches récentes.
+              </Text>
+            </View>
+          </View>
+        ) : tracking && sante?.dansLesHeures ? (
+          <View style={styles.ok}>
+            <Feather name="check-circle" size={15} color={colors.successDark} />
+            <Text style={styles.okTexte}>Le suivi transmet normalement.</Text>
+          </View>
+        ) : null}
+      </Card>
+
       {/* ── File hors ligne ────────────────────────────────────────────── */}
       <Card>
         <SectionTitle>En attente d&apos;envoi</SectionTitle>
@@ -384,4 +450,22 @@ const styles = StyleSheet.create({
   queueDivider: { width: 1, height: 28, backgroundColor: colors.border },
   queueValue: { fontFamily: fonts.bold, fontSize: 22, color: colors.text },
   queueLabel: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted },
+
+  alerte: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    backgroundColor: colors.warningLight,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+  },
+  alerteTitre: { fontFamily: fonts.semibold, fontSize: 13, color: colors.warningDark },
+  alerteTexte: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.warningDark,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  ok: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  okTexte: { fontFamily: fonts.regular, fontSize: 12, color: colors.successDark },
 });

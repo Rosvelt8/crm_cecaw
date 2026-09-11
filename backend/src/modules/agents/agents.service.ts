@@ -149,6 +149,74 @@ export async function getTrajet(id: number, date?: string) {
   };
 }
 
+/**
+ * Itineraires de plusieurs agents sur une journee.
+ *
+ * Le back-office compare les tournees : on renvoie donc un trace par agent,
+ * avec de quoi l'identifier sur la carte. Sans `agentIds`, tous les agents
+ * ayant transmis au moins un point ce jour-la sont inclus.
+ */
+export async function getTrajets(date?: string, agentIds?: number[]) {
+  const jour = date ? new Date(`${date}T00:00:00`) : new Date();
+  if (Number.isNaN(jour.getTime())) {
+    throw Object.assign(new Error('Date invalide'), { status: 400 });
+  }
+
+  const debut = new Date(jour);
+  debut.setHours(0, 0, 0, 0);
+  const fin = new Date(debut);
+  fin.setDate(fin.getDate() + 1);
+
+  const where: Record<string, unknown> = { releveAt: { gte: debut, lt: fin } };
+  if (agentIds && agentIds.length > 0) where.agentId = { in: agentIds };
+
+  const points = await prisma.agentPosition.findMany({
+    where,
+    orderBy: [{ agentId: 'asc' }, { releveAt: 'asc' }],
+    select: { agentId: true, latitude: true, longitude: true, releveAt: true },
+  });
+
+  // Regroupement en memoire : une seule requete plutot qu'une par agent.
+  const parAgent = new Map<number, { latitude: number; longitude: number; releve_at: Date }[]>();
+  for (const p of points) {
+    const liste = parAgent.get(p.agentId) ?? [];
+    liste.push({
+      latitude: Number(p.latitude),
+      longitude: Number(p.longitude),
+      releve_at: p.releveAt,
+    });
+    parAgent.set(p.agentId, liste);
+  }
+
+  const agents = await prisma.agent.findMany({
+    where: { id: { in: [...parAgent.keys()] } },
+    include: { utilisateur: { select: { prenom: true, nom: true } } },
+  });
+  const fiches = new Map(agents.map((a) => [a.id, a]));
+
+  const trajets = [...parAgent.entries()].map(([agentId, coords]) => {
+    const fiche = fiches.get(agentId);
+    return {
+      agent_id: agentId,
+      matricule: fiche?.matricule ?? '',
+      nom: fiche ? `${fiche.utilisateur.prenom} ${fiche.utilisateur.nom}` : '',
+      nb_points: coords.length,
+      distance_km: Math.round(totalDistanceKm(coords) * 100) / 100,
+      premier_point: coords[0]?.releve_at ?? null,
+      dernier_point: coords[coords.length - 1]?.releve_at ?? null,
+      points: coords,
+    };
+  });
+
+  return {
+    date: debut.toISOString().slice(0, 10),
+    nb_agents: trajets.length,
+    distance_totale_km:
+      Math.round(trajets.reduce((s, t) => s + t.distance_km, 0) * 100) / 100,
+    trajets,
+  };
+}
+
 /** Distance cumulee entre points successifs, formule de haversine. */
 function totalDistanceKm(points: { latitude: number; longitude: number }[]): number {
   const R = 6371;

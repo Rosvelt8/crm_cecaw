@@ -4,9 +4,23 @@ import * as svc from './auth.service';
 import { success, error, created } from '../../lib/response';
 import { createLog } from '../../lib/logger';
 
+/**
+ * `identifiant` accepte une adresse email ou un matricule d'agent.
+ * `email` reste accepte pour ne pas casser le back-office existant.
+ */
 const loginSchema = z.object({
-  email: z.string().email(),
+  identifiant: z.string().min(1).optional(),
+  email: z.string().min(1).optional(),
   password: z.string().min(1),
+  /** « mobile » ouvre une session longue, adaptee au terrain. */
+  client: z.enum(['mobile', 'web']).optional(),
+}).refine((d) => Boolean(d.identifiant ?? d.email), {
+  message: 'Email ou matricule requis',
+  path: ['identifiant'],
+});
+
+const pinSchema = z.object({
+  pin: z.string().regex(/^\d{4,8}$/, 'Le code doit comporter de 4 a 8 chiffres'),
 });
 
 const pwdSchema = z.object({
@@ -30,7 +44,11 @@ function isServiceError(result: unknown): result is { error: string; status?: nu
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
     const body = loginSchema.parse(req.body);
-    const result = await svc.login(body.email, body.password);
+    const result = await svc.login(
+      (body.identifiant ?? body.email) as string,
+      body.password,
+      body.client,
+    );
     if (isServiceError(result)) return error(res, result.error, result.status);
     return success(res, result);
   } catch (e) { return next(e); }
@@ -40,7 +58,8 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
   try {
     const { refresh_token } = req.body as { refresh_token?: string };
     if (!refresh_token) return error(res, 'refresh_token requis', 400);
-    const result = await svc.refresh(refresh_token);
+    const client = (req.body as { client?: string }).client;
+    const result = await svc.refresh(refresh_token, client);
     if (isServiceError(result)) return error(res, result.error, result.status);
     return success(res, result);
   } catch (e) { return next(e); }
@@ -102,5 +121,33 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
       description: 'Changement de mot de passe personnel',
     });
     return success(res, { message: 'Mot de passe mis à jour' });
+  } catch (e) { return next(e); }
+}
+
+/**
+ * Enregistre le code PIN de l'agent.
+ *
+ * Le deverrouillage de l'application reste verifie sur l'appareil, pour
+ * fonctionner hors reseau. Cette copie chiffree sert a retrouver son code apres
+ * une reinstallation et permet a un administrateur de le reinitialiser.
+ */
+export async function definirPin(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { pin } = pinSchema.parse(req.body);
+    await svc.definirPin(req.user!.sub, pin);
+    return success(res, { a_code_pin: true });
+  } catch (e) { return next(e); }
+}
+
+export async function verifierPin(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { pin } = pinSchema.parse(req.body);
+    return success(res, { valide: await svc.verifierPin(req.user!.sub, pin) });
+  } catch (e) { return next(e); }
+}
+
+export async function etatPin(req: Request, res: Response, next: NextFunction) {
+  try {
+    return success(res, { a_code_pin: await svc.aCodePin(req.user!.sub) });
   } catch (e) { return next(e); }
 }

@@ -31,7 +31,12 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refresh) return null;
   try {
     // Instance nue : passer par `api` relancerait l'intercepteur en boucle.
-    const { data } = await axios.post(`${API_URL}/auth/refresh`, { refresh_token: refresh });
+    // `client: 'mobile'` conserve la session longue au rafraichissement, sans
+    // quoi le jeton renouvele retomberait a quinze minutes.
+    const { data } = await axios.post(`${API_URL}/auth/refresh`, {
+      refresh_token: refresh,
+      client: 'mobile',
+    });
     const token: string | undefined = data?.data?.access_token ?? data?.access_token;
     if (!token) return null;
     await setSecure('access', token);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -72,16 +72,27 @@ function FlyToAgent({ selectedId, agents }: { selectedId: string | null; agents:
 /** Trajet du jour de l'agent selectionne, trace par-dessus la carte. */
 export type TrajetPoint = { latitude: number; longitude: number; releve_at: string };
 
+/** Itineraire complet d'un agent, pour l'affichage multi-agents. */
+export type TrajetAgent = {
+  agent_id: number;
+  nom: string;
+  matricule: string;
+  couleur: string;
+  points: TrajetPoint[];
+};
+
 interface Props {
   agents: TerrainAgent[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   trajet?: TrajetPoint[];
+  /** Itineraires superposes, un trace par agent. */
+  trajets?: TrajetAgent[];
 }
 
 const CENTER: [number, number] = [4.0490, 9.7020];
 
-export default function TerrainMapInner({ agents, selectedId, onSelect, trajet = [] }: Props) {
+export default function TerrainMapInner({ agents, selectedId, onSelect, trajet = [], trajets = [] }: Props) {
   useEffect(() => {
     const style = document.createElement('style');
     style.dataset.id = 'terrain-ring';
@@ -124,6 +135,34 @@ export default function TerrainMapInner({ agents, selectedId, onSelect, trajet =
         maxZoom={19}
       />
       <FlyToAgent selectedId={selectedId} agents={agents} />
+
+      {/* Itineraires multi-agents : un trace par agent, chacun sa couleur. */}
+      {trajets.map((t) => (
+        <React.Fragment key={t.agent_id}>
+          {t.points.length > 1 && (
+            <Polyline
+              positions={t.points.map((p) => [p.latitude, p.longitude] as [number, number])}
+              pathOptions={{ color: t.couleur, weight: 4, opacity: 0.8 }}
+            />
+          )}
+          {t.points.length > 0 && (
+            <CircleMarker
+              center={[t.points[0].latitude, t.points[0].longitude]}
+              radius={7}
+              pathOptions={{ color: '#fff', fillColor: t.couleur, fillOpacity: 1, weight: 2 }}
+            >
+              <Popup>
+                <div style={{ padding: '8px 12px', fontSize: 12 }}>
+                  <strong>{t.nom}</strong>
+                  <div style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: 10 }}>
+                    {t.matricule} — départ {new Date(t.points[0].releve_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              </Popup>
+            </CircleMarker>
+          )}
+        </React.Fragment>
+      ))}
 
       {/* Trajet du jour : la ligne relie les releves, les pastilles marquent
           chaque point transmis par le telephone. */}

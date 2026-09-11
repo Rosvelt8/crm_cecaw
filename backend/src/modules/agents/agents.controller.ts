@@ -25,6 +25,16 @@ export const getTerrainAgents = async (req: Request, res: Response, next: NextFu
   try { return success(res, await svc.getTerrainAgents(req.query.agence_id as string | undefined)); } catch (e) { return next(e); }
 };
 
+export const getTrajets = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const brut = req.query.agent_ids as string | undefined;
+    const ids = brut
+      ? brut.split(',').map((x) => parseInt(x, 10)).filter(Number.isFinite)
+      : undefined;
+    return success(res, await svc.getTrajets(req.query.date as string | undefined, ids));
+  } catch (e) { return next(e); }
+};
+
 export const getTrajet = async (req: Request, res: Response, next: NextFunction) => {
   try {
     return success(

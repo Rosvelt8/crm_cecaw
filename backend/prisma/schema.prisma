@@ -166,6 +166,11 @@ model Utilisateur {
   prenom    String          @db.VarChar(100)
   email     String          @unique @db.VarChar(255)
   password  String          @db.VarChar(255)
+  /// Empreinte bcrypt du code PIN de l'application mobile.
+  /// Le deverrouillage reste verifie localement, pour fonctionner hors reseau ;
+  /// cette copie sert a retrouver son code apres reinstallation et permet a un
+  /// administrateur de le reinitialiser. Jamais stocke en clair.
+  pinHash   String?         @db.VarChar(255) @map("pin_hash")
   role      RoleUtilisateur @default(agent)
   fonction  String?         @db.VarChar(150)
   agenceId  Int?            @map("agence_id")

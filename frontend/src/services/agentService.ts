@@ -58,6 +58,32 @@ export const agentService = {
     };
   },
 
+  /**
+   * Itineraires de plusieurs agents sur une journee.
+   * Sans `agentIds`, tous ceux ayant transmis un point ce jour-la.
+   */
+  getTrajets: async (date?: string, agentIds?: (number | string)[]) => {
+    const params: Record<string, string> = {};
+    if (date) params.date = date;
+    if (agentIds?.length) params.agent_ids = agentIds.join(',');
+    const { data: body } = await apiClient.get('/agents/trajets', { params });
+    return body.data as {
+      date: string;
+      nb_agents: number;
+      distance_totale_km: number;
+      trajets: {
+        agent_id: number;
+        matricule: string;
+        nom: string;
+        nb_points: number;
+        distance_km: number;
+        premier_point: string | null;
+        dernier_point: string | null;
+        points: { latitude: number; longitude: number; releve_at: string }[];
+      }[];
+    };
+  },
+
   updatePosition: async (id: number | string, latitude: number, longitude: number) => {
     const { data: body } = await apiClient.patch(`/agents/${id}/position`, { latitude, longitude });
     return body.data;

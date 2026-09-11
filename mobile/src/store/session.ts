@@ -5,7 +5,7 @@ import { findMyAgent } from '../api/agents';
 import { ALLOWED_ROLE, DEFAULT_LOCK_DELAY_MIN, MAX_PIN_ATTEMPTS } from '../config';
 import { definePin, hasPin, verifyPin, bumpAttempts, resetAttempts, getAttempts } from '../lib/pin';
 import { getItem, getJson, setItem, setJson, setSecure, wipeAll } from '../lib/storage';
-import { stopTracking } from '../tracking';
+import { resumeTracking, stopTracking } from '../tracking';
 import { connectLiveLink, disconnectLiveLink } from '../tracking/liveLink';
 import type { Agent, User } from '../types';
 
@@ -30,7 +30,7 @@ interface SessionState {
   error: string | null;
 
   bootstrap: () => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (identifiant: string, password: string) => Promise<void>;
   configurePin: (pin: string, lockDelayMin: number) => Promise<void>;
   setLockDelay: (minutes: number) => Promise<void>;
   unlock: (pin: string) => Promise<boolean>;
@@ -76,7 +76,12 @@ export const useSession = create<SessionState>((set, get) => ({
 
     // Le canal reste ouvert meme application verrouillee : un superviseur doit
     // pouvoir localiser un agent sans que celui-ci deverrouille son telephone.
-    if (agent?.id) connectLiveLink(agent.id).catch(() => undefined);
+    if (agent?.id) {
+      connectLiveLink(agent.id).catch(() => undefined);
+      // Le service de fond survit a la fermeture de l'application, mais le flux
+      // temps reel doit etre rouvert a chaque lancement.
+      resumeTracking(agent.id).catch(() => undefined);
+    }
 
     set({
       user,
@@ -88,10 +93,10 @@ export const useSession = create<SessionState>((set, get) => ({
     });
   },
 
-  signIn: async (email, password) => {
+  signIn: async (identifiant, password) => {
     set({ error: null });
     try {
-      const result = await authApi.login(email.trim(), password);
+      const result = await authApi.login(identifiant.trim(), password);
 
       // L'application est reservee aux agents terrain : tout autre role est
       // refuse avant meme d'ecrire le moindre jeton sur le telephone.
@@ -118,6 +123,7 @@ export const useSession = create<SessionState>((set, get) => ({
       if (agent) {
         await setJson('agentProfile', agent);
         connectLiveLink(agent.id).catch(() => undefined);
+        resumeTracking(agent.id).catch(() => undefined);
       }
 
       set({
@@ -141,6 +147,9 @@ export const useSession = create<SessionState>((set, get) => ({
 
   configurePin: async (pin, lockDelayMin) => {
     await definePin(pin);
+    // Copie chiffree cote serveur : permet de retrouver son code apres une
+    // reinstallation. Un echec reseau n'empeche pas d'utiliser l'application.
+    authApi.enregistrerPinServeur(pin).catch(() => undefined);
     await setItem('lockDelay', String(lockDelayMin));
     set({ status: 'ready', lockDelayMin, attemptsLeft: MAX_PIN_ATTEMPTS, error: null });
   },

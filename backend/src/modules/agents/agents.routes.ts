@@ -7,6 +7,7 @@ const router = Router();
 router.use(authenticate);
 router.get('/terrain', ctrl.getTerrainAgents);
 router.get('/', ctrl.list);
+router.get('/trajets', ctrl.getTrajets);
 router.get('/:id/trajet', ctrl.getTrajet);
 router.get('/:id', ctrl.getOne);
 router.post('/', isAdminOrManager, ctrl.create);

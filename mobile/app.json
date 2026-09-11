@@ -23,9 +23,8 @@
     "android": {
       "package": "cm.cecaw.terrain",
       "adaptiveIcon": {
-        "backgroundColor": "#2d1e03",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -57,10 +56,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#2d1e03"
         }
-      ]
+      ],
+      "./plugins/withCecawTrustAnchor",
+      "./plugins/withReleaseSigning"
     ],
     "extra": {
-      "apiUrl": "http://10.0.2.2:4000/api/v1"
+      "apiUrl": "https://crm.cecaw.cm:60400/api/v1"
     },
     "primaryColor": "#b8860b",
     "androidStatusBar": {

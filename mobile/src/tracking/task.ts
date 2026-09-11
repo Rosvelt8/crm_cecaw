@@ -3,6 +3,7 @@ import { getItem } from '../lib/storage';
 import { isWithinWorkingHours } from '../lib/workingHours';
 import { sendPosition } from '../api/agents';
 import { flushPositions, queuePosition } from '../lib/queue';
+import { noterEnvoi } from './sante';
 
 export const LOCATION_TASK = 'cecaw-location-tracking';
 
@@ -32,6 +33,7 @@ async function onLocation({ data, error }: { data: unknown; error: unknown }) {
 
   try {
     await sendPosition(agentId, latitude, longitude);
+    await noterEnvoi('fond');
     // Le réseau est revenu : on en profite pour rejouer ce qui attendait.
     await flushPositions(agentId);
   } catch {

@@ -10,5 +10,8 @@ router.post('/logout', authenticate, ctrl.logout);
 router.get('/me', authenticate, ctrl.me);
 router.put('/me', authenticate, ctrl.updateMe);
 router.put('/me/password', authenticate, ctrl.changePassword);
+router.get('/me/pin', authenticate, ctrl.etatPin);
+router.put('/me/pin', authenticate, ctrl.definirPin);
+router.post('/me/pin/verify', authenticate, ctrl.verifierPin);
 
 export default router;
