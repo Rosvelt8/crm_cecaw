@@ -17,6 +17,7 @@ import { formatDateTime } from '@/lib/utils';
 const CATEGORIES: Record<string, string> = {
   credit: 'Crédit et délégations', recouvrement: 'Recouvrement', communication: 'Communication', terrain: 'Terrain et tournées', territoire: 'Territoire',
   conformite: 'Conformité', objectifs: 'Objectifs', securite: 'Sécurité',
+  segmentation: 'Segmentation client', commercial: 'Relances commerciales',
 };
 
 /** Convertit la saisie texte vers le type de la valeur par défaut du paramètre. */

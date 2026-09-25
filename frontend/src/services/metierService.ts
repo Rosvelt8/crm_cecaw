@@ -76,6 +76,21 @@ export const communicationApi = {
   sms: (statut?: string) => get('/communication/sms', { statut }),
   traiterSms: () => post('/communication/sms/traiter'),
   renvoyerSms: (id: number) => post(`/communication/sms/${id}/renvoyer`),
+  basculerWhatsapp: (actif: boolean) => put('/communication/whatsapp', { actif }),
+};
+export const calendrierApi = {
+  lister: (p?: { type?: string; annee?: number }) => get<any[]>('/calendrier', p),
+  creer: (b: Q) => post('/calendrier', b),
+  modifier: (id: number, b: Q) => put(`/calendrier/${id}`, b),
+  supprimer: (id: number) => del(`/calendrier/${id}`),
+};
+export const campagnesApi = {
+  lister: (statut?: string) => get<any[]>('/campagnes', { statut }),
+  obtenir: (id: number) => get(`/campagnes/${id}`),
+  creer: (b: Q) => post('/campagnes', b),
+  lancer: (id: number) => post(`/campagnes/${id}/lancer`),
+  cloturer: (id: number) => post(`/campagnes/${id}/cloturer`),
+  annuler: (id: number) => post(`/campagnes/${id}/annuler`),
 };
 export const integrationApi = {
   webhooks: () => get('/integration/webhooks'),
@@ -143,4 +158,8 @@ export const analytiqueApi = {
   agences: (p: Q) => get('/analytique/agences', p),
   produits: (p: Q) => get('/analytique/produits', p),
 };
-export const objectifsApi = { recalculer: () => post('/objectifs/recalculer') };
+export const objectifsApi = {
+  recalculer: () => post('/objectifs/recalculer'),
+  /** Projection de tendance et cible réajustée suggérée (compléments stratégiques, point 14). */
+  projection: (id: number) => get<{ jours_ecoules: number; jours_totaux: number; rythme_journalier: number; projection_fin_periode: number; ecart_projete_pct: number | null; cible_suggeree: number | null }>(`/objectifs/${id}/projection`),
+};

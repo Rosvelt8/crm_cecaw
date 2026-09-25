@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import { mettreEnFileSms } from './sms';
+import { mettreEnFileSms, type Canal } from './sms';
 import { appelerSysteme } from './echanges';
 import { signerHmac } from './crypto';
 
@@ -8,9 +8,12 @@ import { signerHmac } from './crypto';
  *
  * Toute action notable du métier appelle `emettre(code, …)`. L'événement est journalisé,
  * puis les déclencheurs paramétrés le transforment en notifications dans l'application,
- * en SMS (file d'envoi) et en webhooks sortants. `emettre` ne lève jamais d'exception :
- * une notification manquée ne doit pas annuler l'opération métier qui l'a produite.
+ * en SMS/WhatsApp (file d'envoi) et en webhooks sortants. `emettre` ne lève jamais
+ * d'exception : une notification manquée ne doit pas annuler l'opération métier qui l'a produite.
  */
+
+/** Canaux client implémentés (compléments stratégiques, point 17) : un de plus s'ajoute ici. */
+const CANAUX_CLIENT: readonly Canal[] = ['sms', 'whatsapp'];
 
 export interface EvenementEntree {
   entiteType?: string;
@@ -90,8 +93,20 @@ export async function emettre(code: string, e: EvenementEntree = {}): Promise<vo
       const message = rendreGabarit(d.gabarit, donnees);
 
       if (d.destinataire === 'client') {
-        if (canaux.includes('sms')) {
-          await mettreEnFileSms({ telephone: donnees.telephone as string | undefined, message, entiteType: e.entiteType, entiteId: e.entiteId });
+        const disponibles = CANAUX_CLIENT.filter((c) => canaux.includes(c));
+        // Préférence de canal du client (compléments stratégiques, point 18) : si l'appelant a
+        // fourni `client_id` et que le client a une préférence parmi les canaux du déclencheur,
+        // on n'envoie que sur celui-là. Sans préférence (ou sans `client_id` transmis, comme le
+        // font tous les appels existants), le comportement historique est conservé : tous les
+        // canaux configurés sur le déclencheur reçoivent le message.
+        let cibles = disponibles;
+        const clientId = donnees.client_id as number | undefined;
+        if (clientId) {
+          const c = await prisma.client.findUnique({ where: { id: clientId }, select: { canalPrefere: true } });
+          if (c?.canalPrefere && disponibles.includes(c.canalPrefere)) cibles = [c.canalPrefere];
+        }
+        for (const canal of cibles) {
+          await mettreEnFileSms({ telephone: donnees.telephone as string | undefined, message, entiteType: e.entiteType, entiteId: e.entiteId, canal });
         }
         continue;
       }
@@ -164,6 +179,10 @@ const DECLENCHEURS_DEFAUT = [
   { evenement: 'conformite.alerte', libelle: 'Alerte de conformité', destinataire: 'roles', roleCodes: ['R06', 'R15'], canaux: ['in_app'], titre: 'Alerte : {{titreAlerte}}', gabarit: '{{description}}' },
   { evenement: 'terrain.conflit', libelle: 'Conflit de synchronisation terrain', destinataire: 'roles', roleCodes: ['R12', 'R04'], canaux: ['in_app'], titre: 'Conflit de synchronisation', gabarit: 'La visite « {{libelle}} » de {{agent}} a été modifiée en parallèle : vérification requise.' },
   { evenement: 'securite.compte_bloque', libelle: 'Compte bloqué après échecs de connexion', destinataire: 'roles', roleCodes: ['R01'], canaux: ['in_app'], titre: 'Compte bloqué', gabarit: 'Le compte {{email}} est bloqué après des échecs de connexion répétés.' },
+  // Relances commerciales à règles (compléments stratégiques, point 4) : destinataire 'acteur' = le commercial du client/prospect.
+  { evenement: 'commercial.client_dormant', libelle: 'Client dormant à relancer', destinataire: 'acteur', canaux: ['in_app'], titre: 'Client dormant : {{client}}', gabarit: '{{client}} n\'a eu aucun contact ni opération depuis plus de {{jours}} jours. Une relance est recommandée.' },
+  { evenement: 'commercial.opportunite', libelle: 'Opportunité commerciale détectée', destinataire: 'acteur', canaux: ['in_app'], titre: 'Opportunité : {{client}}', gabarit: '{{client}} a un bon profil (épargne constituée, aucun impayé, pas encore de crédit) : une proposition peut être envisagée.' },
+  { evenement: 'commercial.prospect_stagnant', libelle: 'Prospect sans suite à relancer', destinataire: 'acteur', canaux: ['in_app'], titre: 'Prospect à relancer : {{prospect}}', gabarit: '{{prospect}} est au statut « {{statut}} » depuis {{jours}} jours sans nouveau contact.' },
 ] as const;
 
 export async function synchroniserDeclencheurs() {

@@ -1,24 +1,51 @@
 import prisma from './prisma';
 import { appelerSysteme } from './echanges';
+import { parametre } from './parametres';
 
 /**
- * Passerelle SMS (API SMS, COMMUNICATION 1).
+ * Passerelle de messagerie client, SMS et WhatsApp (COMMUNICATION 1, compléments stratégiques
+ * point 17 : registre de canaux extensible).
  *
- * Les messages passent par une file (`messages_sms`) : rien n'est perdu si le
- * fournisseur est indisponible, les envois sont rejoués avec un délai croissant.
+ * Les messages passent par une file unique (`messages_sms`, colonne `canal`) : rien n'est perdu
+ * si le fournisseur est indisponible, les envois sont rejoués avec un délai croissant. Un
+ * troisième canal s'ajoute en complétant `FOURNISSEURS` ci-dessous, sans toucher au reste.
  *
- * Fournisseur : point d'accès HTTP JSON générique, configuré par variables d'environnement.
+ * SMS : point d'accès HTTP JSON générique, configuré par variables d'environnement.
  *   SMS_API_URL      adresse d'envoi (obligatoire pour activer l'envoi réel)
  *   SMS_API_KEY      jeton envoyé en `Authorization: Bearer`
  *   SMS_SENDER       expéditeur affiché (par défaut « CECAW »)
  * Corps envoyé : { "to": "+2376...", "message": "...", "from": "CECAW", "reference": "<id>" }.
- * Un fournisseur imposant un autre format se branche en adaptant `envoyerVersFournisseur`.
+ *
+ * WhatsApp : API Cloud de Meta (Graph API), configurée par variables d'environnement.
+ *   WHATSAPP_TOKEN            jeton d'accès permanent de l'application Meta Business
+ *   WHATSAPP_PHONE_NUMBER_ID  identifiant du numéro expéditeur (Meta Business Manager)
+ *   WHATSAPP_API_URL          racine de l'API (par défaut https://graph.facebook.com/v21.0)
+ * Activable/désactivable sans redéploiement depuis Paramètres > Communication (paramètre
+ * `communication.whatsapp_actif`), une fois les identifiants ci-dessus renseignés par CECAW.
+ * HYPOTHÈSE : Meta exige un message-modèle pré-approuvé pour toute prise de contact hors d'une
+ * fenêtre de conversation de 24 h ouverte par le client ; un message libre (celui envoyé ici)
+ * n'aboutit donc de façon fiable que pour répondre à un client déjà en échange récent (rappel
+ * d'échéance, relance) — les campagnes à froid vers des clients silencieux depuis longtemps
+ * nécessiteront un modèle approuvé par Meta, à mettre en place séparément.
  */
 
 const DELAIS_MIN = [5, 30, 120];
 const MAX_TENTATIVES = DELAIS_MIN.length + 1;
 
+export type Canal = 'sms' | 'whatsapp';
+
 export const smsConfigure = () => Boolean(process.env.SMS_API_URL);
+export const whatsappConfigure = () => Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
+
+async function whatsappActif(): Promise<boolean> {
+  if (!whatsappConfigure()) return false;
+  try { return await parametre<boolean>('communication.whatsapp_actif'); } catch { return false; }
+}
+
+/** Un canal est disponible s'il est configuré, et pour WhatsApp seulement si en outre activé. */
+async function canalDisponible(canal: Canal): Promise<boolean> {
+  return canal === 'sms' ? smsConfigure() : whatsappActif();
+}
 
 /** Normalise un numéro en format international. Sans indicatif, on suppose le Cameroun (+237). */
 export function normaliserTelephone(brut: string | null | undefined): string | null {
@@ -31,27 +58,43 @@ export function normaliserTelephone(brut: string | null | undefined): string | n
   return null;
 }
 
-export async function mettreEnFileSms(p: { telephone: string | null | undefined; message: string; entiteType?: string; entiteId?: number }) {
+/** Met un message en file. `canal` par défaut à 'sms' : tous les appelants existants sont inchangés. */
+export async function mettreEnFileSms(p: { telephone: string | null | undefined; message: string; entiteType?: string; entiteId?: number; canal?: Canal }) {
   const tel = normaliserTelephone(p.telephone);
   if (!tel) return null;
   return prisma.messageSms.create({
     data: {
-      telephone: tel, message: p.message.slice(0, 480), entiteType: p.entiteType ?? null, entiteId: p.entiteId ?? null,
+      telephone: tel, message: p.message.slice(0, 480), canal: p.canal ?? 'sms',
+      entiteType: p.entiteType ?? null, entiteId: p.entiteId ?? null,
       prochaineTentativeAt: new Date(),
     },
   });
 }
 
-async function envoyerVersFournisseur(m: { id: number; telephone: string; message: string }) {
-  const r = await appelerSysteme('sms', process.env.SMS_API_URL as string, {
+async function envoyerSms(m: { id: number; telephone: string; message: string }) {
+  return appelerSysteme('sms', process.env.SMS_API_URL as string, {
     headers: { 'Content-Type': 'application/json', ...(process.env.SMS_API_KEY ? { Authorization: `Bearer ${process.env.SMS_API_KEY}` } : {}) },
     corps: JSON.stringify({ to: m.telephone, message: m.message, from: process.env.SMS_SENDER ?? 'CECAW', reference: String(m.id) }),
     reference: `sms:${m.id}`,
   });
-  return r;
 }
 
-/** Envoie les SMS en attente dont l'heure de tentative est arrivée. Renvoie les compteurs. */
+async function envoyerWhatsapp(m: { id: number; telephone: string; message: string }) {
+  const racine = process.env.WHATSAPP_API_URL ?? 'https://graph.facebook.com/v21.0';
+  const url = `${racine}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+  return appelerSysteme('whatsapp', url, {
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
+    corps: JSON.stringify({ messaging_product: 'whatsapp', to: m.telephone.replace(/^\+/, ''), type: 'text', text: { body: m.message } }),
+    reference: `whatsapp:${m.id}`,
+  });
+}
+
+const FOURNISSEURS: Record<Canal, (m: { id: number; telephone: string; message: string }) => ReturnType<typeof appelerSysteme>> = {
+  sms: envoyerSms,
+  whatsapp: envoyerWhatsapp,
+};
+
+/** Envoie les messages en attente dont l'heure de tentative est arrivée. Renvoie les compteurs. */
 export async function traiterFileSms(limite = 50) {
   const dues = await prisma.messageSms.findMany({
     where: { statut: 'en_attente', prochaineTentativeAt: { lte: new Date() } },
@@ -62,12 +105,13 @@ export async function traiterFileSms(limite = 50) {
   let echecs = 0;
 
   for (const m of dues) {
-    if (!smsConfigure()) {
-      await prisma.messageSms.update({ where: { id: m.id }, data: { statut: 'echec', erreur: 'Passerelle SMS non configurée (SMS_API_URL)', prochaineTentativeAt: null } });
+    if (!(await canalDisponible(m.canal))) {
+      const raison = m.canal === 'sms' ? 'Passerelle SMS non configurée (SMS_API_URL)' : 'Canal WhatsApp non configuré ou désactivé (WHATSAPP_TOKEN, communication.whatsapp_actif)';
+      await prisma.messageSms.update({ where: { id: m.id }, data: { statut: 'echec', erreur: raison, prochaineTentativeAt: null } });
       echecs++;
       continue;
     }
-    const r = await envoyerVersFournisseur(m);
+    const r = await FOURNISSEURS[m.canal](m);
     if (r.ok) {
       await prisma.messageSms.update({ where: { id: m.id }, data: { statut: 'envoye', envoyeAt: new Date(), tentatives: m.tentatives + 1, erreur: null, prochaineTentativeAt: null } });
       envoyes++;

@@ -8,6 +8,7 @@ import { sauvegarder } from './sauvegarde';
 import { detecterImpayes } from '../modules/recouvrement/recouvrement.service';
 import { recalculerObjectifs } from '../modules/objectifs/objectifs.calcul';
 import { recalculerScoresClients } from './segmentation';
+import { genererRelancesCommerciales } from './relancesCommerciales';
 
 /**
  * Planificateur de tâches. Les tâches quotidiennes sont verrouillées en base : la ligne
@@ -56,6 +57,7 @@ export const TACHES: Tache[] = [
   { nom: 'analyse_anomalies', libelle: "Analyse des anomalies de conformité", heureUtc: 4, executer: analyserAnomalies },
   { nom: 'objectifs', libelle: 'Recalcul des objectifs et alertes sur écarts', heureUtc: 5, executer: recalculerObjectifs },
   { nom: 'score_clients', libelle: 'Recalcul du score et du cycle de vie des clients', heureUtc: 1, executer: recalculerScoresClients },
+  { nom: 'relances_commerciales', libelle: 'Suggestions de relance pour les commerciaux (clients dormants, opportunités, prospects stagnants)', heureUtc: 2, executer: genererRelancesCommerciales },
   { nom: 'sauvegarde', libelle: 'Sauvegarde chiffrée de la base', heureUtc: 2, actif: () => process.env.BACKUP_ENABLED === 'true', executer: sauvegarder },
   { nom: 'file_sms', libelle: "Envoi des SMS en attente", intervalMin: 2, executer: () => traiterFileSms() },
 ];

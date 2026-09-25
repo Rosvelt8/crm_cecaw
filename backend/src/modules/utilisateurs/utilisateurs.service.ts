@@ -20,6 +20,9 @@ const include = {
   agence: { select: { id: true, nom: true } },
   equipe: { select: { id: true, nom: true } },
   agent: { select: { id: true, matricule: true, secteur: true } },
+  // Rôles RBAC (R01-R17) réellement affectés, distincts du rôle historique `role` (repli de
+  // permissions). Sans ligne ici, `droitsEffectifs` retombe sur le rôle historique (lib/rbac.ts).
+  roles: { where: { role: { actif: true } }, select: { role: { select: { code: true, nom: true } } } },
 } as const;
 
 export async function list(actor: JwtPayload, query: Record<string, unknown>) {

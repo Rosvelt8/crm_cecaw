@@ -539,6 +539,51 @@ async function main() {
     }
   }
 
+  // ── Calendrier camerounais 2025-2027 (compléments stratégiques, point 6) ──
+  // Dates civiles et chrétiennes vérifiées (sources : joursferies.fr, icalendrier.fr). Les deux
+  // fêtes musulmanes sont des ESTIMATIONS soumises à confirmation par la Commission Nationale du
+  // Croissant Lunaire (CNCL), généralement la veille au soir : elles peuvent glisser de ±1 jour.
+  // À corriger chaque année depuis Paramètres > Marchés et activités si besoin (fonctionnalité à
+  // ajouter) ou directement en base ; la date officielle prime toujours sur cette estimation.
+  const calendrierData: { nom: string; type: 'ferie_nationale' | 'ferie_religieuse'; date: string }[] = [
+    { nom: "Jour de l'An 2025", type: 'ferie_nationale', date: '2025-01-01' },
+    { nom: 'Fête de la Jeunesse 2025', type: 'ferie_nationale', date: '2025-02-11' },
+    { nom: 'Vendredi Saint 2025', type: 'ferie_religieuse', date: '2025-04-18' },
+    { nom: 'Fête du Travail 2025', type: 'ferie_nationale', date: '2025-05-01' },
+    { nom: "Aïd el-Fitr 2025 (estimation)", type: 'ferie_religieuse', date: '2025-03-31' },
+    { nom: 'Ascension 2025', type: 'ferie_religieuse', date: '2025-05-29' },
+    { nom: 'Fête Nationale 2025', type: 'ferie_nationale', date: '2025-05-20' },
+    { nom: 'Tabaski 2025 (estimation)', type: 'ferie_religieuse', date: '2025-06-06' },
+    { nom: 'Assomption 2025', type: 'ferie_religieuse', date: '2025-08-15' },
+    { nom: 'Noël 2025', type: 'ferie_religieuse', date: '2025-12-25' },
+
+    { nom: "Jour de l'An 2026", type: 'ferie_nationale', date: '2026-01-01' },
+    { nom: 'Fête de la Jeunesse 2026', type: 'ferie_nationale', date: '2026-02-11' },
+    { nom: "Aïd el-Fitr 2026 (estimation)", type: 'ferie_religieuse', date: '2026-03-20' },
+    { nom: 'Vendredi Saint 2026', type: 'ferie_religieuse', date: '2026-04-03' },
+    { nom: 'Fête du Travail 2026', type: 'ferie_nationale', date: '2026-05-01' },
+    { nom: 'Ascension 2026', type: 'ferie_religieuse', date: '2026-05-14' },
+    { nom: 'Fête Nationale 2026', type: 'ferie_nationale', date: '2026-05-20' },
+    { nom: 'Tabaski 2026 (estimation)', type: 'ferie_religieuse', date: '2026-05-27' },
+    { nom: 'Assomption 2026', type: 'ferie_religieuse', date: '2026-08-15' },
+    { nom: 'Noël 2026', type: 'ferie_religieuse', date: '2026-12-25' },
+
+    { nom: "Jour de l'An 2027", type: 'ferie_nationale', date: '2027-01-01' },
+    { nom: 'Fête de la Jeunesse 2027', type: 'ferie_nationale', date: '2027-02-11' },
+    { nom: "Aïd el-Fitr 2027 (estimation)", type: 'ferie_religieuse', date: '2027-03-10' },
+    { nom: 'Vendredi Saint 2027', type: 'ferie_religieuse', date: '2027-03-26' },
+    { nom: 'Fête du Travail 2027', type: 'ferie_nationale', date: '2027-05-01' },
+    { nom: 'Tabaski 2027 (estimation)', type: 'ferie_religieuse', date: '2027-05-16' },
+    { nom: 'Ascension 2027', type: 'ferie_religieuse', date: '2027-05-06' },
+    { nom: 'Fête Nationale 2027', type: 'ferie_nationale', date: '2027-05-20' },
+    { nom: 'Assomption 2027', type: 'ferie_religieuse', date: '2027-08-15' },
+    { nom: 'Noël 2027', type: 'ferie_religieuse', date: '2027-12-25' },
+  ];
+  for (const e of calendrierData) {
+    const existe = await prisma.calendrierEvenement.findFirst({ where: { nom: e.nom } });
+    if (!existe) await prisma.calendrierEvenement.create({ data: { nom: e.nom, type: e.type, dateDebut: new Date(e.date) } });
+  }
+
   console.log('✅ Seed completed!');
   console.log(`   📧 Admin: admin@cecaw.cm / ${DEFAULT_PASSWORD}`);
   console.log(`   📧 Manager: m.ngassa@cecaw.cm / ${DEFAULT_PASSWORD}`);

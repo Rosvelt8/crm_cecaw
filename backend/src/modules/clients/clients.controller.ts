@@ -44,6 +44,7 @@ const baseSchema = z.object({
   marche_id: z.coerce.number().int().positive().nullable().optional(),
   secteur_id: z.coerce.number().int().positive().nullable().optional(),
   metier_id: z.coerce.number().int().positive().nullable().optional(),
+  canal_prefere: z.enum(['sms', 'whatsapp']).nullable().optional(),
 });
 
 function refineTypePersonne(data: { type_personne?: string; prenom?: string; forme_juridique?: string }, ctx: z.RefinementCtx) {

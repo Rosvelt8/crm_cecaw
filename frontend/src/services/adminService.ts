@@ -29,6 +29,11 @@ export interface MarcheRef {
 }
 export interface MetierRef { id: number; nom: string; secteurId: number; actif: boolean }
 export interface SecteurRef { id: number; nom: string; actif: boolean; metiers: MetierRef[] }
+export interface PotentielMarche {
+  marche_id: number; nom: string; type: string; agence: string | null;
+  nb_clients: number; nb_prospects_actifs: number; nb_collecteurs: number;
+  epargne_collectee: number; nb_clients_dormants: number; potentiel_moyen_clients: number | null;
+}
 
 export const adminService = {
   // Paramétrage financier des produits
@@ -60,6 +65,7 @@ export const adminService = {
   modifierMarche: async (id: number, p: Record<string, unknown>) => data<MarcheRef>(await apiClient.put(`/organisation/marches/${id}`, p)),
   supprimerMarche: async (id: number) => { await apiClient.delete(`/organisation/marches/${id}`); },
   affecterAgentsMarche: async (id: number, agents: { agent_id: number; principal?: boolean }[]) => data(await apiClient.put(`/organisation/marches/${id}/agents`, { agents })),
+  potentielMarches: async (agenceId?: number) => data<PotentielMarche[]>(await apiClient.get('/sig/marches/potentiel', { params: { agence_id: agenceId } })),
 
   // Référentiel secteurs / métiers (compléments stratégiques, point 8)
   secteurs: async () => data<SecteurRef[]>(await apiClient.get('/organisation/secteurs')),

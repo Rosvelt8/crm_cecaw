@@ -19,7 +19,7 @@ export const VERBES: VerbePermission[] = [
 /** Domaine → libellé, pour générer un catalogue lisible. */
 export const DOMAINES: Record<string, string> = {
   socle: 'Socle et administration technique',
-  organisation: 'Organisation (agences, points de service, zones)',
+  organisation: 'Organisation (agences, points de service, zones, marchés, secteurs et métiers)',
   crm: 'CRM (prospects et clients)',
   kyc: 'KYC et conformité client',
   comptes: 'Comptes et opérations',

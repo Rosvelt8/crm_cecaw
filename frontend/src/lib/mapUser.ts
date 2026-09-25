@@ -31,6 +31,7 @@ export function mapBackendUser(raw: any): User {
     photo_url: raw.photo_url,
     role,
     roleString: roleSlug,
+    rolesRbac: Array.isArray(raw.roles) ? raw.roles.map((r: { role: { code: string; nom: string } }) => r.role) : [],
     fonction: raw.fonction ?? null,
     actif: raw.actif ?? true,
     mfa_actif: Boolean(raw.mfa_actif),

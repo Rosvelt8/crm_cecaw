@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import { useCan } from '@/hooks/useCan';
 import { usePagination } from '@/hooks/usePagination';
@@ -8,16 +9,23 @@ import { TablePagination } from '@/components/ui/table-pagination';
 import { userService } from '@/services/userService';
 import { agenceService } from '@/services/agenceService';
 import { equipeService } from '@/services/equipeService';
+import { adminService, type RoleRef } from '@/services/adminService';
 import type { User, BackendRole } from '@/types/user';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Trash2, X, Check, Search, KeyRound, ShieldCheck, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Search, KeyRound, ShieldCheck, Eye, Key } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+/** Aucun rôle RBAC affecté : les permissions retombent alors sur le rôle historique ci-dessous. */
+const SANS_ROLE_RBAC = '__sans_role__';
+
+// Rôle historique (repli de permissions, obligatoire à la création) : distinct des rôles RBAC réels
+// (R01-R17, gérés dans Paramètres > Rôles et droits). Voir backend/src/lib/rbac.ts `droitsEffectifs`.
 const ROLE_LABELS: Record<BackendRole, string> = {
   admin: 'Administrateur', manager: 'Manager', backoffice: "Chef d'équipe", agent: 'Agent terrain',
 };
@@ -48,6 +56,27 @@ function validateForm(form: Form): Record<string, string> | null {
 function initials(p: string, n: string) { return `${p?.[0] ?? ''}${n?.[0] ?? ''}`.toUpperCase() || '?'; }
 function roleSlug(u: User): BackendRole { return (u.roleString ?? u.role?.slug ?? 'agent') as BackendRole; }
 
+/**
+ * Rôles réels d'un utilisateur : les rôles RBAC affectés (R01-R17) s'ils existent, sinon le rôle
+ * historique employé en repli (voir backend/src/lib/rbac.ts `droitsEffectifs`).
+ */
+function RolesUtilisateur({ u }: { u: User }) {
+  const rbac = u.rolesRbac ?? [];
+  if (rbac.length > 0) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {rbac.map((r) => <Badge key={r.code} variant="info" title={r.code}>{r.nom}</Badge>)}
+      </div>
+    );
+  }
+  const slug = roleSlug(u);
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold', ROLE_COLORS[slug] ?? 'bg-muted text-muted-foreground')} title="Aucun rôle RBAC précis : permissions au repli du rôle historique">
+      {ROLE_LABELS[slug] ?? slug} <span className="font-normal opacity-70">(repli)</span>
+    </span>
+  );
+}
+
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
     <button type="button" onClick={onChange}
@@ -58,6 +87,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
 }
 
 export default function UtilisateursPage() {
+  const router = useRouter();
   const { can } = useCan();
   // backend/src/modules/utilisateurs/utilisateurs.routes.ts : create/delete → socle:CREATE ;
   // update/toggle/mot de passe → socle:UPDATE ; réinitialisation admin → socle:EXECUTE.
@@ -67,6 +97,7 @@ export default function UtilisateursPage() {
   const [utilisateurs, setUtilisateurs] = useState<User[]>([]);
   const [agences, setAgences] = useState<any[]>([]);
   const [equipes, setEquipes] = useState<any[]>([]);
+  const [rolesRbac, setRolesRbac] = useState<RoleRef[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch]               = useState('');
@@ -85,14 +116,16 @@ export default function UtilisateursPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [usrRows, agRes, eqRes] = await Promise.all([
+      const [usrRows, agRes, eqRes, roles] = await Promise.all([
         userService.getAllUsers(),
         agenceService.getAgences({ per_page: 100 }),
         equipeService.getEquipes({ per_page: 100 }),
+        adminService.roles().catch(() => [] as RoleRef[]),
       ]);
       setUtilisateurs(usrRows);
       setAgences(agRes.data ?? []);
       setEquipes(eqRes.data ?? []);
+      setRolesRbac(roles.filter((r) => r.actif).sort((a, b) => a.code.localeCompare(b.code)));
     } catch {
       toast.error('Erreur lors du chargement');
     } finally {
@@ -105,9 +138,10 @@ export default function UtilisateursPage() {
   const filtered = useMemo(() =>
     utilisateurs.filter((u) => {
       const q = search.toLowerCase();
-      const slug = roleSlug(u);
+      const codes = u.rolesRbac?.map((r) => r.code) ?? [];
+      const matchRole = filterRole === 'all' || (filterRole === SANS_ROLE_RBAC ? codes.length === 0 : codes.includes(filterRole));
       return (!q || `${u.prenom} ${u.nom} ${u.email} ${u.fonction ?? ''}`.toLowerCase().includes(q))
-        && (filterRole   === 'all' || slug === filterRole)
+        && matchRole
         && (filterAgence === 'all' || String(u.agence_id ?? u.agence?.id ?? '') === filterAgence);
     }),
     [utilisateurs, search, filterRole, filterAgence]
@@ -249,12 +283,13 @@ export default function UtilisateursPage() {
           </SelectContent>
         </Select>
         <Select value={filterRole} onValueChange={setFilterRole}>
-          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Tous les rôles" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Tous les rôles" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les rôles</SelectItem>
-            {(Object.keys(ROLE_LABELS) as BackendRole[]).map((r) => (
-              <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+            {rolesRbac.map((r) => (
+              <SelectItem key={r.code} value={r.code}>{r.nom}</SelectItem>
             ))}
+            <SelectItem value={SANS_ROLE_RBAC}>Sans rôle précis (repli historique)</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -276,7 +311,6 @@ export default function UtilisateursPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {paginated.map((u) => {
-                  const slug = roleSlug(u);
                   return (
                     <tr key={u.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => openDrawer(u)}>
                       <td className="px-4 py-3">
@@ -291,11 +325,7 @@ export default function UtilisateursPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">{u.email}</td>
-                      <td className="px-4 py-3">
-                        <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold', ROLE_COLORS[slug] ?? 'bg-muted text-muted-foreground')}>
-                          {ROLE_LABELS[slug] ?? slug}
-                        </span>
-                      </td>
+                      <td className="px-4 py-3"><RolesUtilisateur u={u} /></td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{u.fonction || '—'}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         <p>{getAgenceNom(u)}</p>
@@ -362,9 +392,7 @@ export default function UtilisateursPage() {
                 </div>
                 <div>
                   <p className="font-bold leading-tight">{drawer.prenom} {drawer.nom}</p>
-                  <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold mt-0.5', ROLE_COLORS[roleSlug(drawer)] ?? 'bg-muted text-muted-foreground')}>
-                    {ROLE_LABELS[roleSlug(drawer)] ?? roleSlug(drawer)}
-                  </span>
+                  <div className="mt-0.5"><RolesUtilisateur u={drawer} /></div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -388,7 +416,7 @@ export default function UtilisateursPage() {
                         ['Nom', drawer.nom],
                         ['Email', drawer.email],
                         ['Fonction', drawer.fonction || '—'],
-                        ['Rôle', ROLE_LABELS[roleSlug(drawer)] ?? roleSlug(drawer)],
+                        ['Rôle historique (repli)', ROLE_LABELS[roleSlug(drawer)] ?? roleSlug(drawer)],
                         ['Statut', drawer.actif ? 'Actif' : 'Suspendu'],
                       ].map(([l, v]) => (
                         <div key={l}>
@@ -396,6 +424,15 @@ export default function UtilisateursPage() {
                           <p className="font-semibold mt-0.5">{v}</p>
                         </div>
                       ))}
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-medium uppercase mb-1">Rôles RBAC précis</p>
+                      <RolesUtilisateur u={drawer} />
+                      {can('securite:CONFIGURE') && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 mt-2" onClick={() => router.push(`/dashboard/parametres/roles?utilisateur=${drawer.id}`)}>
+                          <Key className="h-3 w-3" /> Gérer les rôles précis
+                        </Button>
+                      )}
                     </div>
                   </section>
                   <div className="border-t" />
@@ -467,7 +504,7 @@ export default function UtilisateursPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Rôle</Label>
+                      <Label className="text-xs">Rôle historique (repli)</Label>
                       <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as BackendRole })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -476,6 +513,7 @@ export default function UtilisateursPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="text-[10px] text-muted-foreground">Ne sert que si aucun rôle précis (R01-R17) n'est affecté ensuite depuis Paramètres &gt; Rôles et droits.</p>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Agence</Label>
@@ -547,13 +585,14 @@ export default function UtilisateursPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Rôle</Label>
+                  <Label className="text-xs">Rôle historique (repli)</Label>
                   <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as BackendRole })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {(Object.keys(ROLE_LABELS) as BackendRole[]).map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <p className="text-[10px] text-muted-foreground">Rôle précis (R01-R17) à affecter ensuite depuis Paramètres &gt; Rôles et droits.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Agence</Label>

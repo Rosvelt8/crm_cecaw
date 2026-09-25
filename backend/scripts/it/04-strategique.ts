@@ -1,4 +1,8 @@
 import { api, arreter, demarrer, titre, utilisateur, verifier } from './helpers';
+import prisma from '../../src/lib/prisma';
+import { mettreEnFileSms } from '../../src/lib/sms';
+
+const aujourdhuiIso = () => new Date().toISOString().slice(0, 10);
 
 (async () => {
   await demarrer();
@@ -17,6 +21,12 @@ import { api, arreter, demarrer, titre, utilisateur, verifier } from './helpers'
   const marche = await api(admin.token, 'POST', '/organisation/marches', { nom: 'Marché Congo IT', type: 'grand', agenceId: 1, latitude: 4.05, longitude: 9.7 });
   verifier(marche.statut === 201, 'création du marché', marche.corps);
   verifier(marche.corps.data.type === 'grand', 'type de marché conservé');
+  const marcheModifie = await api(admin.token, 'PUT', `/organisation/marches/${marche.corps.data.id}`, { type: 'moyen' });
+  verifier(marcheModifie.statut === 200 && marcheModifie.corps.data.type === 'moyen', 'modification du marché (édition depuis l\'UI)', marcheModifie.corps);
+  const secteurModifie = await api(admin.token, 'PUT', `/organisation/secteurs/${secteur.corps.data.id}`, { nom: 'Commerce de vivres IT renommé' });
+  verifier(secteurModifie.statut === 200 && secteurModifie.corps.data.nom.endsWith('renommé'), 'renommage du secteur (édition depuis l\'UI)', secteurModifie.corps);
+  const metierModifie = await api(admin.token, 'PUT', `/organisation/metiers/${metier.corps.data.id}`, { nom: 'Vendeuse de légumes IT renommée' });
+  verifier(metierModifie.statut === 200 && metierModifie.corps.data.nom.endsWith('renommée'), 'renommage du métier (édition depuis l\'UI)', metierModifie.corps);
 
   titre('Client rattaché au marché et au référentiel secteur/métier');
   const cl = await api(r05.token, 'POST', '/clients', {
@@ -81,6 +91,107 @@ import { api, arreter, demarrer, titre, utilisateur, verifier } from './helpers'
   titre('Droits : R02 ne gère pas le CRM, mais gère bien l\'organisation (marchés/secteurs)');
   verifier((await api(r02.token, 'GET', '/clients')).statut === 403, 'R02 refusé sur les clients');
   verifier((await api(r02.token, 'POST', '/organisation/marches', { nom: 'Marché R02 IT' })).statut === 201, 'R02 peut créer un marché');
+
+  titre('Relances commerciales à règles : client dormant (point 4)');
+  // Le client est vieilli de 400 jours, sans interaction ni transaction récente : après recalcul
+  // du score il doit devenir "dormant", puis déclencher une relance suggérée à son commercial.
+  const ancien = new Date(Date.now() - 400 * 86_400_000);
+  await prisma.client.update({ where: { id: clientId }, data: { createdAt: ancien } });
+  await prisma.interaction.updateMany({ where: { clientId }, data: { dateInteraction: ancien } });
+  await api(admin.token, 'POST', '/clients/scores/recalculer', {});
+  const ficheDormant = await api(r05.token, 'GET', `/clients/${clientId}`);
+  verifier(ficheDormant.corps.data.score?.cycleVie === 'dormant', 'le client redevient "dormant" après vieillissement', ficheDormant.corps.data.score);
+
+  const relances = await api(admin.token, 'POST', '/administration/taches/relances_commerciales/executer', {});
+  verifier(relances.statut === 200 && relances.corps.data.resultat?.dormants >= 1, 'la tâche de relances détecte au moins un client dormant', relances.corps);
+  const evenement = await prisma.evenementMetier.findFirst({ where: { code: 'commercial.client_dormant', entiteType: 'client', entiteId: clientId } });
+  verifier(Boolean(evenement), 'un événement de relance a bien été journalisé pour ce client');
+  const notifs = await api(r05.token, 'GET', '/notifications');
+  verifier(notifs.corps.data.some((n: { titre: string }) => n.titre?.includes('dormant')), 'le commercial reçoit la notification de relance', notifs.corps.data.map((n: { titre: string }) => n.titre));
+
+  const relancesRejouees = await api(admin.token, 'POST', '/administration/taches/relances_commerciales/executer', {});
+  verifier(relancesRejouees.corps.data.resultat?.dormants === 0, 'le cooldown évite de renotifier immédiatement le même client', relancesRejouees.corps);
+
+  titre('Projection et réajustement d\'objectif (point 14)');
+  const objectif = await api(admin.token, 'POST', '/objectifs', {
+    titre: 'Objectif IT projection', categorie: 'nouveaux_clients', cible: 100, unite: 'clients', periodicite: 'mois',
+    date_debut: new Date(Date.now() - 20 * 86_400_000).toISOString().slice(0, 10), date_fin: new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10),
+    assignation_type: 'institution',
+  });
+  verifier(objectif.statut === 201, 'création d\'un objectif de test', objectif.corps);
+  await prisma.objectif.update({ where: { id: objectif.corps.data.id }, data: { realise: 5 } }); // très en retard sur 20 jours écoulés
+  const proj = await api(r05.token, 'GET', `/objectifs/${objectif.corps.data.id}/projection`);
+  verifier(proj.statut === 200 && typeof proj.corps.data.ecart_projete_pct === 'number', 'la projection est calculée', proj.corps);
+  verifier((proj.corps.data.ecart_projete_pct as number) < 0, 'un retard réel se traduit par un écart projeté négatif', proj.corps.data);
+  verifier(proj.corps.data.cible_suggeree !== null, 'une cible réajustée est suggérée pour un fort retard', proj.corps.data);
+
+  titre('Potentiel de collecte par marché (points 15-16, Bayam-Sellam)');
+  const potentiel = await api(admin.token, 'GET', '/sig/marches/potentiel');
+  verifier(potentiel.statut === 200 && Array.isArray(potentiel.corps.data), 'la liste de potentiel par marché répond', potentiel.corps);
+  const ligneMarche = potentiel.corps.data.find((l: { marche_id: number }) => l.marche_id === marche.corps.data.id);
+  verifier(Boolean(ligneMarche), 'le marché créé apparaît dans l\'analyse de potentiel');
+  verifier(ligneMarche?.nb_clients_dormants >= 1, 'le client dormant du marché est compté', ligneMarche);
+
+  titre('Calendrier camerounais (point 6)');
+  const jourFerie = await api(admin.token, 'POST', '/calendrier', { nom: 'Tabaski IT', type: 'ferie_religieuse', date_debut: '2027-05-16' });
+  verifier(jourFerie.statut === 201, 'création d\'un événement calendrier', jourFerie.corps);
+  const calendrier2027 = await api(r05.token, 'GET', '/calendrier?annee=2027');
+  verifier(calendrier2027.statut === 200 && calendrier2027.corps.data.some((e: { id: number }) => e.id === jourFerie.corps.data.id), 'filtrage du calendrier par année');
+  verifier((await api(r05.token, 'POST', '/calendrier', { nom: 'Refus', type: 'commercial', date_debut: '2027-01-01' })).statut === 403, 'un commercial ne peut pas créer d\'événement (communication:CONFIGURE requis)');
+
+  titre('Campagnes commerciales 360° (point 5)');
+  const campagne = await api(admin.token, 'POST', '/campagnes', {
+    nom: 'Relance clients dormants IT', criteres: { cycle_vie: ['dormant'] }, canal: 'sms',
+    message: 'CECAW : {{prenom}} {{nom}}, votre agence pense à vous !', date_debut: aujourdhuiIso(), evenement_calendrier_id: jourFerie.corps.data.id,
+  });
+  verifier(campagne.statut === 201, 'création de la campagne', campagne.corps);
+  verifier(campagne.corps.data.nb_cibles_estime >= 1, 'l\'estimation de cibles compte au moins le client dormant', campagne.corps.data);
+
+  const lancement = await api(admin.token, 'POST', `/campagnes/${campagne.corps.data.id}/lancer`, {});
+  verifier(lancement.statut === 200 && lancement.corps.data.mises_en_file >= 1, 'le lancement met au moins un SMS en file', lancement.corps);
+
+  const detailCampagne = await api(admin.token, 'GET', `/campagnes/${campagne.corps.data.id}`);
+  verifier(detailCampagne.corps.data.statut === 'en_cours', 'la campagne passe en cours après lancement');
+  verifier(detailCampagne.corps.data.cibles.some((c: { client: { id: number } }) => c.client.id === clientId), 'le client dormant figure bien parmi les cibles enregistrées', detailCampagne.corps.data.cibles);
+
+  const relance2 = await api(admin.token, 'POST', `/campagnes/${campagne.corps.data.id}/lancer`, {});
+  verifier(relance2.statut === 200, 'un second lancement est accepté (idempotent, pas de doublon de cible)', relance2.corps);
+
+  const canalEmail = await api(admin.token, 'POST', '/campagnes', { nom: 'Campagne Email IT', criteres: {}, canal: 'email', message: 'Test', date_debut: aujourdhuiIso() });
+  await api(admin.token, 'POST', `/campagnes/${canalEmail.corps.data.id}/lancer`, {});
+  const detailEmail = await api(admin.token, 'GET', `/campagnes/${canalEmail.corps.data.id}`);
+  verifier((detailEmail.corps.data.resume?.en_attente_canal ?? 0) >= 1, 'un canal email non construit met les cibles en attente sans rien envoyer', detailEmail.corps.data.resume);
+
+  titre('Canal WhatsApp : registre de canaux (point 17) et préférence client (point 18)');
+  const msgWhatsapp = await mettreEnFileSms({ telephone: '677998877', message: 'Test WhatsApp', canal: 'whatsapp' });
+  verifier(msgWhatsapp?.canal === 'whatsapp', 'un message peut être mis en file sur le canal whatsapp', msgWhatsapp);
+  const toggleRefuse = await api(admin.token, 'PUT', '/communication/whatsapp', { actif: true });
+  verifier(toggleRefuse.statut === 422, 'impossible d\'activer WhatsApp sans WHATSAPP_TOKEN/WHATSAPP_PHONE_NUMBER_ID côté serveur', toggleRefuse.corps);
+  const smsResume = await api(admin.token, 'GET', '/communication/sms');
+  verifier(smsResume.corps.data.whatsapp?.configure === false, 'l\'état WhatsApp est rapporté comme non configuré dans ce contexte de test', smsResume.corps.data.whatsapp);
+
+  const prefRefus = await api(r05.token, 'PUT', `/clients/${clientId}`, { canal_prefere: 'valeur-invalide' });
+  verifier(prefRefus.statut !== 200, 'une valeur de canal préféré invalide est refusée');
+  await prisma.client.update({ where: { id: clientId }, data: { canalPrefere: 'whatsapp' } });
+  const fichePref = await api(r05.token, 'GET', `/clients/${clientId}`);
+  verifier(fichePref.corps.data.canalPrefere === 'whatsapp', 'le canal préféré du client est bien conservé');
+
+  titre("Photo de l'activité professionnelle (point 9)");
+  const listeVide = await api(r05.token, 'GET', `/kyc/clients/${clientId}/photos-activite`);
+  verifier(listeVide.statut === 200 && Array.isArray(listeVide.corps.data), 'liste des photos d\'activité accessible avant tout envoi', listeVide.corps);
+  const fp = new FormData();
+  fp.append('photo', new Blob([Buffer.from('fakejpeg')], { type: 'image/jpeg' }), 'activite.jpg');
+  fp.append('latitude', '4.05'); fp.append('longitude', '9.70');
+  const photoActivite = await api(r05.token, 'POST', `/kyc/clients/${clientId}/photos-activite`, fp);
+  verifier(photoActivite.statut === 200 && photoActivite.corps.data.categorie === 'photo_activite', 'photo d\'activité enregistrée avec sa catégorie', photoActivite.corps);
+  verifier(Number(photoActivite.corps.data.latitude) === 4.05, 'la géolocalisation de la photo est conservée', photoActivite.corps.data);
+  const listeApres = await api(r05.token, 'GET', `/kyc/clients/${clientId}/photos-activite`);
+  verifier(listeApres.corps.data.length === 1, 'la photo apparaît dans la liste (additive, pas de remplacement)');
+  const fp2 = new FormData();
+  fp2.append('photo', new Blob([Buffer.from('fakejpeg2')], { type: 'image/jpeg' }), 'activite2.jpg');
+  await api(r05.token, 'POST', `/kyc/clients/${clientId}/photos-activite`, fp2);
+  const listeApres2 = await api(r05.token, 'GET', `/kyc/clients/${clientId}/photos-activite`);
+  verifier(listeApres2.corps.data.length === 2, 'une seconde photo s\'ajoute sans remplacer la première (galerie)');
 
   await arreter();
 })().catch((e) => { console.error(e); process.exit(1); });

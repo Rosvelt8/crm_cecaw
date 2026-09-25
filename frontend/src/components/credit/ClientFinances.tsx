@@ -30,6 +30,13 @@ export default function ClientFinances({ clientId }: { clientId: number }) {
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
   const [sale, setSale] = useState(false);
+  const [photosActivite, setPhotosActivite] = useState<any[]>([]);
+  const [envoiPhoto, setEnvoiPhoto] = useState(false);
+
+  const chargerPhotosActivite = useCallback(async () => {
+    try { setPhotosActivite(await apiClient.get(`/kyc/clients/${clientId}/photos-activite`).then(donnees<any[]>)); }
+    catch { setPhotosActivite([]); }
+  }, [clientId]);
 
   const charger = useCallback(async () => {
     try {
@@ -43,7 +50,7 @@ export default function ClientFinances({ clientId }: { clientId: number }) {
       setSale(false);
     } catch { setD(null); }
   }, [clientId]);
-  useEffect(() => { if (voir) void charger(); }, [voir, charger]);
+  useEffect(() => { if (voir) { void charger(); void chargerPhotosActivite(); } }, [voir, charger, chargerPhotosActivite]);
 
   if (!voir || !d) return null;
 
@@ -71,6 +78,27 @@ export default function ClientFinances({ clientId }: { clientId: number }) {
     form.append('photo', f);
     try { await apiClient.post(`/kyc/clients/${clientId}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } }); toast.success('Photo enregistrée'); await charger(); }
     catch (e) { toast.error(msg(e)); }
+  };
+
+  /** Photo de l'activité professionnelle (compléments stratégiques, point 9) : géolocalisée si la
+   * position est disponible, additive (galerie), distincte de la photo du client ci-dessus. */
+  const ajouterPhotoActivite = async (f: File | undefined) => {
+    if (!f) return;
+    setEnvoiPhoto(true);
+    const form = new FormData();
+    form.append('photo', f);
+    const joindrePosition = (p: GeolocationPosition | null) => {
+      if (p) { form.append('latitude', String(p.coords.latitude)); form.append('longitude', String(p.coords.longitude)); }
+    };
+    await new Promise<void>((resolve) => {
+      if (!navigator.geolocation) { resolve(); return; }
+      navigator.geolocation.getCurrentPosition((p) => { joindrePosition(p); resolve(); }, () => resolve(), { enableHighAccuracy: true, timeout: 8000 });
+    });
+    try {
+      await apiClient.post(`/kyc/clients/${clientId}/photos-activite`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success("Photo de l'activité ajoutée");
+      await chargerPhotosActivite();
+    } catch (e) { toast.error(msg(e)); } finally { setEnvoiPhoto(false); }
   };
 
   const totalSources = sources.reduce((s, x) => s + (x.montant_mensuel || 0), 0);
@@ -116,6 +144,25 @@ export default function ClientFinances({ clientId }: { clientId: number }) {
           {modifier && <Button variant="outline" size="sm" onClick={position}><LocateFixed className="h-4 w-4 mr-1.5" />Ma position</Button>}
         </div>
         {modifier && <Button variant="brand" size="sm" disabled={!sale} onClick={enregistrer}>Enregistrer</Button>}
+
+        <div className="pt-2 border-t space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Photos de l'activité ({photosActivite.length})</p>
+            {modifier && <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs hover:bg-muted">
+              <Camera className="h-3.5 w-3.5" />{envoiPhoto ? 'Envoi…' : 'Ajouter une photo'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={envoiPhoto} onChange={(e) => void ajouterPhotoActivite(e.target.files?.[0])} />
+            </label>}
+          </div>
+          {photosActivite.length === 0 ? <p className="text-xs text-muted-foreground">Aucune photo de l'activité.</p> : (
+            <div className="flex flex-wrap gap-2">
+              {photosActivite.map((p) => (
+                <div key={p.id} className="h-20 w-20 rounded-lg border overflow-hidden" title={p.prisAt ? new Date(p.prisAt).toLocaleString('fr-FR') : ''}>
+                  <AuthImage url={p.url} alt="Photo de l'activité" className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -8,7 +8,8 @@ import { success, created, noContent } from '../../lib/response';
 import { createLog } from '../../lib/logger';
 import { ErreurMetier } from '../../lib/rbac';
 import { parsePagination, paginationMeta } from '../../lib/pagination';
-import { renvoyerSms, traiterFileSms, smsConfigure } from '../../lib/sms';
+import { renvoyerSms, traiterFileSms, smsConfigure, whatsappConfigure } from '../../lib/sms';
+import { parametre, definirParametre } from '../../lib/parametres';
 import { appelerSysteme } from '../../lib/echanges';
 import { signerHmac } from '../../lib/crypto';
 
@@ -61,7 +62,7 @@ const declencheurSchema = z.object({
   evenement: z.string().min(3).max(80), libelle: z.string().min(3).max(200),
   destinataire: z.string().regex(/^(acteur|roles|client|utilisateur:\w+)$/, "Destinataire invalide : acteur, roles, client ou utilisateur:<champ>"),
   role_codes: z.array(z.string().regex(/^R\d{2}$/)).optional(),
-  canaux: z.array(z.enum(['in_app', 'sms', 'email'])).min(1),
+  canaux: z.array(z.enum(['in_app', 'sms', 'whatsapp', 'email'])).min(1),
   titre: z.string().min(1).max(200), gabarit: z.string().min(1).max(500), actif: z.boolean().optional(),
 });
 
@@ -89,11 +90,23 @@ communicationRouter.get('/sms', can('communication:VIEW'), wrap(async (req, res)
     prisma.messageSms.findMany({ where, orderBy: { createdAt: 'desc' }, take: 200 }),
     prisma.messageSms.groupBy({ by: ['statut'], _count: true }),
   ]);
-  return success(res, { items, resume: Object.fromEntries(resume.map((r) => [r.statut, r._count])), passerelle_configuree: smsConfigure() });
+  return success(res, {
+    items, resume: Object.fromEntries(resume.map((r) => [r.statut, r._count])), passerelle_configuree: smsConfigure(),
+    whatsapp: { configure: whatsappConfigure(), actif: whatsappConfigure() && (await parametre<boolean>('communication.whatsapp_actif')) },
+  });
 }));
 
 communicationRouter.post('/sms/traiter', can('communication:CONFIGURE'), wrap(async (_req, res) => success(res, await traiterFileSms())));
 communicationRouter.post('/sms/:id/renvoyer', can('communication:CONFIGURE'), wrap(async (req, res) => success(res, await renvoyerSms(pid(req)))));
+
+/** Bascule le canal WhatsApp (compléments stratégiques, point 17), sans exposer les identifiants. */
+communicationRouter.put('/whatsapp', can('communication:CONFIGURE'), wrap(async (req, res) => {
+  const { actif } = z.object({ actif: z.boolean() }).parse(req.body);
+  if (actif && !whatsappConfigure()) throw new ErreurMetier("WHATSAPP_TOKEN et WHATSAPP_PHONE_NUMBER_ID doivent être renseignés côté serveur avant d'activer ce canal.", 422);
+  await definirParametre('communication.whatsapp_actif', actif, req.user!.sub);
+  await journal(req, 'UPDATE_WHATSAPP', 'parametre', 0, `Canal WhatsApp ${actif ? 'activé' : 'désactivé'}`);
+  return success(res, { actif });
+}));
 
 communicationRouter.get('/evenements', can('communication:VIEW'), wrap(async (_req, res) =>
   success(res, await prisma.evenementMetier.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }))));

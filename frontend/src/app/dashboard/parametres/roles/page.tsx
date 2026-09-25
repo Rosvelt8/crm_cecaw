@@ -1,7 +1,8 @@
 'use client';
 /* eslint-disable react/no-unescaped-entities -- texte français : les apostrophes sont légitimes dans le JSX */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,15 @@ import { cn } from '@/lib/utils';
 const message = (e: unknown, defaut: string) => (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? defaut;
 
 export default function RolesPage() {
+  return (
+    <Suspense fallback={null}>
+      <RolesPageContent />
+    </Suspense>
+  );
+}
+
+function RolesPageContent() {
+  const searchParams = useSearchParams();
   const { can } = useCan();
   const peutModifier = can('securite:CONFIGURE');
   const [roles, setRoles] = useState<RoleRef[]>([]);
@@ -45,12 +55,18 @@ export default function RolesPage() {
     if (peutModifier) userService.getAllUsers().then((r: { id: number; nom: string; prenom: string }[]) => setUtilisateurs(r)).catch(() => {});
   }, [peutModifier]);
 
-  const choisirUtilisateur = async (id: string) => {
+  const choisirUtilisateur = useCallback(async (id: string) => {
     setUtilisateurId(id); setRolesSales(false);
     if (!id) { setRolesUtilisateur(new Set()); return; }
     try { setRolesUtilisateur(new Set((await adminService.rolesUtilisateur(Number(id))).map((r) => r.code))); }
     catch (e) { toast.error(message(e, 'Rôles indisponibles')); }
-  };
+  }, []);
+
+  // Arrivée depuis la page Utilisateurs (« Gérer les rôles précis ») : présélectionne le compte visé.
+  useEffect(() => {
+    const cible = searchParams.get('utilisateur');
+    if (cible && peutModifier) void choisirUtilisateur(cible);
+  }, [searchParams, peutModifier, choisirUtilisateur]);
 
   const enregistrerRolesUtilisateur = async () => {
     try { await adminService.definirRolesUtilisateur(Number(utilisateurId), [...rolesUtilisateur]); toast.success('Rôles enregistrés'); setRolesSales(false); await charger(); }
@@ -95,7 +111,13 @@ export default function RolesPage() {
           <CardContent className="p-2 max-h-[70vh] overflow-y-auto">
             {roles.map((r) => (
               <button key={r.id} onClick={() => choisir(r)} className={cn('w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted', choisi?.id === r.id && 'bg-brand-50')}>
-                <span className="flex items-center justify-between"><span className="font-medium">{r.code} · {r.nom}</span><Badge variant="outline">{r.nb_utilisateurs}</Badge></span>
+                <span className="flex items-center justify-between">
+                  <span className="font-medium">{r.nom}</span>
+                  <span className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="font-mono text-[10px] font-normal">{r.code}</Badge>
+                    <Badge variant="outline">{r.nb_utilisateurs}</Badge>
+                  </span>
+                </span>
                 <span className="text-xs text-muted-foreground line-clamp-1">{r.droits.length} droit(s)</span>
               </button>
             ))}
@@ -106,7 +128,7 @@ export default function RolesPage() {
           {!choisi ? <p className="text-sm text-muted-foreground py-8 text-center">Sélectionnez un rôle pour consulter ses droits.</p> : (
             <Card>
               <CardHeader className="flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-base">{choisi.code} · {choisi.nom}</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">{choisi.nom} <Badge variant="outline" className="font-mono text-[10px] font-normal">{choisi.code}</Badge></CardTitle>
                 {peutModifier && <Button size="sm" variant="brand" disabled={!sale || occupe} onClick={enregistrer}>{occupe && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}Enregistrer</Button>}
               </CardHeader>
               <CardContent className="space-y-3">
@@ -146,7 +168,7 @@ export default function RolesPage() {
                         <label key={r.id} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
                           <input type="checkbox" checked={rolesUtilisateur.has(r.code)}
                             onChange={() => { setRolesUtilisateur((s) => { const n = new Set(s); if (n.has(r.code)) n.delete(r.code); else n.add(r.code); return n; }); setRolesSales(true); }} />
-                          {r.code} · {r.nom}
+                          {r.nom} <span className="text-[10px] text-muted-foreground font-mono">{r.code}</span>
                         </label>
                       ))}
                     </div>

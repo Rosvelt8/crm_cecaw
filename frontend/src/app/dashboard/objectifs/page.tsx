@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react/no-unescaped-entities */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { Loader2, RefreshCw, Trash2, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,7 @@ export default function ObjectifsPilotagePage() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
+  const [projections, setProjections] = useState<Record<number, any>>({});
 
   const charger = useCallback(async () => {
     try { setItems(await objectifService.getAllObjectifs()); setErreur(null); } catch (e) { setErreur(msg(e, 'Chargement impossible')); } finally { setChargement(false); }
@@ -65,6 +66,21 @@ export default function ObjectifsPilotagePage() {
       });
       toast.success('Objectif créé'); setF({ ...f, titre: '', cible: '' }); await charger();
     } catch (e) { toast.error(msg(e, 'Création impossible')); } finally { setOccupe(false); }
+  };
+
+  const voirProjection = async (o: any) => {
+    if (projections[o.id]) { setProjections((p) => { const n = { ...p }; delete n[o.id]; return n; }); return; }
+    try { const p = await objectifsApi.projection(o.id); setProjections((s) => ({ ...s, [o.id]: p })); }
+    catch (e) { toast.error(msg(e, 'Projection indisponible')); }
+  };
+
+  const appliquerCible = async (o: any) => {
+    const p = projections[o.id];
+    if (!p?.cible_suggeree) return;
+    try {
+      await objectifService.update(o.id, { cible: p.cible_suggeree });
+      toast.success('Cible mise à jour'); setProjections((s) => { const n = { ...s }; delete n[o.id]; return n; }); await charger();
+    } catch (e) { toast.error(msg(e)); }
   };
 
   const porteeLibelle = (o: any) => o.assignationType === 'agence' ? `Agence ${o.agence?.nom ?? ''}` : o.assignationType === 'equipe' ? `Équipe ${o.equipe?.nom ?? ''}` : o.assignationType === 'zone' ? `Zone #${o.zoneId}` : o.assignationType === 'institution' ? 'Toute l\'institution' : `${o.agents?.length ?? 0} agent(s)`;
@@ -116,7 +132,29 @@ export default function ObjectifsPilotagePage() {
                   {o.statut === 'en_cours' && <div className="absolute top-0 h-full w-0.5 bg-foreground/60" style={{ left: `${att}%` }} title={`Avancement attendu : ${att} %`} />}
                 </div>
                 <p className="text-xs">{fmt(realise)} sur {fmt(cible)} ({pct} %){o.statut === 'en_cours' && <span className={enRetard ? 'text-warning-700' : 'text-muted-foreground'}> · attendu {att} %</span>}</p>
-                {can('objectifs:UPDATE') && <div className="flex justify-end"><button className="text-muted-foreground hover:text-destructive" title="Supprimer" onClick={async () => { if (window.confirm(`Supprimer « ${o.titre} » ?`)) { try { await objectifService.remove(o.id); await charger(); } catch (e) { toast.error(msg(e)); } } }}><Trash2 className="h-4 w-4" /></button></div>}
+                {projections[o.id] && (
+                  <div className="rounded-md border bg-muted/30 p-2 text-xs space-y-1">
+                    {projections[o.id].ecart_projete_pct === null ? (
+                      <p className="text-muted-foreground">Pas encore assez de recul (moins d'une semaine écoulée) pour une projection fiable.</p>
+                    ) : (
+                      <>
+                        <p>Au rythme actuel ({fmt(projections[o.id].rythme_journalier)}/jour), projection en fin de période : <strong>{fmt(projections[o.id].projection_fin_periode)}</strong> ({projections[o.id].ecart_projete_pct > 0 ? '+' : ''}{projections[o.id].ecart_projete_pct} % vs cible).</p>
+                        {projections[o.id].cible_suggeree != null && can('objectifs:UPDATE') && (
+                          <div className="flex items-center justify-between pt-1">
+                            <span>Cible réajustée suggérée : <strong>{fmt(projections[o.id].cible_suggeree)}</strong></span>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => appliquerCible(o)}>Appliquer</Button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  {o.statut === 'en_cours' ? (
+                    <Button size="sm" variant="ghost" className="h-7 text-xs -ml-2" onClick={() => voirProjection(o)}><TrendingUp className="h-3.5 w-3.5 mr-1" />{projections[o.id] ? 'Masquer la projection' : 'Voir la projection'}</Button>
+                  ) : <span />}
+                  {can('objectifs:UPDATE') && <button className="text-muted-foreground hover:text-destructive" title="Supprimer" onClick={async () => { if (window.confirm(`Supprimer « ${o.titre} » ?`)) { try { await objectifService.remove(o.id); await charger(); } catch (e) { toast.error(msg(e)); } } }}><Trash2 className="h-4 w-4" /></button>}
+                </div>
               </CardContent></Card>
             );
           })}

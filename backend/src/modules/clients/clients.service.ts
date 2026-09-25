@@ -203,6 +203,7 @@ export async function update(id: number, data: Record<string, unknown>, actor: J
       ...(data.marche_id !== undefined && { marcheId: data.marche_id as number | null }),
       ...(data.secteur_id !== undefined && { secteurId: data.secteur_id as number | null }),
       ...(data.metier_id !== undefined && { metierId: data.metier_id as number | null }),
+      ...(data.canal_prefere !== undefined && { canalPrefere: data.canal_prefere as never }),
     },
     include,
   });

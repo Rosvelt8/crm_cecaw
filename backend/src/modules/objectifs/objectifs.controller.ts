@@ -30,6 +30,15 @@ export const getOne = async (req: Request, res: Response, next: NextFunction) =>
   try { return success(res, await svc.getOne(parseInt(req.params.id, 10))); } catch (e) { return next(e); }
 };
 
+/** Projection de tendance et cible réajustée suggérée (compléments stratégiques, point 14). */
+export const projection = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const o = await svc.getOne(parseInt(req.params.id, 10));
+    const { projeterAvancement } = await import('./objectifs.calcul');
+    return success(res, projeterAvancement(o.dateDebut, o.dateFin, Number(o.cible), Number(o.realise)));
+  } catch (e) { return next(e); }
+};
+
 export const create = async (req: Request, res: Response, next: NextFunction) => {
   try { return created(res, await svc.create(schema.parse(req.body), req.user!)); } catch (e) { return next(e); }
 };

@@ -71,6 +71,8 @@ export interface User {
   statut: UserStatus;
   /** Raw backend role string ('admin' | 'manager' | 'backoffice' | 'agent') */
   roleString?: BackendRole;
+  /** Rôles RBAC (R01-R17) réellement affectés. Vide = permissions au repli du rôle historique. */
+  rolesRbac?: { code: string; nom: string }[];
   fonction?: string | null;
   actif?: boolean;
   agence_id?: number;

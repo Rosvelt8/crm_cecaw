@@ -97,6 +97,45 @@ export function avancementAttendu(debut: Date, dateFin: Date, maintenant = new D
   return Math.min(100, Math.max(0, arrondi(((maintenant.getTime() - debut.getTime()) / total) * 100)));
 }
 
+/**
+ * Projection de tendance et proposition de réajustement (compléments stratégiques, point 14).
+ * Extrapolation linéaire simple sur le rythme observé depuis le début de la période : aucune
+ * régression ni modèle statistique. La cible suggérée n'est qu'une indication ; elle ne modifie
+ * jamais l'objectif elle-même — un humain l'applique volontairement via `PUT /objectifs/:id`.
+ */
+export interface Projection {
+  jours_ecoules: number;
+  jours_totaux: number;
+  rythme_journalier: number;
+  projection_fin_periode: number;
+  ecart_projete_pct: number | null;
+  cible_suggeree: number | null;
+}
+
+export function projeterAvancement(dateDebut: Date, dateFin: Date, cible: number, realise: number, maintenant = new Date()): Projection {
+  const debut = dateDebut.getTime();
+  const finPeriode = fin(dateFin).getTime();
+  const joursTotaux = Math.max(1, Math.round((finPeriode - debut) / 86_400_000));
+  const joursEcoules = Math.max(0, Math.min(joursTotaux, Math.round((maintenant.getTime() - debut) / 86_400_000)));
+
+  // Trop tôt dans la période (moins d'une semaine) : la tendance ne serait pas significative.
+  if (joursEcoules < 7) {
+    return { jours_ecoules: joursEcoules, jours_totaux: joursTotaux, rythme_journalier: 0, projection_fin_periode: realise, ecart_projete_pct: null, cible_suggeree: null };
+  }
+
+  const rythme = realise / joursEcoules;
+  const projectionFin = arrondi(rythme * joursTotaux);
+  if (cible <= 0) {
+    return { jours_ecoules: joursEcoules, jours_totaux: joursTotaux, rythme_journalier: arrondi(rythme), projection_fin_periode: projectionFin, ecart_projete_pct: null, cible_suggeree: null };
+  }
+  const ecartPct = arrondi(((projectionFin - cible) / cible) * 100);
+  // Une cible suggérée n'est proposée que si l'écart projeté est significatif (> 10 %), à la baisse
+  // comme à la hausse : inutile de « suggérer » une cible quasi identique à l'actuelle.
+  const cibleSuggeree = Math.abs(ecartPct) > 10 ? projectionFin : null;
+
+  return { jours_ecoules: joursEcoules, jours_totaux: joursTotaux, rythme_journalier: arrondi(rythme), projection_fin_periode: projectionFin, ecart_projete_pct: ecartPct, cible_suggeree: cibleSuggeree };
+}
+
 export async function recalculerObjectifs(): Promise<{ recalcules: number; alertes: number }> {
   const tolerance = await parametreNombre('objectifs.tolerance_ecart_pct');
   const objectifs = await prisma.objectif.findMany({ where: { categorie: { in: AUTOMATIQUES as never[] }, dateDebut: { lte: new Date() } } });

@@ -2,15 +2,15 @@
 /* eslint-disable react/no-unescaped-entities */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { EnTete, Onglets } from '@/components/ui/kpi';
-import { adminService, type MarcheRef, type SecteurRef } from '@/services/adminService';
+import { EnTete, Onglets, fcfa } from '@/components/ui/kpi';
+import { adminService, type MarcheRef, type SecteurRef, type PotentielMarche } from '@/services/adminService';
 import { agenceService } from '@/services/agenceService';
 import { agentService } from '@/services/agentService';
 import { useCan } from '@/hooks/useCan';
@@ -27,12 +27,49 @@ const nombre = (v: string) => (v.trim() === '' ? null : Number(v));
  * référentiel structuré secteurs/métiers (point 8), en remplacement progressif des champs libres.
  */
 export default function MarchesPage() {
-  const [onglet, setOnglet] = useState<'marches' | 'referentiel'> ('marches');
+  const [onglet, setOnglet] = useState<'marches' | 'potentiel' | 'referentiel'>('marches');
   return (
     <div className="space-y-4">
       <EnTete titre="Marchés et activités" sousTitre="Grands, moyens et petits marchés (Bayam-Sellam), et référentiel structuré secteurs / métiers" />
-      <Onglets valeur={onglet} onChange={setOnglet} options={[{ id: 'marches', label: 'Marchés' }, { id: 'referentiel', label: 'Secteurs et métiers' }]} />
-      {onglet === 'marches' ? <Marches /> : <Referentiel />}
+      <Onglets valeur={onglet} onChange={setOnglet} options={[{ id: 'marches', label: 'Marchés' }, { id: 'potentiel', label: 'Potentiel de collecte' }, { id: 'referentiel', label: 'Secteurs et métiers' }]} />
+      {onglet === 'marches' ? <Marches /> : onglet === 'potentiel' ? <Potentiel /> : <Referentiel />}
+    </div>
+  );
+}
+
+function Potentiel() {
+  const [lignes, setLignes] = useState<PotentielMarche[] | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  useEffect(() => { adminService.potentielMarches().then(setLignes).catch((e) => setErreur(msg(e, 'Accès refusé'))); }, []);
+
+  if (erreur) return <p className="text-destructive text-sm">{erreur}</p>;
+  if (!lignes) return <div className="flex items-center justify-center py-20 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" />Chargement…</div>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">Classement par opportunité (prospects non convertis + clients dormants), pas par une note composite opaque. Chaque indicateur reste lisible séparément.</p>
+      <Card><CardContent className="p-0 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted text-xs uppercase text-muted-foreground">
+            <tr><th className="px-3 py-2 text-left">Marché</th><th className="px-3 py-2 text-right">Clients</th><th className="px-3 py-2 text-right">Prospects actifs</th><th className="px-3 py-2 text-right">Clients dormants</th><th className="px-3 py-2 text-right">Épargne collectée</th><th className="px-3 py-2 text-right">Potentiel moyen</th><th className="px-3 py-2 text-right">Collecteurs</th></tr>
+          </thead>
+          <tbody>
+            {lignes.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">Aucun marché défini</td></tr>}
+            {lignes.map((l) => (
+              <tr key={l.marche_id} className="border-t">
+                <td className="px-3 py-2"><span className="font-medium">{l.nom}</span> <Badge variant={l.type === 'grand' ? 'brand' : l.type === 'moyen' ? 'info' : 'outline'}>{l.type}</Badge></td>
+                <td className="px-3 py-2 text-right tabular-nums">{l.nb_clients}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{l.nb_prospects_actifs > 0 && <Badge variant="info">{l.nb_prospects_actifs}</Badge>}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{l.nb_clients_dormants > 0 && <Badge variant="warning">{l.nb_clients_dormants}</Badge>}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{fcfa(l.epargne_collectee)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{l.potentiel_moyen_clients ?? '—'}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{l.nb_collecteurs}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </CardContent></Card>
     </div>
   );
 }
@@ -46,6 +83,7 @@ function Marches() {
   const [agences, setAgences] = useState<AgenceOption[]>([]);
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [form, setForm] = useState({ nom: '', type: 'petit' as 'grand' | 'moyen' | 'petit', agenceId: '', latitude: '', longitude: '' });
+  const [editionId, setEditionId] = useState<number | null>(null);
   const [affectation, setAffectation] = useState<{ marche: MarcheRef; ids: Set<number> } | null>(null);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -63,12 +101,21 @@ function Marches() {
     agentService.getAgents({ per_page: 100 } as never).then((r: { data: AgentOption[] }) => setAgents(r.data)).catch(() => {});
   }, [charger]);
 
-  const creer = async () => {
+  const reinitialiserForm = () => { setForm({ nom: '', type: 'petit', agenceId: '', latitude: '', longitude: '' }); setEditionId(null); };
+
+  const enregistrer = async () => {
     setOccupe(true);
+    const payload = { nom: form.nom, type: form.type, agenceId: nombre(form.agenceId), latitude: nombre(form.latitude), longitude: nombre(form.longitude) };
     try {
-      await adminService.creerMarche({ nom: form.nom, type: form.type, agenceId: nombre(form.agenceId), latitude: nombre(form.latitude), longitude: nombre(form.longitude) });
-      toast.success('Marché créé'); setForm({ nom: '', type: 'petit', agenceId: '', latitude: '', longitude: '' }); await charger();
-    } catch (e) { toast.error(msg(e, 'Création impossible')); } finally { setOccupe(false); }
+      if (editionId) await adminService.modifierMarche(editionId, payload);
+      else await adminService.creerMarche(payload);
+      toast.success(editionId ? 'Marché modifié' : 'Marché créé'); reinitialiserForm(); await charger();
+    } catch (e) { toast.error(msg(e, editionId ? 'Modification impossible' : 'Création impossible')); } finally { setOccupe(false); }
+  };
+
+  const editer = (m: MarcheRef) => {
+    setEditionId(m.id);
+    setForm({ nom: m.nom, type: m.type, agenceId: m.agenceId ? String(m.agenceId) : '', latitude: m.latitude ?? '', longitude: m.longitude ?? '' });
   };
 
   const supprimer = async (m: MarcheRef) => {
@@ -92,7 +139,7 @@ function Marches() {
     <div className="space-y-4">
       {peutCreer && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Nouveau marché</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{editionId ? 'Modifier le marché' : 'Nouveau marché'}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid sm:grid-cols-4 gap-3">
               <div className="space-y-1.5"><Label>Nom</Label><Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="ex. Marché Congo" /></div>
@@ -105,7 +152,12 @@ function Marches() {
               <div className="space-y-1.5"><Label>Latitude</Label><Input type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} /></div>
               <div className="space-y-1.5"><Label>Longitude</Label><Input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} /></div>
             </div>
-            <Button variant="brand" disabled={occupe || !form.nom.trim()} onClick={creer}><Plus className="h-4 w-4 mr-1.5" />Créer le marché</Button>
+            <div className="flex gap-2">
+              <Button variant="brand" disabled={occupe || !form.nom.trim()} onClick={enregistrer}>
+                {editionId ? <Check className="h-4 w-4 mr-1.5" /> : <Plus className="h-4 w-4 mr-1.5" />}{editionId ? 'Enregistrer les modifications' : 'Créer le marché'}
+              </Button>
+              {editionId && <Button variant="ghost" onClick={reinitialiserForm}>Annuler</Button>}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -123,7 +175,8 @@ function Marches() {
                 <td className="px-3 py-2 text-right tabular-nums">{m._count.clients}</td><td className="px-3 py-2 text-right tabular-nums">{m._count.prospects}</td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   {peutModifier && <Button size="sm" variant="ghost" onClick={() => setAffectation({ marche: m, ids: new Set(m.agents.map((a) => a.agent.id)) })}>Collecteurs</Button>}
-                  {peutModifier && <Button size="sm" variant="ghost" onClick={() => supprimer(m)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+                  {peutModifier && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => editer(m)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                  {peutModifier && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => supprimer(m)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                 </td>
               </tr>
             ))}
@@ -159,6 +212,8 @@ function Referentiel() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [nouveauSecteur, setNouveauSecteur] = useState('');
   const [nouveauMetier, setNouveauMetier] = useState<Record<number, string>>({});
+  const [editionSecteur, setEditionSecteur] = useState<{ id: number; nom: string } | null>(null);
+  const [editionMetier, setEditionMetier] = useState<{ id: number; nom: string } | null>(null);
 
   const charger = useCallback(async () => {
     try { setSecteurs(await adminService.secteurs()); setErreur(null); }
@@ -178,6 +233,16 @@ function Referentiel() {
     try { await adminService.creerMetier(nom, secteurId); setNouveauMetier({ ...nouveauMetier, [secteurId]: '' }); toast.success('Métier créé'); await charger(); }
     catch (e) { toast.error(msg(e)); }
   };
+  const renommerSecteur = async () => {
+    if (!editionSecteur || !editionSecteur.nom.trim()) return;
+    try { await adminService.modifierSecteur(editionSecteur.id, { nom: editionSecteur.nom.trim() }); setEditionSecteur(null); toast.success('Secteur renommé'); await charger(); }
+    catch (e) { toast.error(msg(e)); }
+  };
+  const renommerMetier = async () => {
+    if (!editionMetier || !editionMetier.nom.trim()) return;
+    try { await adminService.modifierMetier(editionMetier.id, { nom: editionMetier.nom.trim() }); setEditionMetier(null); toast.success('Métier renommé'); await charger(); }
+    catch (e) { toast.error(msg(e)); }
+  };
 
   if (chargement) return <div className="flex items-center justify-center py-20 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" />Chargement…</div>;
   if (erreur) return <p className="text-destructive">{erreur}</p>;
@@ -195,11 +260,34 @@ function Referentiel() {
         {secteurs.length === 0 && <p className="text-sm text-muted-foreground">Aucun secteur défini.</p>}
         {secteurs.map((s) => (
           <Card key={s.id}>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">{s.nom}</CardTitle></CardHeader>
+            <CardHeader className="pb-2">
+              {editionSecteur?.id === s.id ? (
+                <div className="flex items-center gap-1">
+                  <Input className="h-8 text-sm" value={editionSecteur.nom} onChange={(e) => setEditionSecteur({ id: s.id, nom: e.target.value })} autoFocus />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={renommerSecteur}><Check className="h-3.5 w-3.5" /></Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditionSecteur(null)}><X className="h-3.5 w-3.5" /></Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">{s.nom}</CardTitle>
+                  {peutConfigurer && <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditionSecteur({ id: s.id, nom: s.nom })}><Pencil className="h-3 w-3" /></Button>}
+                </div>
+              )}
+            </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex flex-wrap gap-1.5">
                 {s.metiers.length === 0 && <p className="text-xs text-muted-foreground">Aucun métier.</p>}
-                {s.metiers.map((m) => <Badge key={m.id} variant="outline">{m.nom}</Badge>)}
+                {s.metiers.map((m) => (
+                  editionMetier?.id === m.id ? (
+                    <span key={m.id} className="inline-flex items-center gap-1">
+                      <Input className="h-7 text-xs w-32" value={editionMetier.nom} onChange={(e) => setEditionMetier({ id: m.id, nom: e.target.value })} autoFocus />
+                      <button onClick={renommerMetier}><Check className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setEditionMetier(null)}><X className="h-3.5 w-3.5" /></button>
+                    </span>
+                  ) : (
+                    <Badge key={m.id} variant="outline" className={peutConfigurer ? 'cursor-pointer' : ''} onClick={() => peutConfigurer && setEditionMetier({ id: m.id, nom: m.nom })} title={peutConfigurer ? 'Cliquer pour renommer' : undefined}>{m.nom}</Badge>
+                  )
+                ))}
               </div>
               {peutConfigurer && (
                 <div className="flex gap-2">

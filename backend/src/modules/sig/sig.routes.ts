@@ -163,6 +163,46 @@ export async function analyserTerritoire(agenceId?: number): Promise<LigneTerrit
   return lignes.sort((a, b) => b.potentiel_restant - a.potentiel_restant);
 }
 
+/**
+ * Potentiel de collecte par marché (compléments stratégiques, points 15-16 : intelligence
+ * Bayam-Sellam). Indicateurs explicites, pas de score composite opaque : nombre de prospects non
+ * convertis (opportunité de conversion), part de clients dormants (à relancer) et épargne déjà
+ * collectée, pour situer chaque marché plutôt que le classer par une seule note.
+ */
+export interface LigneMarche {
+  marche_id: number; nom: string; type: string; agence: string | null;
+  nb_clients: number; nb_prospects_actifs: number; nb_collecteurs: number;
+  epargne_collectee: number; nb_clients_dormants: number; potentiel_moyen_clients: number | null;
+}
+
+export async function analyserMarches(agenceId?: number): Promise<LigneMarche[]> {
+  const marches = await prisma.marche.findMany({
+    where: { actif: true, ...(agenceId ? { agenceId } : {}) },
+    select: { id: true, nom: true, type: true, agence: { select: { nom: true } }, _count: { select: { agents: true } } },
+  });
+  if (marches.length === 0) return [];
+  const ids = marches.map((m) => m.id);
+
+  const [clients, prospects, epargne, scores] = await Promise.all([
+    prisma.client.groupBy({ by: ['marcheId'], where: { marcheId: { in: ids }, statut: 'actif' }, _count: true }),
+    prisma.prospect.groupBy({ by: ['marcheId'], where: { marcheId: { in: ids }, statut: { notIn: ['converti', 'perdu'] } }, _count: true }),
+    prisma.$queryRaw<{ marche_id: number; total: string }[]>`SELECT c.marche_id, COALESCE(SUM(cc.solde), 0) AS total FROM comptes_clients cc JOIN clients c ON c.id = cc.client_id JOIN produits p ON p.id = cc.produit_id WHERE p.type = 'epargne' AND c.marche_id = ANY(${ids}) GROUP BY c.marche_id`,
+    prisma.$queryRaw<{ marche_id: number; nb_dormants: bigint; moyenne_potentiel: string | null }[]>`SELECT c.marche_id, COUNT(*) FILTER (WHERE s.cycle_vie = 'dormant') AS nb_dormants, AVG(s.potentiel) AS moyenne_potentiel FROM clients c JOIN scores_clients s ON s.client_id = c.id WHERE c.marche_id = ANY(${ids}) GROUP BY c.marche_id`,
+  ]);
+  const nbClients = new Map(clients.map((c) => [c.marcheId, c._count]));
+  const nbProspects = new Map(prospects.map((p) => [p.marcheId, p._count]));
+  const ep = new Map(epargne.map((r) => [r.marche_id, Number(r.total)]));
+  const sc = new Map(scores.map((r) => [r.marche_id, { dormants: Number(r.nb_dormants), potentiel: r.moyenne_potentiel ? arrondi(Number(r.moyenne_potentiel)) : null }]));
+
+  return marches
+    .map((m) => ({
+      marche_id: m.id, nom: m.nom, type: m.type, agence: m.agence?.nom ?? null,
+      nb_clients: nbClients.get(m.id) ?? 0, nb_prospects_actifs: nbProspects.get(m.id) ?? 0, nb_collecteurs: m._count.agents,
+      epargne_collectee: arrondi(ep.get(m.id) ?? 0), nb_clients_dormants: sc.get(m.id)?.dormants ?? 0, potentiel_moyen_clients: sc.get(m.id)?.potentiel ?? null,
+    }))
+    .sort((a, b) => (b.nb_prospects_actifs + b.nb_clients_dormants) - (a.nb_prospects_actifs + a.nb_clients_dormants));
+}
+
 const router = Router();
 router.use(authenticate);
 
@@ -187,6 +227,12 @@ router.get('/territoire/analyse', can('territoire:VIEW'), wrap(async (req, res) 
     return res.send('﻿' + [cols.join(';'), ...lignes.map((l) => cols.map((c) => echapper(l[c])).join(';'))].join('\n'));
   }
   return success(res, lignes);
+}));
+
+/** Potentiel de collecte par marché (compléments stratégiques, points 15-16). */
+router.get('/marches/potentiel', can('territoire:VIEW'), wrap(async (req, res) => {
+  const agenceId = await agenceAutorisee(req.user!, req.query.agence_id ? parseInt(String(req.query.agence_id), 10) : undefined);
+  return success(res, await analyserMarches(agenceId));
 }));
 
 /** Couverture des agences : part des clients situés dans le rayon de leur agence. */

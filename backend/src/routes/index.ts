@@ -32,6 +32,8 @@ import parametragesRouter from '../modules/parametrages/parametrages.routes';
 import creditRouter from '../modules/credit/credit.routes';
 import archivesRouter from '../modules/archives/archives.routes';
 import interactionsRouter from '../modules/interactions/interactions.routes';
+import calendrierRouter from '../modules/communication/calendrier.routes';
+import campagnesRouter from '../modules/communication/campagnes.routes';
 
 const router = Router();
 
@@ -56,6 +58,8 @@ router.use('/parametrages', parametragesRouter);
 router.use('/credits', creditRouter);
 router.use('/archives', archivesRouter);
 router.use('/interactions', interactionsRouter);
+router.use('/calendrier', calendrierRouter);
+router.use('/campagnes', campagnesRouter);
 router.use('/recouvrement', recouvrementRouter);
 router.use('/tournees', tourneesRouter);
 router.use('/collecte', collecteRouter);

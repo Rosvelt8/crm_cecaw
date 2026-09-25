@@ -26,6 +26,7 @@ export const DEFAUTS: Record<string, DefinitionParametre> = {
   'recouvrement.seuil_contentieux_jours': { valeur: 180, categorie: 'recouvrement', description: 'Retard à partir duquel le contentieux est recommandé' },
   'recouvrement.sms_automatique': { valeur: true, categorie: 'recouvrement', description: 'Envoyer automatiquement un SMS au client à chaque nouveau niveau de relance' },
   'communication.rappel_echeance_jours': { valeur: 3, categorie: 'communication', description: "Nombre de jours avant l'échéance où un SMS de rappel est envoyé (0 pour désactiver)" },
+  'communication.whatsapp_actif': { valeur: false, categorie: 'communication', description: 'Activer le canal WhatsApp (nécessite WHATSAPP_TOKEN et WHATSAPP_PHONE_NUMBER_ID renseignés côté serveur)' },
   'terrain.rayon_presence_m': { valeur: 150, categorie: 'terrain', description: "Distance maximale (m) entre l'agent et la cible pour valider sa présence" },
   'terrain.vitesse_kmh': { valeur: 25, categorie: 'terrain', description: 'Vitesse moyenne de déplacement (km/h) pour estimer les temps de trajet' },
   'terrain.facteur_detour': { valeur: 1.3, categorie: 'terrain', description: 'Coefficient appliqué à la distance à vol d\'oiseau pour approcher la distance routière' },
@@ -43,6 +44,9 @@ export const DEFAUTS: Record<string, DefinitionParametre> = {
   'securite.retention_sauvegardes_jours': { valeur: 30, categorie: 'securite', description: 'Durée de conservation des sauvegardes (jours)' },
   'segmentation.dormant_jours_contact': { valeur: 180, categorie: 'segmentation', description: "Jours sans interaction ni transaction au-delà desquels un client est considéré dormant" },
   'segmentation.premium_score_min': { valeur: 80, categorie: 'segmentation', description: 'Score minimal (sur 100) pour classer un client en cycle de vie « premium »' },
+  'commercial.relance_cooldown_jours': { valeur: 14, categorie: 'commercial', description: 'Jours minimum entre deux relances suggérées pour le même client ou prospect' },
+  'commercial.potentiel_score_min': { valeur: 70, categorie: 'commercial', description: 'Score de potentiel (sur 100) à partir duquel un client est signalé comme opportunité commerciale' },
+  'commercial.prospect_stagnant_jours': { valeur: 21, categorie: 'commercial', description: 'Jours sans contact au-delà desquels un prospect non converti est signalé comme stagnant' },
 };
 
 const TTL_MS = 30_000;

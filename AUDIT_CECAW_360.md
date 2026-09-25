@@ -701,10 +701,78 @@ agrégerait explicitement segmentation + score + historique + crédit + recouvre
 objectifs sur un seul écran de synthèse (point 20) — les blocs existent tous sur la fiche client,
 mais pas encore sous forme de vue de synthèse unique séparée.
 
-**Lots 11 à 14 non commencés** : moteur de relances à règles, projection/réajustement
-d'objectifs, potentiel de collecte par marché, calendrier camerounais et campagnes, canal
-WhatsApp (le registre de canaux dans `notifier.ts` reste à construire), OCR.
+**Lot 11 réalisé** : moteur de relances commerciales à règles (`lib/relancesCommerciales.ts`,
+tâche planifiée `relances_commerciales`) détectant clients dormants, opportunités (épargne sans
+crédit, aucun impayé) et prospects sans suite, avec refroidissement de 14 jours pour ne pas
+renotifier en boucle ; réutilise le moteur de déclencheurs existant (nouveaux événements
+`commercial.client_dormant`, `commercial.opportunite`, `commercial.prospect_stagnant`) et le
+centre de notifications déjà en place, sans nouvelle UI dédiée. Projection de tendance et
+proposition de réajustement chiffrée sur les objectifs (`projeterAvancement`,
+`GET /objectifs/:id/projection`), appliquée uniquement sur action volontaire depuis la page
+Objectifs de pilotage. Potentiel de collecte par marché (`GET /sig/marches/potentiel`, onglet
+« Potentiel de collecte » de la page Marchés) : indicateurs explicites (prospects actifs, clients
+dormants, épargne collectée), pas de note composite opaque.
 
-**Vérifications effectuées** : suite d'intégration `scripts/it/04-strategique.ts` (24 contrôles),
-aucune régression sur les 3 suites précédentes (64 + 66 + 67 contrôles). Frontend : `tsc --noEmit`
-propre, lint sans régression par rapport à la référence des fichiers existants.
+**Lot 12 réalisé** : calendrier camerounais (`CalendrierEvenement`, `modules/communication/
+calendrier.routes.ts`) préchargé avec les dates 2025-2027 (fêtes nationales, chrétiennes,
+musulmanes — sources citées dans `prisma/seed.ts` ; **les deux fêtes musulmanes restent des
+estimations soumises à confirmation officielle par la CNCL**, à corriger chaque année). Campagnes
+commerciales 360° (`Campagne`/`CampagneCible`, `modules/communication/campagnes.routes.ts`) :
+ciblage par segmentation (cycle de vie, marché, secteur), lancement idempotent qui met les SMS en
+file via l'infrastructure existante, canal WhatsApp accepté mais sans effet (cibles enregistrées
+en attente) tant que le Lot 13 n'est pas livré. Frontend : onglets Calendrier et Campagnes dans
+Paramètres > Communication.
+
+**Lot 13 réalisé** : registre de canaux extensible (point 17) — `lib/sms.ts` généralisé, la file
+`messages_sms` porte désormais une colonne `canal` (sms par défaut, comportement historique
+inchangé) et un `FOURNISSEURS` associant chaque canal à sa fonction d'envoi. WhatsApp implémenté
+via l'API Cloud Meta (`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`), activable/désactivable sans
+redéploiement depuis Paramètres > Communication > SMS (`PUT /communication/whatsapp`), sans jamais
+exposer les identifiants ; **aucun compte Meta Business n'a été fourni**, le canal reste donc
+indisponible tant que CECAW ne configure pas ces variables. **Hypothèse à vérifier avec Meta** :
+un message libre (celui envoyé ici) n'est fiable que pour répondre à un client dans une fenêtre
+de conversation de 24 h déjà ouverte ; les campagnes à froid demanderont un message-modèle
+pré-approuvé par Meta, non couvert ici. Préférence de canal par client (point 18,
+`Client.canalPrefere`, éditable depuis la fiche client) : honorée uniquement pour les appels de
+`emettre()` qui transmettent `client_id` dans `donnees` — aucun des appels existants ne le fait
+encore, donc leur comportement (envoi sur tous les canaux configurés du déclencheur) est
+inchangé ; c'est un mécanisme prêt à l'emploi, pas encore branché partout.
+
+**Lot 14 (OCR) volontairement reporté** (décision du 25/09/2026) : ni moteur auto-hébergé ni
+service cloud n'a été retenu pour l'instant. KYC #5 (OCR des documents) et DOCUMENTAIRE #4
+restent donc à « À faire » dans la matrice fonctionnelle. À reprendre dans une session ultérieure
+une fois le choix du moteur arbitré.
+
+### Audit de bout en bout (25/09/2026)
+
+Après les Lots 9-13, un audit complet a été mené : builds complets (pas seulement `tsc --noEmit`),
+relecture systématique de chaque nouvelle route contre son appelant frontend, cohérence du
+catalogue de permissions, idempotence du seed. Trois écarts réels ont été trouvés et corrigés :
+
+1. **Photo de l'activité professionnelle (point 9)** : la route backend existait
+   (`POST /kyc/clients/:id/photos-activite`) mais n'avait aucun appelant frontend — jamais
+   testée, jamais utilisable. Ajout d'une galerie avec envoi géolocalisé dans `ClientFinances.tsx`,
+   et d'un test d'intégration dédié.
+2. **Édition des marchés/secteurs/métiers** : les fonctions de modification existaient côté
+   service frontend (`modifierMarche`, `modifierSecteur`, `modifierMetier`) et côté backend, mais
+   aucun bouton n'y donnait accès dans la page Marchés. Ajout de l'édition en ligne, avec
+   vérification d'intégration des trois routes PUT.
+3. **Paramètres système invisibles** : la page Paramètres > Système n'affiche que les catégories
+   listées dans une constante `CATEGORIES` codée en dur, qui ne comportait pas les catégories
+   `segmentation` et `commercial` introduites aux Lots 9 et 11 : les 5 seuils correspondants
+   (jours avant client dormant, score minimal premium/opportunité, délai de refroidissement des
+   relances, jours avant prospect stagnant) étaient invisibles et donc non modifiables depuis
+   l'interface. Corrigé.
+
+**Vérifié et confirmé sain, sans changement nécessaire** : catalogue de permissions (tout code
+`domaine:VERBE` utilisé existe bien), couverture RBAC des nouvelles fonctionnalités pour R02/R04/
+R05/R13, absence de collision de route, rendu générique des nouvelles notifications (aucune liste
+codée en dur à mettre à jour), tâches planifiées `score_clients`/`relances_commerciales`
+listées automatiquement dans Paramètres > Système, `prisma/seed.ts` idempotent (vérifié par double
+exécution : 8 secteurs, 28 métiers, 30 événements calendrier, sans doublon).
+
+**Vérifications effectuées** : `npm run build` complet (pas seulement `tsc --noEmit`) sur le
+backend et sur le frontend (Next.js, 45 routes générées), `npm run typecheck` sur le mobile, suite
+d'intégration `scripts/it/04-strategique.ts` (59 contrôles au total : 24 pour les Lots 9-10, 12
+pour le Lot 11, 10 pour le Lot 12, 5 pour le Lot 13, 8 ajoutés par cet audit), aucune régression
+sur les 3 suites précédentes (64 + 66 + 67 contrôles). Total : 256 contrôles, 0 échec.

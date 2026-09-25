@@ -647,6 +647,7 @@ model Utilisateur {
   ecrituresCreees       EcritureComptable[]
   interactions          Interaction[]
   objectifsClientCrees  ObjectifClient[]
+  campagnesCreees       Campagne[]
 
   @@index([email])
   @@index([agenceId])
@@ -855,6 +856,9 @@ model Client {
   /// Déprécié : libellé libre conservé pour compatibilité. Voir `ScoreClient.cycleVie` pour le
   /// segment calculé (compléments stratégiques, point 1).
   segment                String?             @db.VarChar(50)
+  /// Canal préféré du client pour les notifications (compléments stratégiques, point 18). Vide =
+  /// le déclencheur envoie sur tous ses canaux configurés (comportement historique).
+  canalPrefere           CanalMessage?       @map("canal_prefere")
   marcheId               Int?                @map("marche_id")
   secteurId              Int?                @map("secteur_id")
   metierId               Int?                @map("metier_id")
@@ -882,6 +886,7 @@ model Client {
   interactions         Interaction[]
   objectifsClient      ObjectifClient[]
   score                ScoreClient?
+  campagnesCiblees     CampagneCible[]
 
   @@index([commercialId])
   @@index([agenceId])
@@ -1861,6 +1866,14 @@ enum StatutEnvoi {
   echec
 }
 
+/// Canal de messagerie client (compléments stratégiques, point 17). WhatsApp est un canal
+/// implémenté dès le Lot 13 mais qui n'envoie réellement qu'une fois WHATSAPP_TOKEN et
+/// WHATSAPP_PHONE_NUMBER_ID renseignés (voir lib/sms.ts).
+enum CanalMessage {
+  sms
+  whatsapp
+}
+
 enum SensEcriture {
   debit
   credit
@@ -1938,18 +1951,20 @@ model DeclencheurNotification {
 
 /// File d'envoi des SMS : rien n'est perdu si le fournisseur est indisponible.
 model MessageSms {
-  id                   Int         @id @default(autoincrement())
-  telephone            String      @db.VarChar(30)
-  message              String      @db.Text
-  statut               StatutEnvoi @default(en_attente)
-  tentatives           Int         @default(0)
-  erreur               String?     @db.Text
-  entiteType           String?     @map("entite_type") @db.VarChar(60)
-  entiteId             Int?        @map("entite_id")
-  referenceFournisseur String?     @map("reference_fournisseur") @db.VarChar(100)
-  prochaineTentativeAt DateTime?   @map("prochaine_tentative_at")
-  envoyeAt             DateTime?   @map("envoye_at")
-  createdAt            DateTime    @default(now()) @map("created_at")
+  id                   Int          @id @default(autoincrement())
+  telephone            String       @db.VarChar(30)
+  message              String       @db.Text
+  /// SMS par défaut (compatibilité des messages déjà en file) ; WhatsApp au Lot 13.
+  canal                CanalMessage @default(sms)
+  statut               StatutEnvoi  @default(en_attente)
+  tentatives           Int          @default(0)
+  erreur               String?      @db.Text
+  entiteType           String?      @map("entite_type") @db.VarChar(60)
+  entiteId             Int?         @map("entite_id")
+  referenceFournisseur String?      @map("reference_fournisseur") @db.VarChar(100)
+  prochaineTentativeAt DateTime?    @map("prochaine_tentative_at")
+  envoyeAt             DateTime?    @map("envoye_at")
+  createdAt            DateTime     @default(now()) @map("created_at")
 
   @@index([statut, prochaineTentativeAt])
   @@map("messages_sms")
@@ -2387,4 +2402,96 @@ model ObjectifClient {
   @@index([clientId])
   @@index([compteId])
   @@map("objectifs_clients")
+}
+
+// ─────────────────────────────────────────────
+// Compléments stratégiques (Lot 12) : calendrier camerounais et campagnes
+// ─────────────────────────────────────────────
+
+enum TypeEvenementCalendrier {
+  ferie_nationale
+  ferie_religieuse
+  scolaire
+  commercial
+}
+
+/// Calendrier camerounais (compléments stratégiques, point 6). Les dates religieuses mobiles
+/// (Ramadan, Tabaski, Maouloud) suivent le calendrier lunaire et sont saisies explicitement
+/// année par année, pas calculées ; voir docs/RUNBOOK_REPRISE.md ou le seed pour l'hypothèse de
+/// départ. Alimente le ciblage des campagnes (point 5).
+model CalendrierEvenement {
+  id          Int                     @id @default(autoincrement())
+  nom         String                  @db.VarChar(200)
+  type        TypeEvenementCalendrier
+  dateDebut   DateTime                @map("date_debut") @db.Date
+  dateFin     DateTime?               @map("date_fin") @db.Date
+  description String?                 @db.Text
+  createdAt   DateTime                @default(now()) @map("created_at")
+
+  campagnes Campagne[]
+
+  @@index([dateDebut])
+  @@map("calendrier_evenements")
+}
+
+enum CanalCampagne {
+  sms
+  whatsapp
+  email
+}
+
+enum StatutCampagne {
+  brouillon
+  en_cours
+  terminee
+  annulee
+}
+
+/// Campagne commerciale ciblée (compléments stratégiques, point 5). `criteres` porte le ciblage
+/// (cycle de vie, marché, secteur, score minimal) résolu au lancement contre `ScoreClient`/
+/// `Client`. Le canal `whatsapp` est accepté dès maintenant mais reste sans effet tant que le
+/// Lot 13 (registre de canaux) n'est pas livré : les cibles sont enregistrées, rien n'est envoyé.
+model Campagne {
+  id                    Int            @id @default(autoincrement())
+  nom                   String         @db.VarChar(200)
+  criteres              Json
+  canal                 CanalCampagne
+  message               String         @db.Text
+  dateDebut             DateTime       @map("date_debut") @db.Date
+  dateFin               DateTime?      @map("date_fin") @db.Date
+  evenementCalendrierId Int?           @map("evenement_calendrier_id")
+  statut                StatutCampagne @default(brouillon)
+  creeParId             Int            @map("cree_par_id")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  evenementCalendrier CalendrierEvenement? @relation(fields: [evenementCalendrierId], references: [id], onDelete: SetNull)
+  creePar             Utilisateur          @relation(fields: [creeParId], references: [id], onDelete: Restrict)
+  cibles              CampagneCible[]
+
+  @@map("campagnes")
+}
+
+enum StatutCibleCampagne {
+  ciblee
+  mise_en_file
+  en_attente_canal
+  echec
+}
+
+/// Une ligne par client ciblé par une campagne : trace qui a été visé et si le message a pu être
+/// mis en file (`lib/sms.ts`), sans dupliquer le suivi de livraison déjà tenu par `MessageSms`.
+model CampagneCible {
+  id         Int                 @id @default(autoincrement())
+  campagneId Int                 @map("campagne_id")
+  clientId   Int                 @map("client_id")
+  statut     StatutCibleCampagne @default(ciblee)
+  envoyeAt   DateTime?           @map("envoye_at")
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  campagne Campagne @relation(fields: [campagneId], references: [id], onDelete: Cascade)
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([campagneId, clientId])
+  @@map("campagnes_cibles")
 }

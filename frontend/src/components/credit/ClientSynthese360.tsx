@@ -28,7 +28,9 @@ interface ProfilTerritorial {
   marche: { id: number; nom: string; type: string } | null;
   secteur: { id: number; nom: string } | null;
   metier: { id: number; nom: string } | null;
+  canalPrefere?: 'sms' | 'whatsapp' | null;
 }
+const CANAL_LABEL: Record<string, string> = { sms: 'SMS', whatsapp: 'WhatsApp' };
 
 export default function ClientSynthese360({ clientId, score, profil, onProfilChange }: {
   clientId: number;
@@ -54,6 +56,7 @@ export default function ClientSynthese360({ clientId, score, profil, onProfilCha
   const [marcheId, setMarcheId] = useState(profil.marche ? String(profil.marche.id) : '');
   const [secteurId, setSecteurId] = useState(profil.secteur ? String(profil.secteur.id) : '');
   const [metierId, setMetierId] = useState(profil.metier ? String(profil.metier.id) : '');
+  const [canalPrefere, setCanalPrefere] = useState(profil.canalPrefere ?? '');
 
   const chargerObjectifs = useCallback(async () => {
     try { setObjectifs(await clientService.getObjectifsPersonnels(clientId)); } catch { setObjectifs(null); }
@@ -74,7 +77,7 @@ export default function ClientSynthese360({ clientId, score, profil, onProfilCha
   const enregistrerProfil = async () => {
     setEnvoi(true);
     try {
-      await clientService.update(clientId, { marche_id: marcheId ? Number(marcheId) : null, secteur_id: secteurId ? Number(secteurId) : null, metier_id: metierId ? Number(metierId) : null });
+      await clientService.update(clientId, { marche_id: marcheId ? Number(marcheId) : null, secteur_id: secteurId ? Number(secteurId) : null, metier_id: metierId ? Number(metierId) : null, canal_prefere: canalPrefere || null });
       toast.success('Profil territorial mis à jour'); setEditionProfil(false); onProfilChange?.();
     } catch (e) { toast.error(msg(e)); } finally { setEnvoi(false); }
   };
@@ -116,6 +119,7 @@ export default function ClientSynthese360({ clientId, score, profil, onProfilCha
               <div className="text-xs text-muted-foreground space-y-0.5">
                 <p>Marché : <span className="font-medium text-foreground">{profil.marche?.nom ?? 'non renseigné'}</span></p>
                 <p>Secteur / métier : <span className="font-medium text-foreground">{profil.secteur?.nom ?? '—'}{profil.metier ? ` · ${profil.metier.nom}` : ''}</span></p>
+                <p>Canal préféré : <span className="font-medium text-foreground">{profil.canalPrefere ? CANAL_LABEL[profil.canalPrefere] : 'aucun (tous les canaux configurés)'}</span></p>
               </div>
             )}
           </div>
@@ -132,6 +136,10 @@ export default function ClientSynthese360({ clientId, score, profil, onProfilCha
               </select>
               <select className="h-9 rounded-md border bg-background px-2 text-sm" value={metierId} onChange={(e) => setMetierId(e.target.value)} disabled={!secteurId}>
                 <option value="">Métier…</option>{metiersDuSecteur.map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
+              </select>
+              <select className="h-9 rounded-md border bg-background px-2 text-sm" value={canalPrefere} onChange={(e) => setCanalPrefere(e.target.value as 'sms' | 'whatsapp' | '')}>
+                <option value="">Canal préféré : aucun (tous les canaux)</option>
+                {Object.entries(CANAL_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
             </div>
             <div className="flex justify-end gap-2">

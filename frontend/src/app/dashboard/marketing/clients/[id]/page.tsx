@@ -376,7 +376,7 @@ export default function ClientDetailPage() {
       <ClientSynthese360
         clientId={Number(id)}
         score={client.score ?? null}
-        profil={{ marche: client.marche ?? null, secteur: client.secteur ?? null, metier: client.metier ?? null }}
+        profil={{ marche: client.marche ?? null, secteur: client.secteur ?? null, metier: client.metier ?? null, canalPrefere: client.canalPrefere ?? null }}
         onProfilChange={() => clientService.getClient(id).then(setClient)}
       />
       <ClientInteractions cible={{ client_id: Number(id) }} />
