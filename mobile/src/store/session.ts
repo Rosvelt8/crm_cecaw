@@ -28,9 +28,13 @@ interface SessionState {
   /** Essais de code PIN restants avant purge des donnees locales. */
   attemptsLeft: number;
   error: string | null;
+  /** Jeton de la seconde etape quand le compte exige un code MFA. */
+  mfaToken: string | null;
 
   bootstrap: () => Promise<void>;
   signIn: (identifiant: string, password: string) => Promise<void>;
+  submitMfa: (code: string) => Promise<void>;
+  cancelMfa: () => void;
   configurePin: (pin: string, lockDelayMin: number) => Promise<void>;
   setLockDelay: (minutes: number) => Promise<void>;
   unlock: (pin: string) => Promise<boolean>;
@@ -46,6 +50,49 @@ async function purge() {
   await wipeAll();
 }
 
+type Setter = (partial: Partial<SessionState>) => void;
+
+/** Fin de connexion commune (mot de passe seul ou apres la verification MFA). */
+async function finishLogin(result: authApi.LoginResult, set: Setter) {
+  // L'application est reservee aux agents terrain : tout autre role est
+  // refuse avant meme d'ecrire le moindre jeton sur le telephone.
+  if (result.user.role !== ALLOWED_ROLE) {
+    set({
+      error:
+        "Cette application est reservee aux agents terrain. Utilisez le back-office avec ce compte.",
+    });
+    return;
+  }
+
+  await setSecure('access', result.accessToken);
+  await setSecure('refresh', result.refreshToken);
+  await setJson('user', result.user);
+
+  // La fiche agent porte l'identifiant attendu par les endpoints position
+  // et transaction ; sans elle, ni tracking ni collecte ne sont possibles.
+  let agent: Agent | null = null;
+  try {
+    agent = await findMyAgent(result.user.id);
+  } catch {
+    agent = null;
+  }
+  if (agent) {
+    await setJson('agentProfile', agent);
+    connectLiveLink(agent.id).catch(() => undefined);
+    resumeTracking(agent.id).catch(() => undefined);
+  }
+
+  set({
+    mfaToken: null,
+    user: result.user,
+    agent,
+    error: agent
+      ? null
+      : "Aucune fiche agent n'est rattachee a ce compte. Contactez votre superviseur.",
+    status: (await hasPin()) ? 'ready' : 'pinSetup',
+  });
+}
+
 export const useSession = create<SessionState>((set, get) => ({
   status: 'loading',
   user: null,
@@ -53,6 +100,7 @@ export const useSession = create<SessionState>((set, get) => ({
   lockDelayMin: DEFAULT_LOCK_DELAY_MIN,
   attemptsLeft: MAX_PIN_ATTEMPTS,
   error: null,
+  mfaToken: null,
 
   bootstrap: async () => {
     // Une session perdue en cours de route (refresh refuse) ramene a la connexion.
@@ -97,43 +145,11 @@ export const useSession = create<SessionState>((set, get) => ({
     set({ error: null });
     try {
       const result = await authApi.login(identifiant.trim(), password);
-
-      // L'application est reservee aux agents terrain : tout autre role est
-      // refuse avant meme d'ecrire le moindre jeton sur le telephone.
-      if (result.user.role !== ALLOWED_ROLE) {
-        set({
-          error:
-            "Cette application est reservee aux agents terrain. Utilisez le back-office avec ce compte.",
-        });
+      if ('mfaRequired' in result) {
+        set({ mfaToken: result.mfaToken });
         return;
       }
-
-      await setSecure('access', result.accessToken);
-      await setSecure('refresh', result.refreshToken);
-      await setJson('user', result.user);
-
-      // La fiche agent porte l'identifiant attendu par les endpoints position
-      // et transaction ; sans elle, ni tracking ni collecte ne sont possibles.
-      let agent: Agent | null = null;
-      try {
-        agent = await findMyAgent(result.user.id);
-      } catch {
-        agent = null;
-      }
-      if (agent) {
-        await setJson('agentProfile', agent);
-        connectLiveLink(agent.id).catch(() => undefined);
-        resumeTracking(agent.id).catch(() => undefined);
-      }
-
-      set({
-        user: result.user,
-        agent,
-        error: agent
-          ? null
-          : "Aucune fiche agent n'est rattachee a ce compte. Contactez votre superviseur.",
-        status: (await hasPin()) ? 'ready' : 'pinSetup',
-      });
+      await finishLogin(result, set);
     } catch (e) {
       const err = e as { response?: { data?: { message?: string } }; message?: string };
       set({
@@ -144,6 +160,26 @@ export const useSession = create<SessionState>((set, get) => ({
       });
     }
   },
+
+  submitMfa: async (code) => {
+    const token = get().mfaToken;
+    if (!token) return;
+    set({ error: null });
+    try {
+      const result = await authApi.verifierMfa(token, code.trim());
+      await finishLogin(result, set);
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string };
+      set({
+        error:
+          err.message === 'Network Error'
+            ? 'Pas de connexion. Verifiez votre reseau.'
+            : err.response?.data?.message ?? 'Identifiants incorrects.',
+      });
+    }
+  },
+
+  cancelMfa: () => set({ mfaToken: null, error: null }),
 
   configurePin: async (pin, lockDelayMin) => {
     await definePin(pin);

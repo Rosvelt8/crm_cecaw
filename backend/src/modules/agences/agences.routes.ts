@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth';
-import { isAdmin } from '../../middleware/rbac';
+import { requirePermission as can } from '../../middleware/permissions';
 import * as ctrl from './agences.controller';
 
 const router = Router();
@@ -8,8 +8,8 @@ const router = Router();
 router.use(authenticate);
 router.get('/', ctrl.list);
 router.get('/:id', ctrl.getOne);
-router.post('/', isAdmin, ctrl.create);
-router.put('/:id', isAdmin, ctrl.update);
-router.delete('/:id', isAdmin, ctrl.remove);
+router.post('/', can('organisation:CREATE'), ctrl.create);
+router.put('/:id', can('organisation:CREATE'), ctrl.update);
+router.delete('/:id', can('organisation:CREATE'), ctrl.remove);
 
 export default router;

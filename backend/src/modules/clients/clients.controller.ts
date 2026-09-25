@@ -41,6 +41,9 @@ const baseSchema = z.object({
   notes: z.string().optional(),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
+  marche_id: z.coerce.number().int().positive().nullable().optional(),
+  secteur_id: z.coerce.number().int().positive().nullable().optional(),
+  metier_id: z.coerce.number().int().positive().nullable().optional(),
 });
 
 function refineTypePersonne(data: { type_personne?: string; prenom?: string; forme_juridique?: string }, ctx: z.RefinementCtx) {
@@ -64,6 +67,10 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
 
 export const getOne = async (req: Request, res: Response, next: NextFunction) => {
   try { return success(res, await svc.getOne(parseInt(req.params.id, 10))); } catch (e) { return next(e); }
+};
+
+export const synthese = async (req: Request, res: Response, next: NextFunction) => {
+  try { return success(res, await svc.synthese(parseInt(req.params.id, 10))); } catch (e) { return next(e); }
 };
 
 export const create = async (req: Request, res: Response, next: NextFunction) => {
@@ -108,5 +115,50 @@ export const deletePJ = async (req: Request, res: Response, next: NextFunction) 
   try {
     await prisma.pieceJointe.delete({ where: { id: parseInt(req.params.pj_id, 10) } });
     return noContent(res);
+  } catch (e) { return next(e); }
+};
+
+// ── Segmentation et score (compléments stratégiques, point 1) ─────────────
+export const listScores = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { items, meta } = await svc.listScores(req.user!, req.query as Record<string, unknown>);
+    return success(res, items, 200, meta);
+  } catch (e) { return next(e); }
+};
+
+export const recalculerScores = async (req: Request, res: Response, next: NextFunction) => {
+  try { return success(res, await svc.recalculerScores(req.user!)); } catch (e) { return next(e); }
+};
+
+// ── Objectifs personnels du client (compléments stratégiques, point 13) ───
+const objectifClientSchema = z.object({
+  type: z.enum(['financier', 'professionnel', 'personnel']),
+  titre: z.string().min(1).max(200),
+  montant_cible: z.coerce.number().positive().nullish(),
+  date_cible: z.string().nullish(),
+  compte_id: z.coerce.number().int().positive().nullish(),
+});
+const objectifClientUpdateSchema = z.object({
+  titre: z.string().min(1).max(200).optional(),
+  montant_cible: z.coerce.number().positive().nullish(),
+  date_cible: z.string().nullish(),
+  statut: z.enum(['en_cours', 'atteint', 'abandonne']).optional(),
+});
+
+export const listObjectifsClient = async (req: Request, res: Response, next: NextFunction) => {
+  try { return success(res, await svc.listObjectifsClient(parseInt(req.params.id, 10))); } catch (e) { return next(e); }
+};
+
+export const creerObjectifClient = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = objectifClientSchema.parse(req.body);
+    return created(res, await svc.creerObjectifClient(parseInt(req.params.id, 10), body as never, req.user!));
+  } catch (e) { return next(e); }
+};
+
+export const updateObjectifClient = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = objectifClientUpdateSchema.parse(req.body);
+    return success(res, await svc.updateObjectifClient(parseInt(req.params.objectif_id, 10), body as never, req.user!));
   } catch (e) { return next(e); }
 };

@@ -6,6 +6,16 @@ import { env } from '../../config/env';
 import { parsePagination, paginationMeta } from '../../lib/pagination';
 import { sendBienvenue, sendResetPassword } from '../../lib/mailer';
 
+/**
+ * Retire les champs secrets d'une ligne utilisateur avant de la renvoyer : empreintes du mot de
+ * passe et du PIN, secret MFA et compteurs de sécurité ne doivent jamais quitter le serveur.
+ */
+export function sansSecrets<T extends Record<string, unknown>>(u: T) {
+  const { password, pinHash, mfaSecret, mfaDernierPas, tentativesEchouees, ...propre } = u as T & Record<string, unknown>;
+  void password; void pinHash; void mfaSecret; void mfaDernierPas; void tentativesEchouees;
+  return propre as Omit<T, 'password' | 'pinHash' | 'mfaSecret' | 'mfaDernierPas' | 'tentativesEchouees'>;
+}
+
 const include = {
   agence: { select: { id: true, nom: true } },
   equipe: { select: { id: true, nom: true } },
@@ -34,11 +44,11 @@ export async function list(actor: JwtPayload, query: Record<string, unknown>) {
     prisma.utilisateur.findMany({ where, include, skip, take, orderBy: { nom: 'asc' } }),
     prisma.utilisateur.count({ where }),
   ]);
-  return { items, meta: paginationMeta(page, perPage, total) };
+  return { items: items.map(sansSecrets), meta: paginationMeta(page, perPage, total) };
 }
 
 export async function getOne(id: number) {
-  return prisma.utilisateur.findUniqueOrThrow({ where: { id }, include });
+  return sansSecrets(await prisma.utilisateur.findUniqueOrThrow({ where: { id }, include }));
 }
 
 export async function create(data: {
@@ -57,7 +67,7 @@ export async function create(data: {
   });
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'parametres', action: 'CREATE_UTILISATEUR', entiteType: 'utilisateur', entiteId: u.id, description: `Création de l'utilisateur ${u.prenom} ${u.nom}`, impact: '+1 utilisateur' });
   sendBienvenue({ to: u.email, prenom: u.prenom, nom: u.nom, email: u.email, motDePasse: env.DEFAULT_PASSWORD, role: u.role }).catch(() => {});
-  return { user: u, mot_de_passe_initial: env.DEFAULT_PASSWORD };
+  return { user: sansSecrets(u), mot_de_passe_initial: env.DEFAULT_PASSWORD };
 }
 
 export async function update(id: number, data: Partial<{
@@ -79,7 +89,7 @@ export async function update(id: number, data: Partial<{
     include,
   });
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'parametres', action: 'UPDATE_UTILISATEUR', entiteType: 'utilisateur', entiteId: id, description: `Modification de l'utilisateur ${u.prenom} ${u.nom}` });
-  return u;
+  return sansSecrets(u);
 }
 
 export async function toggle(id: number, actor: JwtPayload) {

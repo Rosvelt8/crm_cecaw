@@ -11,11 +11,36 @@ datasource db {
 // Enums
 // ─────────────────────────────────────────────
 
+/// Rôle historique, conservé le temps de la bascule vers le RBAC fin (table `Role`).
+/// Les nouveaux contrôles d'accès passent par `Permission` ; ce champ ne sert plus
+/// qu'à l'affichage et à la compatibilité des clients déjà déployés.
 enum RoleUtilisateur {
   admin
   manager
   backoffice
   agent
+}
+
+/// Les dix verbes de droit exigés par la spécification (§6).
+enum VerbePermission {
+  VIEW
+  CREATE
+  UPDATE
+  SUBMIT
+  APPROVE
+  REJECT
+  EXECUTE
+  EXPORT
+  CONFIGURE
+  AUDIT
+}
+
+/// Portée d'une règle de séparation des fonctions : sur quel ensemble deux étapes
+/// incompatibles ne peuvent pas être exécutées par le même acteur.
+enum PorteeSeparation {
+  dossier
+  client
+  global
 }
 
 enum Genre {
@@ -29,7 +54,7 @@ enum SituationFamiliale {
   marie
   divorce
   veuf
-  VIDE @map("")
+  VIDE        @map("")
 }
 
 enum TypePersonne {
@@ -84,6 +109,9 @@ enum StatutObjectif {
 enum AssignationObjectif {
   equipe
   agents
+  institution
+  agence
+  zone
 }
 
 enum ModuleLog {
@@ -91,28 +119,375 @@ enum ModuleLog {
   collecte
   parametres
   system
+  organisation
+  kyc
+  credit
+  recouvrement
+  conformite
+  securite
+  terrain
+  comptabilite
+  notifications
+}
+
+enum TypeZone {
+  zone
+  secteur
+}
+
+enum TypeAgent {
+  commercial
+  collecteur
+  recouvrement
+  mixte
+}
+
+enum StatutKyc {
+  brouillon
+  en_controle
+  valide
+  rejete
+  archive
+}
+
+enum NiveauRisque {
+  faible
+  moyen
+  eleve
+}
+
+enum TypePieceIdentite {
+  cni
+  passeport
+  permis
+  carte_sejour
+  recepisse
+  autre
+}
+
+enum ResultatControle {
+  conforme
+  non_conforme
+  non_applicable
+}
+
+enum TypeProduit {
+  epargne
+  credit
+  autre
+}
+
+enum ModeAmortissement {
+  constant
+  degressif
+  in_fine
+}
+
+enum TypeCredit {
+  individuel
+  solidaire
+  pme
+  agricole
+}
+
+/// Cycle de vie d'une demande de crédit. Chaque transition est contrôlée par une
+/// permission et tracée dans `ActeWorkflow`, ce qui permet d'opposer la règle de
+/// séparation des fonctions au moment de la décision.
+enum StatutDemandeCredit {
+  brouillon
+  soumise
+  kyc_en_cours
+  kyc_valide
+  analyse_en_cours
+  analyse_terminee
+  comite_en_attente
+  approuvee
+  rejetee
+  contrat_edite
+  decaissee
+  cloturee
+  annulee
+}
+
+enum TypeGarantie {
+  salaire
+  immobilier
+  materiel
+  nantissement
+  depot_garantie
+  tiers_garant
+  autre
+}
+
+enum PeriodiciteEcheance {
+  mensuel
+  bimensuel
+  trimestriel
+  semestriel
+}
+
+enum StatutEcheance {
+  a_echoir
+  payee
+  partiellement_payee
+  en_retard
+  impayee
+}
+
+enum SensDecision {
+  favorable
+  defavorable
+  ajourne
+}
+
+enum InstanceDecision {
+  agence
+  comite
+  direction
+}
+
+enum ModeReglement {
+  especes
+  virement
+  compte
+  cheque
+}
+
+enum TypeAvenant {
+  restructuration
+  reechelonnement
+  refinancement
+}
+
+enum HypotheseRetenue {
+  haute
+  basse
+  moyenne
 }
 
 // ─────────────────────────────────────────────
-// Models
+// RBAC — rôles, permissions, séparation des fonctions
 // ─────────────────────────────────────────────
 
+/// Les dix-sept rôles du référentiel (R01 à R17). La table est administrable pour
+/// que l'administrateur fonctionnel puisse ajuster les habilitations, mais les
+/// rôles du référentiel portent `systeme = true` et ne sont pas supprimables.
+model Role {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(10)
+  nom         String   @db.VarChar(150)
+  description String?  @db.Text
+  systeme     Boolean  @default(true)
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  permissions  RolePermission[]
+  utilisateurs UtilisateurRole[]
+
+  @@map("roles")
+}
+
+/// Un droit élémentaire, identifié par `domaine:verbe` (ex. `credit:APPROVE`).
+/// Le catalogue est généré depuis la spécification et resynchronisé au démarrage.
+model Permission {
+  id      Int             @id @default(autoincrement())
+  code    String          @unique @db.VarChar(80)
+  domaine String          @db.VarChar(50)
+  verbe   VerbePermission
+  libelle String          @db.VarChar(200)
+
+  roles RolePermission[]
+
+  @@index([domaine])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int @map("role_id")
+  permissionId Int @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("roles_permissions")
+}
+
+/// Un utilisateur peut cumuler plusieurs rôles : en agence, la même personne
+/// exerce souvent plusieurs fonctions. La séparation s'applique alors au niveau
+/// de l'acte, pas du compte.
+model UtilisateurRole {
+  utilisateurId Int      @map("utilisateur_id")
+  roleId        Int      @map("role_id")
+  assigneParId  Int?     @map("assigne_par_id")
+  assigneAt     DateTime @default(now()) @map("assigne_at")
+
+  utilisateur Utilisateur  @relation("UtilisateurRoles", fields: [utilisateurId], references: [id], onDelete: Cascade)
+  role        Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignePar  Utilisateur? @relation("RolesAssignes", fields: [assigneParId], references: [id], onDelete: SetNull)
+
+  @@id([utilisateurId, roleId])
+  @@map("utilisateurs_roles")
+}
+
+/// Règle déclarative de séparation des fonctions (TR-03).
+/// `etapeA` et `etapeB` sont des étapes de workflow (ex. montage, decision) : qui a exécuté A sur
+/// une entité ne peut pas exécuter B sur la même entité dans la portée indiquée.
+model RegleSeparation {
+  id      Int              @id @default(autoincrement())
+  code    String           @unique @db.VarChar(80)
+  libelle String           @db.VarChar(200)
+  etapeA  String           @map("etape_a") @db.VarChar(80)
+  etapeB  String           @map("etape_b") @db.VarChar(80)
+  portee  PorteeSeparation @default(dossier)
+  message String?          @db.Text
+  actif   Boolean          @default(true)
+
+  @@map("regles_separation")
+}
+
+/// Trace d'un acte de workflow : qui a franchi quelle étape sur quelle entité.
+/// C'est la source de vérité opposée aux règles de séparation et à l'audit.
+model ActeWorkflow {
+  id          Int      @id @default(autoincrement())
+  entiteType  String   @map("entite_type") @db.VarChar(60)
+  entiteId    Int      @map("entite_id")
+  etape       String   @db.VarChar(80)
+  acteurId    Int      @map("acteur_id")
+  commentaire String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  acteur Utilisateur @relation(fields: [acteurId], references: [id], onDelete: Restrict)
+
+  @@index([entiteType, entiteId])
+  @@index([acteurId])
+  @@map("actes_workflow")
+}
+
+// ─────────────────────────────────────────────
+// Organisation et territoire
+// ─────────────────────────────────────────────
+
+model Institution {
+  id          Int      @id @default(autoincrement())
+  nom         String   @db.VarChar(200)
+  sigle       String?  @db.VarChar(50)
+  description String?  @db.Text
+  telephone   String?  @db.VarChar(30)
+  email       String?  @db.VarChar(255)
+  adresse     String?  @db.Text
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  agences Agence[]
+
+  @@map("institutions")
+}
+
 model Agence {
+  id            Int      @id @default(autoincrement())
+  nom           String   @db.VarChar(150)
+  code          String?  @unique @db.VarChar(20)
+  institutionId Int?     @map("institution_id")
+  ville         String   @db.VarChar(100)
+  adresse       String?  @db.Text
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+  actif         Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  institution          Institution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  equipes              Equipe[]
+  utilisateurs         Utilisateur[]
+  clients              Client[]
+  logs                 Log[]
+  pointsService        PointService[]
+  zones                Zone[]
+  demandesCredit       DemandeCredit[]
+  dossiersRecouvrement DossierRecouvrement[]
+  tournees             Tournee[]
+  objectifs            Objectif[]
+  alertes              AlerteConformite[]
+  marches              Marche[]
+
+  @@map("agences")
+}
+
+model PointService {
   id        Int      @id @default(autoincrement())
   nom       String   @db.VarChar(150)
-  ville     String   @db.VarChar(100)
+  code      String?  @unique @db.VarChar(20)
+  agenceId  Int      @map("agence_id")
   adresse   String?  @db.Text
+  latitude  Decimal? @db.Decimal(10, 7)
+  longitude Decimal? @db.Decimal(10, 7)
   actif     Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  equipes      Equipe[]
-  utilisateurs Utilisateur[]
-  clients      Client[]
-  logs         Log[]
+  agence Agence  @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  agents Agent[]
 
-  @@map("agences")
+  @@index([agenceId])
+  @@map("points_service")
 }
+
+/// Découpage territorial. Une zone peut contenir des secteurs (`parentId`), être
+/// rattachée à une agence et être affectée à plusieurs agents. `geometrie` porte
+/// un polygone GeoJSON ; `latitude`/`longitude` en sont le centroïde, conservé
+/// pour éviter de recalculer à chaque affichage de carte.
+model Zone {
+  id              Int      @id @default(autoincrement())
+  nom             String   @db.VarChar(150)
+  code            String?  @unique @db.VarChar(20)
+  type            TypeZone @default(zone)
+  parentId        Int?     @map("parent_id")
+  agenceId        Int?     @map("agence_id")
+  geometrie       Json?
+  latitude        Decimal? @db.Decimal(10, 7)
+  longitude       Decimal? @db.Decimal(10, 7)
+  population      Int?
+  potentielEstime Decimal? @map("potentiel_estime") @db.Decimal(15, 2)
+  actif           Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  parent               Zone?                 @relation("ZoneHierarchie", fields: [parentId], references: [id], onDelete: SetNull)
+  enfants              Zone[]                @relation("ZoneHierarchie")
+  agence               Agence?               @relation(fields: [agenceId], references: [id], onDelete: SetNull)
+  agents               ZoneAgent[]
+  clients              Client[]
+  prospects            Prospect[]
+  objectifs            Objectif[]
+  demandesCredit       DemandeCredit[]
+  tournees             Tournee[]
+  dossiersRecouvrement DossierRecouvrement[]
+  marches              Marche[]
+
+  @@index([agenceId])
+  @@index([parentId])
+  @@map("zones")
+}
+
+model ZoneAgent {
+  zoneId    Int      @map("zone_id")
+  agentId   Int      @map("agent_id")
+  principal Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  zone  Zone  @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@id([zoneId, agentId])
+  @@map("zones_agents")
+}
+
+// ─────────────────────────────────────────────
+// Modèles métier existants
+// ─────────────────────────────────────────────
 
 model Equipe {
   id            Int      @id @default(autoincrement())
@@ -122,10 +497,10 @@ model Equipe {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  agence             Agence        @relation(fields: [agenceId], references: [id], onDelete: Restrict)
-  responsable        Utilisateur?  @relation("EquipeResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
-  membres            Utilisateur[] @relation("EquipeMembres")
-  objectifs          Objectif[]
+  agence      Agence        @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  responsable Utilisateur?  @relation("EquipeResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  membres     Utilisateur[] @relation("EquipeMembres")
+  objectifs   Objectif[]
 
   @@map("equipes")
 }
@@ -144,50 +519,134 @@ model GroupeProduit {
 }
 
 model Produit {
-  id          Int      @id @default(autoincrement())
-  nom         String   @db.VarChar(200)
-  groupeId    Int      @map("groupe_id")
-  description String?  @db.Text
-  actif       Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id          Int         @id @default(autoincrement())
+  nom         String      @db.VarChar(200)
+  code        String?     @unique @db.VarChar(20)
+  groupeId    Int         @map("groupe_id")
+  type        TypeProduit @default(autre)
+  description String?     @db.Text
+  actif       Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  groupe    GroupeProduit  @relation(fields: [groupeId], references: [id], onDelete: Restrict)
-  prospects Prospect[]
-  comptes   CompteClient[]
-  objectifs Objectif[]
+  groupe         GroupeProduit        @relation(fields: [groupeId], references: [id], onDelete: Restrict)
+  prospects      Prospect[]
+  comptes        CompteClient[]
+  objectifs      Objectif[]
+  parametrages   ParametrageProduit[]
+  demandesCredit DemandeCredit[]
 
   @@map("produits")
 }
 
+/// Paramétrage financier d'un produit, versionné par date d'effet.
+/// Un contrat conserve l'identifiant du paramétrage utilisé : modifier un taux
+/// n'altère jamais les crédits déjà accordés.
+model ParametrageProduit {
+  id                        Int                @id @default(autoincrement())
+  produitId                 Int                @map("produit_id")
+  dateEffet                 DateTime           @map("date_effet") @db.Date
+  dateFin                   DateTime?          @map("date_fin") @db.Date
+  tauxInteretAnnuel         Decimal?           @map("taux_interet_annuel") @db.Decimal(6, 3)
+  tauxPenaliteRetard        Decimal?           @map("taux_penalite_retard") @db.Decimal(6, 3)
+  tauxRemunerationEpargne   Decimal?           @map("taux_remuneration_epargne") @db.Decimal(6, 3)
+  fraisDossier              Decimal?           @map("frais_dossier") @db.Decimal(15, 2)
+  fraisDossierPct           Decimal?           @map("frais_dossier_pct") @db.Decimal(6, 3)
+  commission                Decimal?           @db.Decimal(15, 2)
+  montantMin                Decimal?           @map("montant_min") @db.Decimal(15, 2)
+  montantMax                Decimal?           @map("montant_max") @db.Decimal(15, 2)
+  dureeMinMois              Int?               @map("duree_min_mois")
+  dureeMaxMois              Int?               @map("duree_max_mois")
+  modeAmortissement         ModeAmortissement? @map("mode_amortissement")
+  ageMin                    Int?               @map("age_min")
+  ageMax                    Int?               @map("age_max")
+  ancienneteActiviteMinMois Int?               @map("anciennete_activite_min_mois")
+  /// Part maximale de la capacité de remboursement mobilisable par l'échéance.
+  quotiteCessibleMaxPct     Decimal?           @map("quotite_cessible_max_pct") @db.Decimal(6, 3)
+  conditionsEligibilite     Json?              @map("conditions_eligibilite")
+  creeParId                 Int?               @map("cree_par_id")
+  createdAt                 DateTime           @default(now()) @map("created_at")
+
+  produit        Produit         @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  creePar        Utilisateur?    @relation(fields: [creeParId], references: [id], onDelete: SetNull)
+  demandesCredit DemandeCredit[]
+
+  @@index([produitId, dateEffet])
+  @@map("parametrages_produits")
+}
+
 model Utilisateur {
-  id        Int             @id @default(autoincrement())
-  nom       String          @db.VarChar(100)
-  prenom    String          @db.VarChar(100)
-  email     String          @unique @db.VarChar(255)
-  password  String          @db.VarChar(255)
+  id                 Int             @id @default(autoincrement())
+  nom                String          @db.VarChar(100)
+  prenom             String          @db.VarChar(100)
+  email              String          @unique @db.VarChar(255)
+  password           String          @db.VarChar(255)
   /// Empreinte bcrypt du code PIN de l'application mobile.
   /// Le deverrouillage reste verifie localement, pour fonctionner hors reseau ;
   /// cette copie sert a retrouver son code apres reinstallation et permet a un
   /// administrateur de le reinitialiser. Jamais stocke en clair.
-  pinHash   String?         @db.VarChar(255) @map("pin_hash")
-  role      RoleUtilisateur @default(agent)
-  fonction  String?         @db.VarChar(150)
-  agenceId  Int?            @map("agence_id")
-  equipeId  Int?            @map("equipe_id")
-  actif     Boolean         @default(true)
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
+  pinHash            String?         @map("pin_hash") @db.VarChar(255)
+  role               RoleUtilisateur @default(agent)
+  fonction           String?         @db.VarChar(150)
+  agenceId           Int?            @map("agence_id")
+  equipeId           Int?            @map("equipe_id")
+  actif              Boolean         @default(true)
+  /// Secret TOTP chiffré ; `mfaActif` reste faux tant que l'utilisateur n'a pas
+  /// validé un premier code, pour ne pas l'enfermer dehors.
+  mfaSecret          String?         @map("mfa_secret") @db.VarChar(255)
+  mfaActif           Boolean         @default(false) @map("mfa_actif")
+  /// Dernier pas TOTP accepté : empêche de rejouer un code déjà utilisé.
+  mfaDernierPas      Int?            @map("mfa_dernier_pas")
+  tentativesEchouees Int             @default(0) @map("tentatives_echouees")
+  bloqueJusquA       DateTime?       @map("bloque_jusqu_a")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
 
   agence             Agence?  @relation(fields: [agenceId], references: [id], onDelete: SetNull)
   equipe             Equipe?  @relation("EquipeMembres", fields: [equipeId], references: [id], onDelete: SetNull)
   equipesResponsable Equipe[] @relation("EquipeResponsable")
 
   agent            Agent?
-  prospects        Prospect[]  @relation("ProspectCommercial")
-  clients          Client[]    @relation("ClientCommercial")
+  prospects        Prospect[] @relation("ProspectCommercial")
+  clients          Client[]   @relation("ClientCommercial")
   objectifsCreated Objectif[]
   logs             Log[]
+
+  roles                UtilisateurRole[]    @relation("UtilisateurRoles")
+  rolesAssignes        UtilisateurRole[]    @relation("RolesAssignes")
+  actesWorkflow        ActeWorkflow[]
+  parametragesProduits ParametrageProduit[]
+
+  kycCrees            DossierKyc[]     @relation("KycCreePar")
+  kycValides          DossierKyc[]     @relation("KycValidePar")
+  controlesKyc        ControleKyc[]
+  demandesMontees     DemandeCredit[]  @relation("DemandeMonteePar")
+  demandesAnalysees   DemandeCredit[]  @relation("DemandeAnalyseePar")
+  demandesDecidees    DemandeCredit[]  @relation("DemandeDecideePar")
+  visitesTerrain      VisiteTerrain[]
+  grillesAnalyse      GrilleAnalyse[]
+  decisionsCredit     DecisionCredit[]
+  remboursementsRecus Remboursement[]
+  avenantsValides     AvenantCredit[]
+  archives            Archive[]
+
+  dossiersRecouvrement  DossierRecouvrement[]  @relation("RecouvrementAgent")
+  relances              RelanceRecouvrement[]
+  promessesCreees       PromessePaiement[]
+  plansCrees            PlanRegularisation[]   @relation("PlanCreePar")
+  plansValides          PlanRegularisation[]   @relation("PlanValidePar")
+  tourneesPlanifiees    Tournee[]              @relation("TourneePlanifiePar")
+  notifications         Notification[]
+  alertesTraitees       AlerteConformite[]     @relation("AlerteTraitePar")
+  alertesConcernant     AlerteConformite[]     @relation("AlerteConcerne")
+  journeesControlees    JourneeCollecte[]      @relation("JourneeControlePar")
+  journeesRapprochees   JourneeCollecte[]      @relation("JourneeRapprochePar")
+  portefeuillesAffectes PortefeuilleCollecte[] @relation("PortefeuilleAffectePar")
+  releves               ReleveBancaire[]
+  paramsModifies        ParametreSysteme[]
+  ecrituresCreees       EcritureComptable[]
+  interactions          Interaction[]
+  objectifsClientCrees  ObjectifClient[]
 
   @@index([email])
   @@index([agenceId])
@@ -199,6 +658,8 @@ model Agent {
   id                 Int       @id @default(autoincrement())
   utilisateurId      Int       @unique @map("utilisateur_id")
   matricule          String    @unique @db.VarChar(50)
+  type               TypeAgent @default(commercial)
+  pointServiceId     Int?      @map("point_service_id")
   secteur            String?   @db.VarChar(200)
   latitude           Decimal?  @db.Decimal(10, 7)
   longitude          Decimal?  @db.Decimal(10, 7)
@@ -206,10 +667,16 @@ model Agent {
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  utilisateur  Utilisateur     @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  objectifs    ObjectifAgent[]
-  positions    AgentPosition[]
+  utilisateur   Utilisateur            @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  pointService  PointService?          @relation(fields: [pointServiceId], references: [id], onDelete: SetNull)
+  transactions  Transaction[]
+  objectifs     ObjectifAgent[]
+  positions     AgentPosition[]
+  zones         ZoneAgent[]
+  marches       MarcheAgent[]
+  tournees      Tournee[]
+  journees      JourneeCollecte[]
+  portefeuilles PortefeuilleCollecte[]
 
   @@index([utilisateurId])
   @@map("agents")
@@ -240,133 +707,317 @@ model Prospect {
   prenom              String?             @db.VarChar(100)
   genre               Genre?              @default(VIDE)
   dateNaissance       DateTime?           @map("date_naissance") @db.Date
-  lieuNaissance       String?             @db.VarChar(150) @map("lieu_naissance")
+  lieuNaissance       String?             @map("lieu_naissance") @db.VarChar(150)
   nationalite         String?             @db.VarChar(100)
-  numeroCni           String?             @db.VarChar(50) @map("numero_cni")
+  numeroCni           String?             @map("numero_cni") @db.VarChar(50)
   nui                 String?             @db.VarChar(50)
-  formeJuridique      String?             @db.VarChar(100) @map("forme_juridique")
+  formeJuridique      String?             @map("forme_juridique") @db.VarChar(100)
   sigle               String?             @db.VarChar(100)
   rccm                String?             @db.VarChar(50)
-  capitalSocial       String?             @db.VarChar(50) @map("capital_social")
+  capitalSocial       String?             @map("capital_social") @db.VarChar(50)
   telephone           String              @db.VarChar(30)
-  telephoneSecondaire String?             @db.VarChar(30) @map("telephone_secondaire")
+  telephoneSecondaire String?             @map("telephone_secondaire") @db.VarChar(30)
   email               String?             @db.VarChar(255)
   adresse             String?             @db.Text
   quartier            String?             @db.VarChar(100)
   ville               String?             @db.VarChar(100)
   profession          String?             @db.VarChar(150)
   employeur           String?             @db.VarChar(200)
-  secteurActivite     String?             @db.VarChar(150) @map("secteur_activite")
-  revenuMensuel       String?             @db.VarChar(50) @map("revenu_mensuel")
+  secteurActivite     String?             @map("secteur_activite") @db.VarChar(150)
+  /// Déprécié : saisie libre conservée pour l'affichage. Les calculs financiers
+  /// utilisent `revenusMensuels`.
+  revenuMensuel       String?             @map("revenu_mensuel") @db.VarChar(50)
+  revenusMensuels     Decimal?            @map("revenus_mensuels") @db.Decimal(15, 2)
   situationFamiliale  SituationFamiliale? @default(VIDE) @map("situation_familiale")
   nombreEnfants       Int                 @default(0) @map("nombre_enfants")
-  referentNom         String?             @db.VarChar(200) @map("referent_nom")
-  referentTelephone   String?             @db.VarChar(30) @map("referent_telephone")
-  referentRelation    String?             @db.VarChar(100) @map("referent_relation")
+  referentNom         String?             @map("referent_nom") @db.VarChar(200)
+  referentTelephone   String?             @map("referent_telephone") @db.VarChar(30)
+  referentRelation    String?             @map("referent_relation") @db.VarChar(100)
   statut              StatutProspect      @default(nouveau)
   produitInteretId    Int?                @map("produit_interet_id")
   commercialId        Int                 @map("commercial_id")
+  zoneId              Int?                @map("zone_id")
+  marcheId            Int?                @map("marche_id")
+  secteurId           Int?                @map("secteur_id")
+  metierId            Int?                @map("metier_id")
   notes               String?             @db.Text
   latitude            Decimal?            @db.Decimal(10, 7)
   longitude           Decimal?            @db.Decimal(10, 7)
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
 
-  produitInteret Produit?      @relation(fields: [produitInteretId], references: [id], onDelete: SetNull)
-  commercial     Utilisateur   @relation("ProspectCommercial", fields: [commercialId], references: [id], onDelete: Restrict)
+  produitInteret Produit?        @relation(fields: [produitInteretId], references: [id], onDelete: SetNull)
+  commercial     Utilisateur     @relation("ProspectCommercial", fields: [commercialId], references: [id], onDelete: Restrict)
+  zone           Zone?           @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  marche         Marche?         @relation(fields: [marcheId], references: [id], onDelete: SetNull)
+  secteur        Secteur?        @relation(fields: [secteurId], references: [id], onDelete: SetNull)
+  metier         Metier?         @relation(fields: [metierId], references: [id], onDelete: SetNull)
   piecesJointes  PieceJointe[]
   clients        Client[]
+  dossiersKyc    DossierKyc[]
+  visitesTournee VisiteTournee[]
+  interactions   Interaction[]
 
   @@index([commercialId])
   @@index([statut])
+  @@index([zoneId])
+  @@index([marcheId])
   @@index([createdAt(sort: Desc)])
   @@map("prospects")
 }
 
-// Pièces jointes: optional FK to prospect OR client
+// Pièces jointes: optional FK to prospect OR client OR dossier KYC OR demande crédit
 model PieceJointe {
-  id         Int      @id @default(autoincrement())
-  intitule   String   @db.VarChar(200)
-  nomFichier String   @db.VarChar(255) @map("nom_fichier")
-  typeMime   String?  @db.VarChar(100) @map("type_mime")
+  id         Int       @id @default(autoincrement())
+  intitule   String    @db.VarChar(200)
+  nomFichier String    @map("nom_fichier") @db.VarChar(255)
+  typeMime   String?   @map("type_mime") @db.VarChar(100)
   taille     Int?
-  url        String   @db.Text
-  createdAt  DateTime @default(now()) @map("created_at")
+  url        String    @db.Text
+  categorie  String?   @db.VarChar(80)
+  /// Versioning documentaire (TR-05) : une nouvelle version pointe vers celle
+  /// qu'elle remplace ; aucune version n'est supprimée, elle est archivée.
+  version    Int       @default(1)
+  remplaceId Int?      @unique @map("remplace_id")
+  archiveAt  DateTime? @map("archive_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
-  prospectId Int?      @map("prospect_id")
-  clientId   Int?      @map("client_id")
-  prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: Cascade)
-  client     Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  prospectId      Int?      @map("prospect_id")
+  clientId        Int?      @map("client_id")
+  dossierKycId    Int?      @map("dossier_kyc_id")
+  demandeCreditId Int?      @map("demande_credit_id")
+  visiteId        Int?      @map("visite_id")
+  visiteTourneeId Int?      @map("visite_tournee_id")
+  /// Photo géolocalisée : position et instant de la prise de vue (preuve terrain).
+  latitude        Decimal?  @db.Decimal(10, 7)
+  longitude       Decimal?  @db.Decimal(10, 7)
+  prisAt          DateTime? @map("pris_at")
 
+  prospect      Prospect?      @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dossierKyc    DossierKyc?    @relation(fields: [dossierKycId], references: [id], onDelete: Cascade)
+  demandeCredit DemandeCredit? @relation(fields: [demandeCreditId], references: [id], onDelete: Cascade)
+  visite        VisiteTerrain? @relation(fields: [visiteId], references: [id], onDelete: Cascade)
+  visiteTournee VisiteTournee? @relation(fields: [visiteTourneeId], references: [id], onDelete: Cascade)
+  remplace      PieceJointe?   @relation("PieceVersion", fields: [remplaceId], references: [id], onDelete: SetNull)
+  remplacePar   PieceJointe?   @relation("PieceVersion")
+  pieceIdentite PieceIdentite?
+
+  @@index([dossierKycId])
+  @@index([demandeCreditId])
   @@map("pieces_jointes")
 }
 
 model Client {
-  id                  Int                 @id @default(autoincrement())
-  prospectId          Int?                @map("prospect_id")
-  typePersonne        TypePersonne        @default(physique) @map("type_personne")
-  nom                 String              @db.VarChar(100)
-  prenom              String?             @db.VarChar(100)
-  genre               Genre?              @default(VIDE)
-  dateNaissance       DateTime?           @map("date_naissance") @db.Date
-  lieuNaissance       String?             @db.VarChar(150) @map("lieu_naissance")
-  nationalite         String?             @db.VarChar(100)
-  numeroCni           String?             @db.VarChar(50) @map("numero_cni")
-  nui                 String?             @db.VarChar(50)
-  formeJuridique      String?             @db.VarChar(100) @map("forme_juridique")
-  sigle               String?             @db.VarChar(100)
-  rccm                String?             @db.VarChar(50)
-  capitalSocial       String?             @db.VarChar(50) @map("capital_social")
-  telephone           String              @db.VarChar(30)
-  telephoneSecondaire String?             @db.VarChar(30) @map("telephone_secondaire")
-  email               String              @db.VarChar(255)
-  adresse             String              @db.Text
-  quartier            String?             @db.VarChar(100)
-  ville               String?             @db.VarChar(100)
-  profession          String?             @db.VarChar(150)
-  employeur           String?             @db.VarChar(200)
-  secteurActivite     String?             @db.VarChar(150) @map("secteur_activite")
-  revenuMensuel       String?             @db.VarChar(50) @map("revenu_mensuel")
-  situationFamiliale  SituationFamiliale? @default(VIDE) @map("situation_familiale")
-  nombreEnfants       Int                 @default(0) @map("nombre_enfants")
-  referentNom         String?             @db.VarChar(200) @map("referent_nom")
-  referentTelephone   String?             @db.VarChar(30) @map("referent_telephone")
-  referentRelation    String?             @db.VarChar(100) @map("referent_relation")
-  latitude            Decimal?            @db.Decimal(10, 7)
-  longitude           Decimal?            @db.Decimal(10, 7)
-  agenceId            Int                 @map("agence_id")
-  commercialId        Int                 @map("commercial_id")
-  statut              StatutClient        @default(actif)
-  notes               String?             @db.Text
-  createdAt           DateTime            @default(now()) @map("created_at")
-  updatedAt           DateTime            @updatedAt @map("updated_at")
+  id                     Int                 @id @default(autoincrement())
+  prospectId             Int?                @map("prospect_id")
+  typePersonne           TypePersonne        @default(physique) @map("type_personne")
+  nom                    String              @db.VarChar(100)
+  prenom                 String?             @db.VarChar(100)
+  genre                  Genre?              @default(VIDE)
+  dateNaissance          DateTime?           @map("date_naissance") @db.Date
+  lieuNaissance          String?             @map("lieu_naissance") @db.VarChar(150)
+  nationalite            String?             @db.VarChar(100)
+  numeroCni              String?             @map("numero_cni") @db.VarChar(50)
+  nui                    String?             @db.VarChar(50)
+  formeJuridique         String?             @map("forme_juridique") @db.VarChar(100)
+  sigle                  String?             @db.VarChar(100)
+  rccm                   String?             @db.VarChar(50)
+  capitalSocial          String?             @map("capital_social") @db.VarChar(50)
+  telephone              String              @db.VarChar(30)
+  telephoneSecondaire    String?             @map("telephone_secondaire") @db.VarChar(30)
+  email                  String              @db.VarChar(255)
+  adresse                String              @db.Text
+  quartier               String?             @db.VarChar(100)
+  ville                  String?             @db.VarChar(100)
+  profession             String?             @db.VarChar(150)
+  employeur              String?             @db.VarChar(200)
+  secteurActivite        String?             @map("secteur_activite") @db.VarChar(150)
+  /// Déprécié : voir `revenusMensuels`, seul champ utilisé par l'analyse crédit.
+  revenuMensuel          String?             @map("revenu_mensuel") @db.VarChar(50)
+  revenusMensuels        Decimal?            @map("revenus_mensuels") @db.Decimal(15, 2)
+  chargesMensuelles      Decimal?            @map("charges_mensuelles") @db.Decimal(15, 2)
+  ancienneteActiviteMois Int?                @map("anciennete_activite_mois")
+  situationFamiliale     SituationFamiliale? @default(VIDE) @map("situation_familiale")
+  nombreEnfants          Int                 @default(0) @map("nombre_enfants")
+  referentNom            String?             @map("referent_nom") @db.VarChar(200)
+  referentTelephone      String?             @map("referent_telephone") @db.VarChar(30)
+  referentRelation       String?             @map("referent_relation") @db.VarChar(100)
+  photoUrl               String?             @map("photo_url") @db.Text
+  latitude               Decimal?            @db.Decimal(10, 7)
+  longitude              Decimal?            @db.Decimal(10, 7)
+  /// Localisation de l'activité professionnelle, distincte du domicile (KYC 9).
+  latitudeActivite       Decimal?            @map("latitude_activite") @db.Decimal(10, 7)
+  longitudeActivite      Decimal?            @map("longitude_activite") @db.Decimal(10, 7)
+  agenceId               Int                 @map("agence_id")
+  commercialId           Int                 @map("commercial_id")
+  zoneId                 Int?                @map("zone_id")
+  /// Déprécié : libellé libre conservé pour compatibilité. Voir `ScoreClient.cycleVie` pour le
+  /// segment calculé (compléments stratégiques, point 1).
+  segment                String?             @db.VarChar(50)
+  marcheId               Int?                @map("marche_id")
+  secteurId              Int?                @map("secteur_id")
+  metierId               Int?                @map("metier_id")
+  statut                 StatutClient        @default(actif)
+  notes                  String?             @db.Text
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
 
-  prospect      Prospect?      @relation(fields: [prospectId], references: [id], onDelete: SetNull)
-  agence        Agence         @relation(fields: [agenceId], references: [id], onDelete: Restrict)
-  commercial    Utilisateur    @relation("ClientCommercial", fields: [commercialId], references: [id], onDelete: Restrict)
-  comptes       CompteClient[]
-  piecesJointes PieceJointe[]
+  prospect             Prospect?              @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  agence               Agence                 @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  commercial           Utilisateur            @relation("ClientCommercial", fields: [commercialId], references: [id], onDelete: Restrict)
+  zone                 Zone?                  @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  marche               Marche?                @relation(fields: [marcheId], references: [id], onDelete: SetNull)
+  secteur              Secteur?               @relation(fields: [secteurId], references: [id], onDelete: SetNull)
+  metier               Metier?                @relation(fields: [metierId], references: [id], onDelete: SetNull)
+  comptes              CompteClient[]
+  piecesJointes        PieceJointe[]
+  dossiersKyc          DossierKyc[]
+  sourcesRevenu        SourceRevenu[]
+  charges              ChargeClient[]
+  demandesCredit       DemandeCredit[]
+  dossiersRecouvrement DossierRecouvrement[]
+  portefeuilles        PortefeuilleCollecte[]
+  visitesTournee       VisiteTournee[]
+  interactions         Interaction[]
+  objectifsClient      ObjectifClient[]
+  score                ScoreClient?
 
   @@index([commercialId])
   @@index([agenceId])
+  @@index([zoneId])
   @@index([statut])
+  @@index([marcheId])
   @@map("clients")
 }
 
-model CompteClient {
-  id            Int          @id @default(autoincrement())
-  numero        String       @unique @db.VarChar(30)
-  clientId      Int          @map("client_id")
-  produitId     Int          @map("produit_id")
-  solde         Decimal      @default(0.00) @db.Decimal(15, 2)
-  statut        StatutCompte @default(actif)
-  dateOuverture DateTime     @default(now()) @map("date_ouverture") @db.Date
-  createdAt     DateTime     @default(now()) @map("created_at")
-  updatedAt     DateTime     @updatedAt @map("updated_at")
+/// Sources de revenus déclarées (KYC 14), reprises comme point de départ de la
+/// grille d'analyse lorsqu'une demande de crédit est montée.
+model SourceRevenu {
+  id             Int      @id @default(autoincrement())
+  clientId       Int      @map("client_id")
+  libelle        String   @db.VarChar(200)
+  nature         String?  @db.VarChar(100)
+  montantMensuel Decimal  @map("montant_mensuel") @db.Decimal(15, 2)
+  justifie       Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  produit      Produit       @relation(fields: [produitId], references: [id], onDelete: Restrict)
-  transactions Transaction[]
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@map("sources_revenus")
+}
+
+/// Charges déclarées (KYC 13).
+model ChargeClient {
+  id             Int      @id @default(autoincrement())
+  clientId       Int      @map("client_id")
+  libelle        String   @db.VarChar(200)
+  categorie      String?  @db.VarChar(100)
+  montantMensuel Decimal  @map("montant_mensuel") @db.Decimal(15, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@map("charges_clients")
+}
+
+// ─────────────────────────────────────────────
+// KYC et conformité
+// ─────────────────────────────────────────────
+
+model DossierKyc {
+  id           Int           @id @default(autoincrement())
+  reference    String        @unique @db.VarChar(40)
+  clientId     Int?          @map("client_id")
+  prospectId   Int?          @map("prospect_id")
+  statut       StatutKyc     @default(brouillon)
+  niveauRisque NiveauRisque? @map("niveau_risque")
+  /// Score LCB-FT sur 100, calculé depuis les contrôles et le profil client.
+  scoreLcbft   Int?          @map("score_lcbft")
+  creeParId    Int           @map("cree_par_id")
+  valideParId  Int?          @map("valide_par_id")
+  valideAt     DateTime?     @map("valide_at")
+  motifRejet   String?       @map("motif_rejet") @db.Text
+  archiveAt    DateTime?     @map("archive_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  client         Client?         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  prospect       Prospect?       @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  creePar        Utilisateur     @relation("KycCreePar", fields: [creeParId], references: [id], onDelete: Restrict)
+  validePar      Utilisateur?    @relation("KycValidePar", fields: [valideParId], references: [id], onDelete: SetNull)
+  controles      ControleKyc[]
+  piecesIdentite PieceIdentite[]
+  piecesJointes  PieceJointe[]
+  demandes       DemandeCredit[]
+
+  @@index([clientId])
+  @@index([statut])
+  @@map("dossiers_kyc")
+}
+
+model ControleKyc {
+  id            Int               @id @default(autoincrement())
+  dossierId     Int               @map("dossier_id")
+  code          String            @db.VarChar(60)
+  libelle       String            @db.VarChar(200)
+  resultat      ResultatControle?
+  commentaire   String?           @db.Text
+  controleParId Int?              @map("controle_par_id")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  dossier     DossierKyc   @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  controlePar Utilisateur? @relation(fields: [controleParId], references: [id], onDelete: SetNull)
+
+  @@index([dossierId])
+  @@map("controles_kyc")
+}
+
+model PieceIdentite {
+  id                 Int               @id @default(autoincrement())
+  dossierId          Int               @map("dossier_id")
+  type               TypePieceIdentite
+  numero             String            @db.VarChar(60)
+  autoriteDelivrance String?           @map("autorite_delivrance") @db.VarChar(150)
+  dateDelivrance     DateTime?         @map("date_delivrance") @db.Date
+  dateExpiration     DateTime?         @map("date_expiration") @db.Date
+  pieceJointeId      Int?              @unique @map("piece_jointe_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+
+  dossier     DossierKyc   @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  pieceJointe PieceJointe? @relation(fields: [pieceJointeId], references: [id], onDelete: SetNull)
+
+  @@index([dossierId])
+  @@map("pieces_identite")
+}
+
+// ─────────────────────────────────────────────
+// Comptes et opérations
+// ─────────────────────────────────────────────
+
+model CompteClient {
+  id                     Int          @id @default(autoincrement())
+  numero                 String       @unique @db.VarChar(30)
+  clientId               Int          @map("client_id")
+  produitId              Int          @map("produit_id")
+  solde                  Decimal      @default(0.00) @db.Decimal(15, 2)
+  statut                 StatutCompte @default(actif)
+  dateOuverture          DateTime     @default(now()) @map("date_ouverture") @db.Date
+  /// Objectif d'épargne (compléments stratégiques, point 10) : facultatif, saisi par le client
+  /// ou son commercial. N'affecte aucun calcul financier, sert uniquement au suivi affiché.
+  objectifEpargneMontant Decimal?     @map("objectif_epargne_montant") @db.Decimal(15, 2)
+  objectifEpargneDate    DateTime?    @map("objectif_epargne_date") @db.Date
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  client          Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  produit         Produit          @relation(fields: [produitId], references: [id], onDelete: Restrict)
+  transactions    Transaction[]
+  decaissements   DemandeCredit[]
+  remboursements  Remboursement[]
+  objectifsClient ObjectifClient[]
 
   @@index([clientId])
   @@map("comptes_clients")
@@ -377,25 +1028,381 @@ model Transaction {
   compteId   Int             @map("compte_id")
   type       TypeTransaction
   montant    Decimal         @db.Decimal(15, 2)
-  soldeAvant Decimal         @db.Decimal(15, 2) @map("solde_avant")
-  soldeApres Decimal         @db.Decimal(15, 2) @map("solde_apres")
+  soldeAvant Decimal         @map("solde_avant") @db.Decimal(15, 2)
+  soldeApres Decimal         @map("solde_apres") @db.Decimal(15, 2)
   motif      String?         @db.Text
   agentId    Int             @map("agent_id")
+  /// Journée de collecte à laquelle chaque opération est rattachée (contrôle et rapprochement).
+  journeeId  Int?            @map("journee_id")
+  /// Numéro du reçu numérique remis au client.
+  recuNumero String?         @unique @map("recu_numero") @db.VarChar(40)
+  /// Identifiant généré par le mobile : rend le rejeu hors connexion idempotent (TR-07).
+  clientUid  String?         @unique @map("client_uid") @db.VarChar(64)
   createdAt  DateTime        @default(now()) @map("created_at")
 
-  compte CompteClient @relation(fields: [compteId], references: [id], onDelete: Restrict)
-  agent  Agent        @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  compte  CompteClient     @relation(fields: [compteId], references: [id], onDelete: Restrict)
+  agent   Agent            @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  journee JourneeCollecte? @relation(fields: [journeeId], references: [id], onDelete: SetNull)
 
   @@index([compteId])
   @@index([agentId])
+  @@index([journeeId])
   @@index([createdAt(sort: Desc)])
   @@map("transactions")
 }
 
+// ─────────────────────────────────────────────
+// Crédit
+// ─────────────────────────────────────────────
+
+model DemandeCredit {
+  id                   Int                 @id @default(autoincrement())
+  reference            String              @unique @db.VarChar(40)
+  clientId             Int                 @map("client_id")
+  produitId            Int                 @map("produit_id")
+  parametrageId        Int?                @map("parametrage_id")
+  dossierKycId         Int?                @map("dossier_kyc_id")
+  agenceId             Int                 @map("agence_id")
+  zoneId               Int?                @map("zone_id")
+  typeCredit           TypeCredit          @default(individuel) @map("type_credit")
+  montantDemande       Decimal             @map("montant_demande") @db.Decimal(15, 2)
+  montantAccorde       Decimal?            @map("montant_accorde") @db.Decimal(15, 2)
+  dureeMois            Int                 @map("duree_mois")
+  dureeAccordeeMois    Int?                @map("duree_accordee_mois")
+  periodicite          PeriodiciteEcheance @default(mensuel)
+  differeMois          Int                 @default(0) @map("differe_mois")
+  objet                String              @db.Text
+  tauxApplique         Decimal?            @map("taux_applique") @db.Decimal(6, 3)
+  statut               StatutDemandeCredit @default(brouillon)
+  /// Géolocalisation du demandeur au moment du montage (CRÉDIT 11).
+  latitude             Decimal?            @db.Decimal(10, 7)
+  longitude            Decimal?            @db.Decimal(10, 7)
+  scoreValeur          Int?                @map("score_valeur")
+  scoreClasse          String?             @map("score_classe") @db.VarChar(10)
+  monteParId           Int                 @map("monte_par_id")
+  analyseParId         Int?                @map("analyse_par_id")
+  decideParId          Int?                @map("decide_par_id")
+  compteDecaissementId Int?                @map("compte_decaissement_id")
+  dateSoumission       DateTime?           @map("date_soumission")
+  dateDecision         DateTime?           @map("date_decision")
+  dateDecaissement     DateTime?           @map("date_decaissement")
+  motifDecision        String?             @map("motif_decision") @db.Text
+  archiveAt            DateTime?           @map("archive_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  client             Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  produit            Produit             @relation(fields: [produitId], references: [id], onDelete: Restrict)
+  parametrage        ParametrageProduit? @relation(fields: [parametrageId], references: [id], onDelete: SetNull)
+  dossierKyc         DossierKyc?         @relation(fields: [dossierKycId], references: [id], onDelete: SetNull)
+  agence             Agence              @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  zone               Zone?               @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  montePar           Utilisateur         @relation("DemandeMonteePar", fields: [monteParId], references: [id], onDelete: Restrict)
+  analysePar         Utilisateur?        @relation("DemandeAnalyseePar", fields: [analyseParId], references: [id], onDelete: SetNull)
+  decidePar          Utilisateur?        @relation("DemandeDecideePar", fields: [decideParId], references: [id], onDelete: SetNull)
+  compteDecaissement CompteClient?       @relation(fields: [compteDecaissementId], references: [id], onDelete: SetNull)
+
+  garanties            Garantie[]
+  garants              Garant[]
+  visites              VisiteTerrain[]
+  grille               GrilleAnalyse?
+  decisions            DecisionCredit[]
+  contrat              ContratCredit?
+  echeances            Echeance[]
+  remboursements       Remboursement[]
+  avenants             AvenantCredit[]
+  piecesJointes        PieceJointe[]
+  dossiersRecouvrement DossierRecouvrement[]
+
+  @@index([clientId])
+  @@index([agenceId])
+  @@index([statut])
+  @@index([createdAt(sort: Desc)])
+  @@map("demandes_credit")
+}
+
+model Garantie {
+  id            Int          @id @default(autoincrement())
+  demandeId     Int          @map("demande_id")
+  type          TypeGarantie
+  description   String       @db.Text
+  valeurEstimee Decimal      @map("valeur_estimee") @db.Decimal(15, 2)
+  /// Valeur après décote, seule retenue dans le calcul du taux de couverture.
+  valeurRetenue Decimal?     @map("valeur_retenue") @db.Decimal(15, 2)
+  reference     String?      @db.VarChar(100)
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  demande DemandeCredit @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+
+  @@index([demandeId])
+  @@map("garanties")
+}
+
+model Garant {
+  id            Int      @id @default(autoincrement())
+  demandeId     Int      @map("demande_id")
+  nom           String   @db.VarChar(100)
+  prenom        String?  @db.VarChar(100)
+  telephone     String   @db.VarChar(30)
+  numeroCni     String?  @map("numero_cni") @db.VarChar(50)
+  profession    String?  @db.VarChar(150)
+  revenuMensuel Decimal? @map("revenu_mensuel") @db.Decimal(15, 2)
+  lienParente   String?  @map("lien_parente") @db.VarChar(100)
+  adresse       String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  demande DemandeCredit @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+
+  @@index([demandeId])
+  @@map("garants")
+}
+
+model VisiteTerrain {
+  id          Int      @id @default(autoincrement())
+  demandeId   Int      @map("demande_id")
+  visiteParId Int      @map("visite_par_id")
+  dateVisite  DateTime @map("date_visite")
+  latitude    Decimal? @db.Decimal(10, 7)
+  longitude   Decimal? @db.Decimal(10, 7)
+  compteRendu String   @map("compte_rendu") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  demande   DemandeCredit @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  visitePar Utilisateur   @relation(fields: [visiteParId], references: [id], onDelete: Restrict)
+  photos    PieceJointe[]
+
+  @@index([demandeId])
+  @@map("visites_terrain")
+}
+
+/// Grille d'analyse — compte d'exploitation de l'activité avant impact du crédit.
+///
+/// Reprend le canevas papier à l'identique. Les totaux (marge brute, taux de
+/// marge, (A), (B), (C), (D), capacité de remboursement) sont recalculés par le
+/// serveur à chaque écriture puis figés en base : une grille signée doit rester
+/// lisible telle quelle même si la formule évolue ensuite.
+///
+/// La colonne « demande précédente » du canevas n'est pas dupliquée ici : elle
+/// est lue depuis la grille de `demandePrecedenteId`, ce qui évite toute
+/// divergence entre les deux dossiers.
+model GrilleAnalyse {
+  id                  Int      @id @default(autoincrement())
+  demandeId           Int      @unique @map("demande_id")
+  demandePrecedenteId Int?     @map("demande_precedente_id")
+  /// Date (mois/année) de la période analysée.
+  moisAnnee           DateTime @map("mois_annee") @db.Date
+
+  // ── Chiffre d'affaires ────────────────────────────────────────────────────
+  caHypotheseHaute Decimal          @default(0) @map("ca_hypothese_haute") @db.Decimal(15, 2)
+  caHypotheseBasse Decimal          @default(0) @map("ca_hypothese_basse") @db.Decimal(15, 2)
+  hypotheseRetenue HypotheseRetenue @default(basse) @map("hypothese_retenue")
+  /// (A) — chiffre d'affaires retenu.
+  caRetenu         Decimal          @default(0) @map("ca_retenu") @db.Decimal(15, 2)
+  caCommentaire    String?          @map("ca_commentaire") @db.Text
+
+  // ── Dépenses variables ────────────────────────────────────────────────────
+  achatsMarchandises         Decimal @default(0) @map("achats_marchandises") @db.Decimal(15, 2)
+  transportApprovisionnement Decimal @default(0) @map("transport_approvisionnement") @db.Decimal(15, 2)
+  /// (A) − achats − transport.
+  margeBrute                 Decimal @default(0) @map("marge_brute") @db.Decimal(15, 2)
+  /// Marge brute / (A), en pourcentage.
+  tauxMarge                  Decimal @default(0) @map("taux_marge") @db.Decimal(6, 2)
+
+  // ── Charges fixes ─────────────────────────────────────────────────────────
+  loyerLocal             Decimal @default(0) @map("loyer_local") @db.Decimal(15, 2)
+  impotsTaxes            Decimal @default(0) @map("impots_taxes") @db.Decimal(15, 2)
+  salaires               Decimal @default(0) @db.Decimal(15, 2)
+  eauElectricite         Decimal @default(0) @map("eau_electricite") @db.Decimal(15, 2)
+  reparationsMaintenance Decimal @default(0) @map("reparations_maintenance") @db.Decimal(15, 2)
+  autresDepensesActivite Decimal @default(0) @map("autres_depenses_activite") @db.Decimal(15, 2)
+  /// (B) — total des dépenses de l'activité.
+  totalDepenses          Decimal @default(0) @map("total_depenses") @db.Decimal(15, 2)
+  /// (C) = (A) − (B).
+  cashFlow               Decimal @default(0) @map("cash_flow") @db.Decimal(15, 2)
+
+  // ── Dépenses hors activité ────────────────────────────────────────────────
+  loyerDomicile            Decimal @default(0) @map("loyer_domicile") @db.Decimal(15, 2)
+  autresDepensesFamiliales Decimal @default(0) @map("autres_depenses_familiales") @db.Decimal(15, 2)
+  /// (D) — total des dépenses hors activité.
+  totalHorsActivite        Decimal @default(0) @map("total_hors_activite") @db.Decimal(15, 2)
+
+  // ── Engagements et autres revenus ─────────────────────────────────────────
+  echeancesCecaw        Decimal @default(0) @map("echeances_cecaw") @db.Decimal(15, 2)
+  echeancesAutresEmf    Decimal @default(0) @map("echeances_autres_emf") @db.Decimal(15, 2)
+  detteAutresEmf        Decimal @default(0) @map("dette_autres_emf") @db.Decimal(15, 2)
+  autresRevenusNets     Decimal @default(0) @map("autres_revenus_nets") @db.Decimal(15, 2)
+  /// (C) − (D) − échéances en cours + autres revenus nets.
+  capaciteRemboursement Decimal @default(0) @map("capacite_remboursement") @db.Decimal(15, 2)
+
+  // ── Ratios de décision ────────────────────────────────────────────────────
+  mensualiteProposee Decimal? @map("mensualite_proposee") @db.Decimal(15, 2)
+  /// Capacité de remboursement / mensualité proposée.
+  tauxCouverture     Decimal? @map("taux_couverture") @db.Decimal(6, 2)
+  /// Part de la capacité absorbée par la mensualité, en pourcentage.
+  ratioEndettement   Decimal? @map("ratio_endettement") @db.Decimal(6, 2)
+  detailCalculs      String?  @map("detail_calculs") @db.Text
+
+  analyseParId Int      @map("analyse_par_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  demande    DemandeCredit @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  analysePar Utilisateur   @relation(fields: [analyseParId], references: [id], onDelete: Restrict)
+  bilan      BilanAnalyse?
+
+  @@map("grilles_analyse")
+}
+
+/// Bilan simplifié accompagnant la grille : fonds de commerce au débit,
+/// dettes et fonds propres au crédit. `fondsPropres` est toujours déduit
+/// (total actif − dettes) pour que l'équilibre soit garanti par construction.
+model BilanAnalyse {
+  id       Int @id @default(autoincrement())
+  grilleId Int @unique @map("grille_id")
+
+  // ── Actifs professionnels (fonds de commerce) ─────────────────────────────
+  localTerrain       Decimal @default(0) @map("local_terrain") @db.Decimal(15, 2)
+  equipement         Decimal @default(0) @db.Decimal(15, 2)
+  stockMarchandises  Decimal @default(0) @map("stock_marchandises") @db.Decimal(15, 2)
+  creancesClients    Decimal @default(0) @map("creances_clients") @db.Decimal(15, 2)
+  liquidites         Decimal @default(0) @db.Decimal(15, 2)
+  autresActifs       Decimal @default(0) @map("autres_actifs") @db.Decimal(15, 2)
+  totalFondsCommerce Decimal @default(0) @map("total_fonds_commerce") @db.Decimal(15, 2)
+  actifCommentaire   String? @map("actif_commentaire") @db.Text
+
+  // ── Passif ────────────────────────────────────────────────────────────────
+  dettes            Decimal @default(0) @db.Decimal(15, 2)
+  fondsPropres      Decimal @default(0) @map("fonds_propres") @db.Decimal(15, 2)
+  totalPassif       Decimal @default(0) @map("total_passif") @db.Decimal(15, 2)
+  passifCommentaire String? @map("passif_commentaire") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  grille GrilleAnalyse @relation(fields: [grilleId], references: [id], onDelete: Cascade)
+
+  @@map("bilans_analyse")
+}
+
+model DecisionCredit {
+  id                Int              @id @default(autoincrement())
+  demandeId         Int              @map("demande_id")
+  sens              SensDecision
+  instance          InstanceDecision @default(agence)
+  montantAccorde    Decimal?         @map("montant_accorde") @db.Decimal(15, 2)
+  dureeAccordeeMois Int?             @map("duree_accordee_mois")
+  tauxAccorde       Decimal?         @map("taux_accorde") @db.Decimal(6, 3)
+  conditions        String?          @db.Text
+  motif             String?          @db.Text
+  decideParId       Int              @map("decide_par_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  demande   DemandeCredit @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  decidePar Utilisateur   @relation(fields: [decideParId], references: [id], onDelete: Restrict)
+
+  @@index([demandeId])
+  @@map("decisions_credit")
+}
+
+model ContratCredit {
+  id             Int       @id @default(autoincrement())
+  demandeId      Int       @unique @map("demande_id")
+  numero         String    @unique @db.VarChar(40)
+  montant        Decimal   @db.Decimal(15, 2)
+  taux           Decimal   @db.Decimal(6, 3)
+  dureeMois      Int       @map("duree_mois")
+  fraisDossier   Decimal   @default(0) @map("frais_dossier") @db.Decimal(15, 2)
+  dateSignature  DateTime? @map("date_signature")
+  dateDeblocage  DateTime? @map("date_deblocage")
+  signeParClient Boolean   @default(false) @map("signe_par_client")
+  documentUrl    String?   @map("document_url") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  demande DemandeCredit @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+
+  @@map("contrats_credit")
+}
+
+model Echeance {
+  id               Int            @id @default(autoincrement())
+  demandeId        Int            @map("demande_id")
+  numero           Int
+  dateEcheance     DateTime       @map("date_echeance") @db.Date
+  capital          Decimal        @db.Decimal(15, 2)
+  interet          Decimal        @db.Decimal(15, 2)
+  frais            Decimal        @default(0) @db.Decimal(15, 2)
+  penalite         Decimal        @default(0) @db.Decimal(15, 2)
+  montantTotal     Decimal        @map("montant_total") @db.Decimal(15, 2)
+  capitalRestantDu Decimal        @map("capital_restant_du") @db.Decimal(15, 2)
+  montantPaye      Decimal        @default(0) @map("montant_paye") @db.Decimal(15, 2)
+  statut           StatutEcheance @default(a_echoir)
+  datePaiement     DateTime?      @map("date_paiement")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  demande        DemandeCredit   @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  remboursements Remboursement[]
+
+  @@unique([demandeId, numero])
+  @@index([dateEcheance])
+  @@index([statut])
+  @@map("echeances")
+}
+
+model Remboursement {
+  id           Int           @id @default(autoincrement())
+  demandeId    Int           @map("demande_id")
+  echeanceId   Int?          @map("echeance_id")
+  compteId     Int?          @map("compte_id")
+  montant      Decimal       @db.Decimal(15, 2)
+  mode         ModeReglement @default(especes)
+  reference    String?       @db.VarChar(100)
+  datePaiement DateTime      @map("date_paiement")
+  recuParId    Int           @map("recu_par_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  demande  DemandeCredit @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  echeance Echeance?     @relation(fields: [echeanceId], references: [id], onDelete: SetNull)
+  compte   CompteClient? @relation(fields: [compteId], references: [id], onDelete: SetNull)
+  recuPar  Utilisateur   @relation(fields: [recuParId], references: [id], onDelete: Restrict)
+
+  @@index([demandeId])
+  @@index([datePaiement(sort: Desc)])
+  @@map("remboursements")
+}
+
+model AvenantCredit {
+  id                Int         @id @default(autoincrement())
+  demandeId         Int         @map("demande_id")
+  type              TypeAvenant
+  motif             String      @db.Text
+  ancienMontant     Decimal     @map("ancien_montant") @db.Decimal(15, 2)
+  nouveauMontant    Decimal     @map("nouveau_montant") @db.Decimal(15, 2)
+  ancienneDureeMois Int         @map("ancienne_duree_mois")
+  nouvelleDureeMois Int         @map("nouvelle_duree_mois")
+  nouveauTaux       Decimal?    @map("nouveau_taux") @db.Decimal(6, 3)
+  dateEffet         DateTime    @map("date_effet") @db.Date
+  valideParId       Int         @map("valide_par_id")
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  demande   DemandeCredit @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  validePar Utilisateur   @relation(fields: [valideParId], references: [id], onDelete: Restrict)
+
+  @@index([demandeId])
+  @@map("avenants_credit")
+}
+
+// ─────────────────────────────────────────────
+// Objectifs, journalisation, archivage
+// ─────────────────────────────────────────────
+
 model Objectif {
   id              Int                 @id @default(autoincrement())
   titre           String              @db.VarChar(200)
-  produitId       Int                 @map("produit_id")
+  produitId       Int?                @map("produit_id")
+  categorie       CategorieObjectif   @default(produit)
+  agenceId        Int?                @map("agence_id")
   cible           Decimal             @db.Decimal(15, 2)
   unite           UniteObjectif
   periodicite     PeriodiciteObjectif
@@ -403,18 +1410,22 @@ model Objectif {
   dateFin         DateTime            @map("date_fin") @db.Date
   assignationType AssignationObjectif @default(agents) @map("assignation_type")
   equipeId        Int?                @map("equipe_id")
+  zoneId          Int?                @map("zone_id")
   realise         Decimal             @default(0) @db.Decimal(15, 2)
   statut          StatutObjectif      @default(en_cours)
   createdById     Int                 @map("created_by_id")
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
 
-  produit   Produit         @relation(fields: [produitId], references: [id], onDelete: Restrict)
+  produit   Produit?        @relation(fields: [produitId], references: [id], onDelete: Restrict)
+  agence    Agence?         @relation(fields: [agenceId], references: [id], onDelete: SetNull)
   equipe    Equipe?         @relation(fields: [equipeId], references: [id], onDelete: SetNull)
+  zone      Zone?           @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   createdBy Utilisateur     @relation(fields: [createdById], references: [id], onDelete: Restrict)
   agents    ObjectifAgent[]
 
   @@index([equipeId])
+  @@index([zoneId])
   @@index([statut])
   @@map("objectifs")
 }
@@ -434,12 +1445,12 @@ model Log {
   id               Int       @id @default(autoincrement())
   timestamp        DateTime  @default(now())
   utilisateurId    Int?      @map("utilisateur_id")
-  utilisateurLabel String    @db.VarChar(200) @map("utilisateur_label")
+  utilisateurLabel String    @map("utilisateur_label") @db.VarChar(200)
   agenceId         Int?      @map("agence_id")
   module           ModuleLog
   action           String    @db.VarChar(100)
-  entiteType       String    @db.VarChar(100) @map("entite_type")
-  entiteId         String    @db.VarChar(100) @map("entite_id")
+  entiteType       String    @map("entite_type") @db.VarChar(100)
+  entiteId         String    @map("entite_id") @db.VarChar(100)
   description      String?   @db.Text
   impact           String?   @db.Text
 
@@ -451,4 +1462,929 @@ model Log {
   @@index([agenceId])
   @@index([module])
   @@map("logs")
+}
+
+/// Archivage réglementaire : instantané figé et horodaté d'un dossier.
+///
+/// `contenu` porte l'état complet au moment de l'archivage et `hash` son
+/// empreinte SHA-256. Une archive n'est jamais modifiée : toute reprise du
+/// dossier crée une version suivante, si bien que l'historique reste opposable
+/// même si les tables métier évoluent.
+model Archive {
+  id           Int      @id @default(autoincrement())
+  entiteType   String   @map("entite_type") @db.VarChar(60)
+  entiteId     Int      @map("entite_id")
+  reference    String   @db.VarChar(60)
+  version      Int      @default(1)
+  contenu      Json
+  hash         String   @db.VarChar(64)
+  motif        String?  @db.Text
+  archiveParId Int?     @map("archive_par_id")
+  archiveAt    DateTime @default(now()) @map("archive_at")
+
+  archivePar Utilisateur? @relation(fields: [archiveParId], references: [id], onDelete: SetNull)
+
+  @@unique([entiteType, entiteId, version])
+  @@index([entiteType, entiteId])
+  @@index([reference])
+  @@map("archives")
+}
+
+// ─────────────────────────────────────────────
+// Lot 4 : recouvrement
+// ─────────────────────────────────────────────
+
+enum CategorieObjectif {
+  produit
+  commercial
+  collecte
+  credit
+  recouvrement
+  nouveaux_clients
+}
+
+enum StatutRecouvrement {
+  ouvert
+  en_relance
+  promesse
+  plan_regularisation
+  precontentieux
+  contentieux
+  regularise
+  irrecouvrable
+}
+
+enum ClasseRetard {
+  r1_30
+  r31_60
+  r61_90
+  r91_180
+  r180_plus
+}
+
+enum CanalRelance {
+  sms
+  appel
+  visite
+  courrier
+  email
+}
+
+enum StatutPromesse {
+  en_cours
+  tenue
+  rompue
+  annulee
+}
+
+enum StatutPlan {
+  propose
+  actif
+  termine
+  rompu
+}
+
+/// Dossier de recouvrement : un par crédit en retard, ouvert automatiquement par la
+/// détection quotidienne des impayés et clos à la régularisation.
+model DossierRecouvrement {
+  id                  Int                @id @default(autoincrement())
+  reference           String             @unique @db.VarChar(40)
+  demandeId           Int                @map("demande_id")
+  clientId            Int                @map("client_id")
+  agenceId            Int                @map("agence_id")
+  zoneId              Int?               @map("zone_id")
+  statut              StatutRecouvrement @default(ouvert)
+  classe              ClasseRetard       @default(r1_30)
+  joursRetard         Int                @default(0) @map("jours_retard")
+  nbEcheancesImpayees Int                @default(0) @map("nb_echeances_impayees")
+  montantImpaye       Decimal            @default(0) @map("montant_impaye") @db.Decimal(15, 2)
+  penalites           Decimal            @default(0) @db.Decimal(15, 2)
+  capitalRestantDu    Decimal            @default(0) @map("capital_restant_du") @db.Decimal(15, 2)
+  montantRecouvre     Decimal            @default(0) @map("montant_recouvre") @db.Decimal(15, 2)
+  /// Niveau de relance (1 à 4) que le retard actuel impose ; `niveauAtteint` est le dernier effectué.
+  niveauRequis        Int                @default(1) @map("niveau_requis")
+  niveauAtteint       Int                @default(0) @map("niveau_atteint")
+  agentId             Int?               @map("agent_id")
+  /// Localisation du débiteur, reprise du client (domicile ou activité) ou saisie sur le terrain.
+  latitude            Decimal?           @db.Decimal(10, 7)
+  longitude           Decimal?           @db.Decimal(10, 7)
+  sourceLocalisation  String?            @map("source_localisation") @db.VarChar(30)
+  ouvertAt            DateTime           @default(now()) @map("ouvert_at")
+  derniereRelanceAt   DateTime?          @map("derniere_relance_at")
+  prochaineActionAt   DateTime?          @map("prochaine_action_at")
+  precontentieuxAt    DateTime?          @map("precontentieux_at")
+  contentieuxAt       DateTime?          @map("contentieux_at")
+  motifEscalade       String?            @map("motif_escalade") @db.Text
+  clotureAt           DateTime?          @map("cloture_at")
+  motifCloture        String?            @map("motif_cloture") @db.Text
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  demande   DemandeCredit         @relation(fields: [demandeId], references: [id], onDelete: Restrict)
+  client    Client                @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  agence    Agence                @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  zone      Zone?                 @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  agent     Utilisateur?          @relation("RecouvrementAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  relances  RelanceRecouvrement[]
+  promesses PromessePaiement[]
+  plans     PlanRegularisation[]
+  visites   VisiteTournee[]
+
+  @@index([demandeId])
+  @@index([statut])
+  @@index([agenceId])
+  @@index([agentId])
+  @@map("dossiers_recouvrement")
+}
+
+model RelanceRecouvrement {
+  id          Int          @id @default(autoincrement())
+  dossierId   Int          @map("dossier_id")
+  niveau      Int
+  canal       CanalRelance
+  message     String?      @db.Text
+  resultat    String?      @db.Text
+  agentId     Int?         @map("agent_id")
+  /// Position relevée lors d'une visite de recouvrement.
+  latitude    Decimal?     @db.Decimal(10, 7)
+  longitude   Decimal?     @db.Decimal(10, 7)
+  automatique Boolean      @default(false)
+  relanceAt   DateTime     @default(now()) @map("relance_at")
+
+  dossier DossierRecouvrement @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  agent   Utilisateur?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([dossierId])
+  @@map("relances_recouvrement")
+}
+
+model PromessePaiement {
+  id          Int            @id @default(autoincrement())
+  dossierId   Int            @map("dossier_id")
+  montant     Decimal        @db.Decimal(15, 2)
+  datePromise DateTime       @map("date_promise") @db.Date
+  statut      StatutPromesse @default(en_cours)
+  commentaire String?        @db.Text
+  montantRecu Decimal?       @map("montant_recu") @db.Decimal(15, 2)
+  creeParId   Int            @map("cree_par_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  traiteAt    DateTime?      @map("traite_at")
+
+  dossier DossierRecouvrement @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  creePar Utilisateur         @relation(fields: [creeParId], references: [id], onDelete: Restrict)
+
+  @@index([dossierId])
+  @@index([statut, datePromise])
+  @@map("promesses_paiement")
+}
+
+model PlanRegularisation {
+  id           Int        @id @default(autoincrement())
+  dossierId    Int        @map("dossier_id")
+  montantTotal Decimal    @map("montant_total") @db.Decimal(15, 2)
+  statut       StatutPlan @default(propose)
+  creeParId    Int        @map("cree_par_id")
+  valideParId  Int?       @map("valide_par_id")
+  valideAt     DateTime?  @map("valide_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  dossier    DossierRecouvrement @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  creePar    Utilisateur         @relation("PlanCreePar", fields: [creeParId], references: [id], onDelete: Restrict)
+  valideePar Utilisateur?        @relation("PlanValidePar", fields: [valideParId], references: [id], onDelete: SetNull)
+  lignes     PlanEcheance[]
+
+  @@index([dossierId])
+  @@map("plans_regularisation")
+}
+
+model PlanEcheance {
+  id           Int            @id @default(autoincrement())
+  planId       Int            @map("plan_id")
+  numero       Int
+  dateEcheance DateTime       @map("date_echeance") @db.Date
+  montant      Decimal        @db.Decimal(15, 2)
+  montantPaye  Decimal        @default(0) @map("montant_paye") @db.Decimal(15, 2)
+  statut       StatutEcheance @default(a_echoir)
+
+  plan PlanRegularisation @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, numero])
+  @@map("plans_echeances")
+}
+
+// ─────────────────────────────────────────────
+// Lot 5 : terrain, tournées, collecte
+// ─────────────────────────────────────────────
+
+enum TypeTournee {
+  commerciale
+  collecte
+  recouvrement
+}
+
+enum StatutTournee {
+  planifiee
+  en_cours
+  terminee
+  annulee
+}
+
+enum StatutVisite {
+  prevue
+  en_cours
+  realisee
+  manquee
+  annulee
+}
+
+enum TypeCible {
+  client
+  prospect
+  dossier_recouvrement
+  point_collecte
+}
+
+enum StatutJournee {
+  ouverte
+  cloturee
+  controlee
+  rapprochee
+  rejetee
+}
+
+model Tournee {
+  id                 Int           @id @default(autoincrement())
+  reference          String        @unique @db.VarChar(40)
+  type               TypeTournee
+  statut             StatutTournee @default(planifiee)
+  date               DateTime      @db.Date
+  agentId            Int           @map("agent_id")
+  agenceId           Int           @map("agence_id")
+  zoneId             Int?          @map("zone_id")
+  planifieParId      Int           @map("planifie_par_id")
+  genereeAuto        Boolean       @default(false) @map("generee_auto")
+  optimisee          Boolean       @default(false)
+  /// Point de départ retenu pour l'optimisation.
+  departLatitude     Decimal?      @map("depart_latitude") @db.Decimal(10, 7)
+  departLongitude    Decimal?      @map("depart_longitude") @db.Decimal(10, 7)
+  distancePrevueKm   Decimal       @default(0) @map("distance_prevue_km") @db.Decimal(10, 2)
+  dureePrevueMin     Int           @default(0) @map("duree_prevue_min")
+  distanceRealiseeKm Decimal?      @map("distance_realisee_km") @db.Decimal(10, 2)
+  dureeRealiseeMin   Int?          @map("duree_realisee_min")
+  debutAt            DateTime?     @map("debut_at")
+  finAt              DateTime?     @map("fin_at")
+  notes              String?       @db.Text
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  agent       Agent           @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  agence      Agence          @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  zone        Zone?           @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  planifiePar Utilisateur     @relation("TourneePlanifiePar", fields: [planifieParId], references: [id], onDelete: Restrict)
+  visites     VisiteTournee[]
+
+  @@index([agentId, date])
+  @@index([statut])
+  @@map("tournees")
+}
+
+model VisiteTournee {
+  id                         Int          @id @default(autoincrement())
+  tourneeId                  Int          @map("tournee_id")
+  ordre                      Int
+  cibleType                  TypeCible    @map("cible_type")
+  clientId                   Int?         @map("client_id")
+  prospectId                 Int?         @map("prospect_id")
+  dossierId                  Int?         @map("dossier_id")
+  libelle                    String       @db.VarChar(200)
+  adresse                    String?      @db.Text
+  latitude                   Decimal?     @db.Decimal(10, 7)
+  longitude                  Decimal?     @db.Decimal(10, 7)
+  /// Score de priorité (0 à 100) ayant servi à retenir et ordonner la visite.
+  priorite                   Int          @default(0)
+  motifPriorite              String?      @map("motif_priorite") @db.VarChar(200)
+  statut                     StatutVisite @default(prevue)
+  heurePrevue                DateTime?    @map("heure_prevue")
+  distanceDepuisPrecedenteKm Decimal?     @map("distance_precedente_km") @db.Decimal(10, 2)
+  arriveeAt                  DateTime?    @map("arrivee_at")
+  departAt                   DateTime?    @map("depart_at")
+  latitudeArrivee            Decimal?     @map("latitude_arrivee") @db.Decimal(10, 7)
+  longitudeArrivee           Decimal?     @map("longitude_arrivee") @db.Decimal(10, 7)
+  /// Écart entre la position d'arrivée et la cible : c'est la preuve de présence.
+  distanceCibleM             Int?         @map("distance_cible_m")
+  presenceValidee            Boolean      @default(false) @map("presence_validee")
+  compteRendu                String?      @map("compte_rendu") @db.Text
+  signatureJson              Json?        @map("signature_json")
+  signatureHash              String?      @map("signature_hash") @db.VarChar(64)
+  signatureNom               String?      @map("signature_nom") @db.VarChar(150)
+  signatureAt                DateTime?    @map("signature_at")
+  /// Rejeu hors connexion : identifiant fourni par le mobile et numéro de version.
+  clientUid                  String?      @unique @map("client_uid") @db.VarChar(64)
+  version                    Int          @default(1)
+  conflitDetecte             Boolean      @default(false) @map("conflit_detecte")
+  conflitDetail              Json?        @map("conflit_detail")
+  createdAt                  DateTime     @default(now()) @map("created_at")
+  updatedAt                  DateTime     @updatedAt @map("updated_at")
+
+  tournee  Tournee              @relation(fields: [tourneeId], references: [id], onDelete: Cascade)
+  client   Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  prospect Prospect?            @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  dossier  DossierRecouvrement? @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+  photos   PieceJointe[]
+
+  @@index([tourneeId, ordre])
+  @@map("visites_tournee")
+}
+
+/// Portefeuille de collecte explicite : quels clients relèvent de quel collecteur.
+model PortefeuilleCollecte {
+  id           Int      @id @default(autoincrement())
+  agentId      Int      @map("agent_id")
+  clientId     Int      @map("client_id")
+  actif        Boolean  @default(true)
+  affecteParId Int?     @map("affecte_par_id")
+  affecteAt    DateTime @default(now()) @map("affecte_at")
+
+  agent      Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  client     Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  affectePar Utilisateur? @relation("PortefeuilleAffectePar", fields: [affecteParId], references: [id], onDelete: SetNull)
+
+  @@unique([agentId, clientId])
+  @@index([clientId])
+  @@map("portefeuilles_collecte")
+}
+
+/// Journée de collecte d'un agent : regroupe ses encaissements, puis suit
+/// la clôture, le contrôle par le superviseur et le rapprochement avec la caisse.
+model JourneeCollecte {
+  id                  Int           @id @default(autoincrement())
+  agentId             Int           @map("agent_id")
+  date                DateTime      @db.Date
+  statut              StatutJournee @default(ouverte)
+  totalCollecte       Decimal       @default(0) @map("total_collecte") @db.Decimal(15, 2)
+  nbOperations        Int           @default(0) @map("nb_operations")
+  clotureAt           DateTime?     @map("cloture_at")
+  controleParId       Int?          @map("controle_par_id")
+  controleAt          DateTime?     @map("controle_at")
+  commentaireControle String?       @map("commentaire_controle") @db.Text
+  /// Montant effectivement remis en caisse, comparé au total collecté au rapprochement.
+  montantVerse        Decimal?      @map("montant_verse") @db.Decimal(15, 2)
+  ecart               Decimal?      @db.Decimal(15, 2)
+  rapprocheParId      Int?          @map("rapproche_par_id")
+  rapprocheAt         DateTime?     @map("rapproche_at")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  agent        Agent         @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  controlePar  Utilisateur?  @relation("JourneeControlePar", fields: [controleParId], references: [id], onDelete: SetNull)
+  rapprochePar Utilisateur?  @relation("JourneeRapprochePar", fields: [rapprocheParId], references: [id], onDelete: SetNull)
+  transactions Transaction[]
+
+  @@unique([agentId, date])
+  @@index([statut])
+  @@map("journees_collecte")
+}
+
+// ─────────────────────────────────────────────
+// Lot 6 : notifications, échanges, comptabilité
+// ─────────────────────────────────────────────
+
+enum CanalNotification {
+  in_app
+  sms
+  email
+}
+
+enum StatutEnvoi {
+  en_attente
+  envoye
+  echec
+}
+
+enum SensEcriture {
+  debit
+  credit
+}
+
+enum TypeJournal {
+  caisse
+  banque
+  operations_diverses
+}
+
+enum StatutEcriture {
+  validee
+  annulee
+}
+
+enum StatutRapprochementLigne {
+  non_rapprochee
+  rapprochee
+  ecart
+}
+
+model Notification {
+  id            Int       @id @default(autoincrement())
+  utilisateurId Int       @map("utilisateur_id")
+  titre         String    @db.VarChar(200)
+  message       String    @db.Text
+  code          String?   @db.VarChar(80)
+  lien          String?   @db.VarChar(255)
+  entiteType    String?   @map("entite_type") @db.VarChar(60)
+  entiteId      Int?      @map("entite_id")
+  lu            Boolean   @default(false)
+  luAt          DateTime? @map("lu_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@index([utilisateurId, lu, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+/// Journal des événements métier : toute action notable y dépose une ligne, que les
+/// déclencheurs transforment ensuite en notifications, SMS et webhooks.
+model EvenementMetier {
+  id         Int      @id @default(autoincrement())
+  code       String   @db.VarChar(80)
+  entiteType String?  @map("entite_type") @db.VarChar(60)
+  entiteId   Int?     @map("entite_id")
+  agenceId   Int?     @map("agence_id")
+  acteurId   Int?     @map("acteur_id")
+  donnees    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([code, createdAt(sort: Desc)])
+  @@map("evenements_metier")
+}
+
+/// Règle paramétrable : « quand tel événement survient, prévenir tels destinataires par tels canaux ».
+model DeclencheurNotification {
+  id           Int      @id @default(autoincrement())
+  evenement    String   @db.VarChar(80)
+  libelle      String   @db.VarChar(200)
+  /// `acteur`, `roles`, `agent_assigne`, `commercial`, `client`.
+  destinataire String   @db.VarChar(30)
+  roleCodes    Json?    @map("role_codes")
+  canaux       Json
+  titre        String   @db.VarChar(200)
+  gabarit      String   @db.Text
+  actif        Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([evenement])
+  @@map("declencheurs_notification")
+}
+
+/// File d'envoi des SMS : rien n'est perdu si le fournisseur est indisponible.
+model MessageSms {
+  id                   Int         @id @default(autoincrement())
+  telephone            String      @db.VarChar(30)
+  message              String      @db.Text
+  statut               StatutEnvoi @default(en_attente)
+  tentatives           Int         @default(0)
+  erreur               String?     @db.Text
+  entiteType           String?     @map("entite_type") @db.VarChar(60)
+  entiteId             Int?        @map("entite_id")
+  referenceFournisseur String?     @map("reference_fournisseur") @db.VarChar(100)
+  prochaineTentativeAt DateTime?   @map("prochaine_tentative_at")
+  envoyeAt             DateTime?   @map("envoye_at")
+  createdAt            DateTime    @default(now()) @map("created_at")
+
+  @@index([statut, prochaineTentativeAt])
+  @@map("messages_sms")
+}
+
+/// Trace technique de tout échange avec un système externe (TR-09).
+model JournalEchange {
+  id        Int      @id @default(autoincrement())
+  systeme   String   @db.VarChar(40)
+  direction String   @db.VarChar(10)
+  reference String?  @db.VarChar(100)
+  statut    String   @db.VarChar(20)
+  codeHttp  Int?     @map("code_http")
+  dureeMs   Int?     @map("duree_ms")
+  requete   String?  @db.Text
+  reponse   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([systeme, createdAt(sort: Desc)])
+  @@map("journal_echanges")
+}
+
+model AbonnementWebhook {
+  id                Int      @id @default(autoincrement())
+  nom               String   @db.VarChar(150)
+  url               String   @db.Text
+  /// Codes d'événements suivis ; `*` pour tous.
+  evenements        Json
+  secret            String   @db.VarChar(100)
+  actif             Boolean  @default(true)
+  echecsConsecutifs Int      @default(0) @map("echecs_consecutifs")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@map("abonnements_webhook")
+}
+
+model CompteComptable {
+  id         Int          @id @default(autoincrement())
+  numero     String       @unique @db.VarChar(20)
+  libelle    String       @db.VarChar(200)
+  classe     Int
+  /// Sens normal du solde : `debit` (actif, charges) ou `credit` (passif, produits).
+  sensNormal SensEcriture @map("sens_normal")
+  actif      Boolean      @default(true)
+
+  lignes LigneEcriture[]
+
+  @@index([classe])
+  @@map("comptes_comptables")
+}
+
+model PeriodeComptable {
+  id           Int       @id @default(autoincrement())
+  periode      String    @unique @db.VarChar(7)
+  cloturee     Boolean   @default(false)
+  clotureParId Int?      @map("cloture_par_id")
+  clotureAt    DateTime? @map("cloture_at")
+
+  @@map("periodes_comptables")
+}
+
+model EcritureComptable {
+  id            Int            @id @default(autoincrement())
+  /// Clé d'idempotence : un même événement financier ne génère jamais deux écritures.
+  cle           String         @unique @db.VarChar(120)
+  journal       TypeJournal
+  numeroPiece   String         @map("numero_piece") @db.VarChar(40)
+  dateOperation DateTime       @map("date_operation") @db.Date
+  periode       String         @db.VarChar(7)
+  libelle       String         @db.VarChar(255)
+  evenement     String         @db.VarChar(80)
+  entiteType    String?        @map("entite_type") @db.VarChar(60)
+  entiteId      Int?           @map("entite_id")
+  agenceId      Int?           @map("agence_id")
+  statut        StatutEcriture @default(validee)
+  exporteAt     DateTime?      @map("exporte_at")
+  creeParId     Int?           @map("cree_par_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  creePar      Utilisateur?    @relation(fields: [creeParId], references: [id], onDelete: SetNull)
+  lignes       LigneEcriture[]
+  lignesReleve LigneReleve[]
+
+  @@index([periode])
+  @@index([dateOperation])
+  @@index([evenement])
+  @@map("ecritures_comptables")
+}
+
+model LigneEcriture {
+  id         Int          @id @default(autoincrement())
+  ecritureId Int          @map("ecriture_id")
+  compteId   Int          @map("compte_id")
+  sens       SensEcriture
+  montant    Decimal      @db.Decimal(15, 2)
+  libelle    String?      @db.VarChar(255)
+
+  ecriture EcritureComptable @relation(fields: [ecritureId], references: [id], onDelete: Cascade)
+  compte   CompteComptable   @relation(fields: [compteId], references: [id], onDelete: Restrict)
+
+  @@index([ecritureId])
+  @@index([compteId])
+  @@map("lignes_ecriture")
+}
+
+model ReleveBancaire {
+  id          Int       @id @default(autoincrement())
+  banque      String    @db.VarChar(150)
+  compte      String?   @db.VarChar(60)
+  dateDebut   DateTime? @map("date_debut") @db.Date
+  dateFin     DateTime? @map("date_fin") @db.Date
+  importParId Int       @map("import_par_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  importePar Utilisateur   @relation(fields: [importParId], references: [id], onDelete: Restrict)
+  lignes     LigneReleve[]
+
+  @@map("releves_bancaires")
+}
+
+model LigneReleve {
+  id            Int                      @id @default(autoincrement())
+  releveId      Int                      @map("releve_id")
+  dateOperation DateTime                 @map("date_operation") @db.Date
+  libelle       String                   @db.VarChar(255)
+  /// Positif : entrée en banque ; négatif : sortie.
+  montant       Decimal                  @db.Decimal(15, 2)
+  reference     String?                  @db.VarChar(100)
+  statut        StatutRapprochementLigne @default(non_rapprochee)
+  ecritureId    Int?                     @map("ecriture_id")
+  commentaire   String?                  @db.Text
+
+  releve   ReleveBancaire     @relation(fields: [releveId], references: [id], onDelete: Cascade)
+  ecriture EcritureComptable? @relation(fields: [ecritureId], references: [id], onDelete: SetNull)
+
+  @@index([releveId])
+  @@map("lignes_releve")
+}
+
+// ─────────────────────────────────────────────
+// Lot 8 : conformité, administration, tâches
+// ─────────────────────────────────────────────
+
+enum NiveauAlerte {
+  info
+  moyen
+  eleve
+  critique
+}
+
+enum StatutAlerte {
+  ouverte
+  en_cours
+  traitee
+  fausse_alerte
+}
+
+enum CategorieListe {
+  sanction
+  pep
+  interne
+}
+
+model AlerteConformite {
+  id                    Int          @id @default(autoincrement())
+  /// Règle déclenchante, ex. `montant_eleve`, `fractionnement`, `surveillance_kyc`.
+  code                  String       @db.VarChar(60)
+  niveau                NiveauAlerte @default(moyen)
+  statut                StatutAlerte @default(ouverte)
+  titre                 String       @db.VarChar(200)
+  description           String?      @db.Text
+  entiteType            String?      @map("entite_type") @db.VarChar(60)
+  entiteId              Int?         @map("entite_id")
+  agenceId              Int?         @map("agence_id")
+  utilisateurId         Int?         @map("utilisateur_id")
+  donnees               Json?
+  /// Empreinte de la situation détectée : la même anomalie n'est signalée qu'une fois.
+  empreinte             String       @unique @db.VarChar(120)
+  traiteParId           Int?         @map("traite_par_id")
+  traiteAt              DateTime?    @map("traite_at")
+  commentaireTraitement String?      @map("commentaire_traitement") @db.Text
+  createdAt             DateTime     @default(now()) @map("created_at")
+
+  agence    Agence?      @relation(fields: [agenceId], references: [id], onDelete: SetNull)
+  traitePar Utilisateur? @relation("AlerteTraitePar", fields: [traiteParId], references: [id], onDelete: SetNull)
+  concerne  Utilisateur? @relation("AlerteConcerne", fields: [utilisateurId], references: [id], onDelete: SetNull)
+
+  @@index([statut, niveau])
+  @@index([createdAt(sort: Desc)])
+  @@map("alertes_conformite")
+}
+
+model EntreeSurveillance {
+  id            Int            @id @default(autoincrement())
+  nom           String         @db.VarChar(150)
+  prenom        String?        @db.VarChar(150)
+  dateNaissance DateTime?      @map("date_naissance") @db.Date
+  numeroPiece   String?        @map("numero_piece") @db.VarChar(60)
+  pays          String?        @db.VarChar(80)
+  categorie     CategorieListe @default(interne)
+  source        String?        @db.VarChar(150)
+  motif         String?        @db.Text
+  actif         Boolean        @default(true)
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  @@index([nom])
+  @@map("entrees_surveillance")
+}
+
+model ParametreSysteme {
+  id           Int      @id @default(autoincrement())
+  cle          String   @unique @db.VarChar(100)
+  valeur       Json
+  categorie    String   @db.VarChar(50)
+  description  String?  @db.Text
+  modifieParId Int?     @map("modifie_par_id")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  modifiePar Utilisateur? @relation(fields: [modifieParId], references: [id], onDelete: SetNull)
+
+  @@map("parametres_systeme")
+}
+
+/// Exécution d'une tâche planifiée. L'unicité (nom, jour, occurrence) sert de verrou :
+/// deux instances du serveur ne lancent jamais la même tâche le même jour.
+model TacheExecution {
+  id         Int       @id @default(autoincrement())
+  nom        String    @db.VarChar(60)
+  jour       DateTime  @db.Date
+  occurrence Int       @default(0)
+  statut     String    @db.VarChar(20)
+  debutAt    DateTime  @default(now()) @map("debut_at")
+  finAt      DateTime? @map("fin_at")
+  resultat   Json?
+  erreur     String?   @db.Text
+
+  @@unique([nom, jour, occurrence])
+  @@map("taches_execution")
+}
+
+// ─────────────────────────────────────────────
+// Compléments stratégiques (Lot 9) : fondations de la donnée client
+// ─────────────────────────────────────────────
+
+enum TypeInteraction {
+  appel
+  rendez_vous
+  visite
+  reclamation
+  document
+  engagement
+  autre
+}
+
+enum CanalContact {
+  presentiel
+  telephone
+  sms
+  whatsapp
+  email
+  autre
+}
+
+/// Historique des interactions (compléments stratégiques, point 2) : mémoire chronologique des
+/// contacts, demandes, réclamations, rendez-vous et engagements pris avec un prospect ou un
+/// client, en dehors du cadre d'une tournée planifiée (voir `VisiteTournee` pour le terrain
+/// planifié). Alimente la fiche client 360° et le moteur de relances (Lot 11).
+model Interaction {
+  id                Int             @id @default(autoincrement())
+  type              TypeInteraction
+  canal             CanalContact?
+  clientId          Int?            @map("client_id")
+  prospectId        Int?            @map("prospect_id")
+  auteurId          Int             @map("auteur_id")
+  resume            String          @db.Text
+  /// Engagement pris pendant l'échange (ex. « rappeler jeudi », « apporter un justificatif »).
+  engagement        String?         @db.Text
+  prochaineActionAt DateTime?       @map("prochaine_action_at")
+  dateInteraction   DateTime        @default(now()) @map("date_interaction")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  client   Client?     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  prospect Prospect?   @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  auteur   Utilisateur @relation(fields: [auteurId], references: [id], onDelete: Restrict)
+
+  @@index([clientId, dateInteraction(sort: Desc)])
+  @@index([prospectId, dateInteraction(sort: Desc)])
+  @@index([auteurId])
+  @@map("interactions")
+}
+
+enum TypeMarche {
+  grand
+  moyen
+  petit
+}
+
+/// Marché physique (compléments stratégiques, points 15-16) : distinct d'une agence ou d'un
+/// point de service, sert à qualifier les grands/moyens/petits marchés et les zones de
+/// commerce informel (Bayam-Sellam) où opèrent commerçants, collecteurs, clients et prospects.
+model Marche {
+  id        Int        @id @default(autoincrement())
+  nom       String     @db.VarChar(150)
+  type      TypeMarche @default(petit)
+  zoneId    Int?       @map("zone_id")
+  agenceId  Int?       @map("agence_id")
+  latitude  Decimal?   @db.Decimal(10, 7)
+  longitude Decimal?   @db.Decimal(10, 7)
+  actif     Boolean    @default(true)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  zone      Zone?         @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  agence    Agence?       @relation(fields: [agenceId], references: [id], onDelete: SetNull)
+  agents    MarcheAgent[]
+  clients   Client[]
+  prospects Prospect[]
+
+  @@index([zoneId])
+  @@index([agenceId])
+  @@map("marches")
+}
+
+/// Rattachement d'un agent (typiquement collecteur) à un marché, sur le modèle de `ZoneAgent`.
+model MarcheAgent {
+  marcheId  Int      @map("marche_id")
+  agentId   Int      @map("agent_id")
+  principal Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  marche Marche @relation(fields: [marcheId], references: [id], onDelete: Cascade)
+  agent  Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@id([marcheId, agentId])
+  @@map("marches_agents")
+}
+
+/// Référentiel structuré de secteurs d'activité (compléments stratégiques, point 8), en
+/// remplacement progressif du champ libre `secteurActivite` sur `Client`/`Prospect` (conservé
+/// pour compatibilité et affichage historique).
+model Secteur {
+  id        Int      @id @default(autoincrement())
+  nom       String   @unique @db.VarChar(150)
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  metiers   Metier[]
+  clients   Client[]
+  prospects Prospect[]
+
+  @@map("secteurs")
+}
+
+/// Métier rattaché à un secteur, en remplacement progressif du champ libre `profession`.
+model Metier {
+  id        Int      @id @default(autoincrement())
+  nom       String   @db.VarChar(150)
+  secteurId Int      @map("secteur_id")
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  secteur   Secteur    @relation(fields: [secteurId], references: [id], onDelete: Restrict)
+  clients   Client[]
+  prospects Prospect[]
+
+  @@index([secteurId])
+  @@map("metiers")
+}
+
+enum CycleVieClient {
+  nouveau
+  actif
+  dormant
+  a_risque
+  premium
+}
+
+/// Score et segment calculés d'un client (compléments stratégiques, point 1). Recalculé par la
+/// tâche planifiée `score_clients` (voir `lib/planificateur.ts`) à partir de règles déterministes
+/// et explicites (pas de modèle statistique) : encours, épargne, ancienneté, régularité des
+/// contacts et des transactions. Une seule ligne par client, réécrite à chaque recalcul.
+model ScoreClient {
+  id                             Int            @id @default(autoincrement())
+  clientId                       Int            @unique @map("client_id")
+  score                          Int
+  potentiel                      Int
+  cycleVie                       CycleVieClient @map("cycle_vie")
+  encoursCredit                  Decimal        @map("encours_credit") @db.Decimal(15, 2)
+  soldeEpargne                   Decimal        @map("solde_epargne") @db.Decimal(15, 2)
+  ancienneteMois                 Int            @map("anciennete_mois")
+  joursDepuisDernierContact      Int?           @map("jours_depuis_dernier_contact")
+  joursDepuisDerniereTransaction Int?           @map("jours_depuis_derniere_transaction")
+  calculeAt                      DateTime       @default(now()) @map("calcule_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("scores_clients")
+}
+
+// ─────────────────────────────────────────────
+// Compléments stratégiques (Lot 10) : fiche client 360° assemblée
+// ─────────────────────────────────────────────
+
+enum TypeObjectifClient {
+  financier
+  professionnel
+  personnel
+}
+
+enum StatutObjectifClient {
+  en_cours
+  atteint
+  abandonne
+}
+
+/// Objectif personnel d'un client (compléments stratégiques, point 13), distinct des objectifs
+/// institutionnels (`Objectif`) qui portent sur l'activité des agents/agences.
+model ObjectifClient {
+  id           Int                  @id @default(autoincrement())
+  clientId     Int                  @map("client_id")
+  type         TypeObjectifClient
+  titre        String               @db.VarChar(200)
+  montantCible Decimal?             @map("montant_cible") @db.Decimal(15, 2)
+  dateCible    DateTime?            @map("date_cible") @db.Date
+  statut       StatutObjectifClient @default(en_cours)
+  compteId     Int?                 @map("compte_id")
+  creeParId    Int                  @map("cree_par_id")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  client  Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  compte  CompteClient? @relation(fields: [compteId], references: [id], onDelete: SetNull)
+  creePar Utilisateur   @relation(fields: [creeParId], references: [id], onDelete: Restrict)
+
+  @@index([clientId])
+  @@index([compteId])
+  @@map("objectifs_clients")
 }

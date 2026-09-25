@@ -14,6 +14,7 @@ type IconName = React.ComponentProps<typeof Feather>['name'];
  * Le profil, la securite et la geolocalisation vivent derriere l'engrenage.
  */
 const TABS: { name: string; title: string; icon: IconName }[] = [
+  { name: 'tournee', title: 'Tournée', icon: 'map' },
   { name: 'index', title: 'Prospects', icon: 'user-plus' },
   { name: 'clients', title: 'Clients', icon: 'users' },
   { name: 'objectifs', title: 'Objectifs', icon: 'target' },

@@ -23,42 +23,6 @@ export const TOKEN_KEYS = {
   user: 'cecaw_user',
 } as const;
 
-export const ROLE_LABELS: Record<UserRole, string> = {
-  // Backend roles
-  admin:      'Administrateur',
-  manager:    'Manager',
-  backoffice: "Chef d'équipe",
-  agent:      'Agent Terrain',
-  // Legacy / display-only
-  super_admin: 'Super Administrateur',
-  directeur_general: 'Directeur Général',
-  responsable_agence: "Responsable d'Agence",
-  responsable_marketing: 'Responsable Marketing',
-  analyste_credit: 'Analyste Crédit',
-  superviseur_terrain: 'Superviseur Terrain',
-  agent_terrain: 'Agent Terrain',
-  auditeur: 'Auditeur',
-  caissier: 'Caissier',
-};
-
-export const ROLE_COLORS: Record<UserRole, string> = {
-  // Backend roles
-  admin:      'bg-purple-100 text-purple-700 border-purple-200',
-  manager:    'bg-indigo-100 text-indigo-700 border-indigo-200',
-  backoffice: 'bg-teal-100 text-teal-700 border-teal-200',
-  agent:      'bg-green-100 text-green-700 border-green-200',
-  // Legacy
-  super_admin: 'bg-red-100 text-red-700 border-red-200',
-  directeur_general: 'bg-blue-100 text-blue-700 border-blue-200',
-  responsable_agence: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-  responsable_marketing: 'bg-pink-100 text-pink-700 border-pink-200',
-  analyste_credit: 'bg-amber-100 text-amber-700 border-amber-200',
-  superviseur_terrain: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-  agent_terrain: 'bg-green-100 text-green-700 border-green-200',
-  auditeur: 'bg-gray-100 text-gray-700 border-gray-200',
-  caissier: 'bg-teal-100 text-teal-700 border-teal-200',
-};
-
 export const CREDIT_STATUT_LABELS = {
   brouillon: 'Brouillon',
   en_attente: 'En attente',
@@ -114,18 +78,3 @@ export const PIPELINE_COLORS = {
 export const DEVISE = 'FCFA';
 export const LOCALE = 'fr-CM';
 
-export const MODULES_ROUTES = {
-  dashboard: '/dashboard',
-  users: '/dashboard/utilisateurs',
-  clients: '/dashboard/clients',
-  prospects: '/dashboard/prospects',
-  credits: '/dashboard/credits',
-  epargne: '/dashboard/epargne',
-  produits: '/dashboard/produits',
-  geolocation: '/dashboard/geolocalisation',
-  objectifs: '/dashboard/objectifs',
-  reporting: '/dashboard/reporting',
-  notifications: '/dashboard/notifications',
-  settings: '/dashboard/parametres',
-  profile: '/dashboard/profil',
-} as const;

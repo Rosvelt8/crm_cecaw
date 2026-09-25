@@ -490,6 +490,25 @@ async function main() {
     });
   }
 
+  // ── Paramétrage financier d'EXEMPLE des produits de crédit ─────────
+  // Valeurs de démonstration uniquement : sans paramétrage, aucune demande de
+  // crédit ne peut être montée. L'administrateur fonctionnel doit les remplacer
+  // par les conditions réelles de CECAW (Paramètres > Produits).
+  await prisma.produit.updateMany({ where: { groupeId: gpCredit.id }, data: { type: 'credit' } });
+  await prisma.produit.updateMany({ where: { groupeId: gpEpargne.id }, data: { type: 'epargne' } });
+  for (const produitId of [8, 9, 10, 11, 12, 13]) {
+    const existe = await prisma.parametrageProduit.findFirst({ where: { produitId } });
+    if (existe) continue;
+    await prisma.parametrageProduit.create({
+      data: {
+        produitId, dateEffet: new Date('2024-01-01'),
+        tauxInteretAnnuel: 18, tauxPenaliteRetard: 2, fraisDossierPct: 1,
+        montantMin: 50_000, montantMax: 50_000_000, dureeMinMois: 3, dureeMaxMois: 36,
+        modeAmortissement: 'constant',
+      },
+    });
+  }
+
   // Les upserts ci-dessus insèrent avec des ids explicites, ce qui ne fait pas
   // avancer les séquences auto-increment de Postgres : on les resynchronise
   // sur MAX(id) pour éviter des collisions de clé primaire (409) sur les futures créations.
@@ -497,6 +516,27 @@ async function main() {
     await prisma.$executeRawUnsafe(
       `SELECT setval('${table}_id_seq', COALESCE((SELECT MAX(id) FROM ${table}), 1))`
     );
+  }
+
+  // ── Référentiel secteurs / métiers (compléments stratégiques, point 8) ────
+  // Point de départ pour l'économie informelle camerounaise ; à compléter depuis
+  // Paramètres > Marchés et activités > Secteurs et métiers.
+  const secteursData: { nom: string; metiers: string[] }[] = [
+    { nom: 'Commerce de vivres', metiers: ['Vendeuse de légumes', 'Vendeuse de fruits', 'Vendeur de céréales', 'Bayam-Sellam'] },
+    { nom: 'Commerce général', metiers: ['Boutiquier', 'Grossiste', 'Demi-grossiste', 'Vendeur ambulant'] },
+    { nom: 'Restauration', metiers: ['Restauratrice (call-box / nganda)', 'Vendeuse de beignets', 'Traiteur'] },
+    { nom: 'Artisanat', metiers: ['Couturier/couturière', 'Menuisier', 'Coiffeur/coiffeuse', 'Cordonnier'] },
+    { nom: 'Transport', metiers: ['Conducteur de moto-taxi', 'Chauffeur de taxi', 'Transporteur de marchandises'] },
+    { nom: 'Agriculture et élevage', metiers: ['Agriculteur', 'Éleveur', 'Pêcheur'] },
+    { nom: 'Services', metiers: ['Réparateur électronique', 'Coiffeur', 'Blanchisseur', 'Agent immobilier'] },
+    { nom: 'Salariat', metiers: ['Employé du secteur privé', 'Fonctionnaire', 'Employé du secteur informel'] },
+  ];
+  for (const s of secteursData) {
+    const secteur = await prisma.secteur.upsert({ where: { nom: s.nom }, create: { nom: s.nom }, update: {} });
+    for (const nomMetier of s.metiers) {
+      const existe = await prisma.metier.findFirst({ where: { nom: nomMetier, secteurId: secteur.id } });
+      if (!existe) await prisma.metier.create({ data: { nom: nomMetier, secteurId: secteur.id } });
+    }
   }
 
   console.log('✅ Seed completed!');

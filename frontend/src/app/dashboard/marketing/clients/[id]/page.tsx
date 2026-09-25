@@ -20,6 +20,11 @@ import {
 import { cn, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
+import ClientCreditsKyc from '@/components/credit/ClientCreditsKyc';
+import ClientFinances from '@/components/credit/ClientFinances';
+import ClientSynthese360 from '@/components/credit/ClientSynthese360';
+import ClientInteractions from '@/components/credit/ClientInteractions';
 
 const STATUT_CLIENT_COLOR: Record<string, string> = {
   actif:      'bg-emerald-100 text-emerald-700',
@@ -65,7 +70,10 @@ const SituationLabel: Record<string, string> = {
 export default function ClientDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const { isAgent, canDelete, utilisateurId } = useAuth();
+  const { isAgent, utilisateurId } = useAuth();
+  const { can } = useCan();
+  // DELETE /comptes/:id (le seul retrait possible depuis cette fiche) exige `comptes:UPDATE`.
+  const canDelete = can('comptes:UPDATE');
 
   const [client, setClient] = useState<any | null>(null);
   const [comptes, setComptes] = useState<any[]>([]);
@@ -363,6 +371,19 @@ export default function ClientDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Intelligence client 360° (compléments stratégiques) ── */}
+      <ClientSynthese360
+        clientId={Number(id)}
+        score={client.score ?? null}
+        profil={{ marche: client.marche ?? null, secteur: client.secteur ?? null, metier: client.metier ?? null }}
+        onProfilChange={() => clientService.getClient(id).then(setClient)}
+      />
+      <ClientInteractions cible={{ client_id: Number(id) }} />
+
+      {/* ── KYC et crédits ── */}
+      <ClientCreditsKyc clientId={Number(id)} />
+      <ClientFinances clientId={Number(id)} />
 
       {/* ── Comptes ── */}
       <div className="flex flex-col gap-3">

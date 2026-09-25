@@ -23,6 +23,7 @@ import {
   Mono,
   SectionTitle,
 } from '../../src/components/ui';
+import * as Crypto from 'expo-crypto';
 import { createTransaction, listTransactions } from '../../src/api/comptes';
 import { errorMessage } from '../../src/api/client';
 import { queueTransaction } from '../../src/lib/queue';
@@ -85,6 +86,7 @@ export default function CollecteScreen() {
       montant: value,
       motif: motif.trim() || undefined,
       agent_id: agent.id,
+      client_uid: Crypto.randomUUID(),
     };
 
     try {
@@ -101,6 +103,7 @@ export default function CollecteScreen() {
         motif: motif.trim() || undefined,
         agentId: agent.id,
         at: new Date().toISOString(),
+        uid: payload.client_uid,
       });
       Alert.alert(
         'Enregistré hors ligne',

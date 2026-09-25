@@ -14,6 +14,10 @@ export interface TransactionPayload {
   motif?: string;
   /** Identifiant de la fiche agent, pas celui de l'utilisateur. */
   agent_id: number;
+  /** Idempotence : le serveur ignore un rejeu portant le meme identifiant. */
+  client_uid?: string;
+  /** Instant reel de l'operation quand elle a ete saisie hors connexion. */
+  effectue_le?: string;
 }
 
 export async function createTransaction(

@@ -13,6 +13,7 @@ import { Plus, Search, Pencil, Trash2, Check, X, ArrowRight, RefreshCw } from 'l
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
 
 type StatutProspect = 'nouveau' | 'contacte' | 'interesse' | 'negocie' | 'converti' | 'perdu';
 
@@ -27,7 +28,10 @@ export const STATUT_CONFIG: Record<StatutProspect, { label: string; color: strin
 
 export default function ProspectsPage() {
   const router = useRouter();
-  const { isAgent, canDelete, utilisateurId } = useAuth();
+  const { isAgent, utilisateurId } = useAuth();
+  const { can } = useCan();
+  // DELETE /prospects/:id exige `crm:UPDATE` (backend/src/modules/prospects/prospects.routes.ts).
+  const canDelete = can('crm:UPDATE');
 
   const [prospects, setProspects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

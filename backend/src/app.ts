@@ -10,6 +10,13 @@ import router from './routes';
 import { openApiSpec } from './docs/openapi';
 
 const app = express();
+// Derrière un reverse proxy (nginx, Docker), indiquer le nombre de sauts pour que l'IP réelle serve à la limitation de débit.
+// "false" (ou absent) : proxy non approuvé, valeur par défaut d'Express. "true" : approuver le premier saut.
+// Un nombre ou une liste d'IP/sous-réseaux sont aussi acceptés, transmis tels quels à Express.
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy && trustProxy !== 'false') {
+  app.set('trust proxy', trustProxy === 'true' ? true : Number(trustProxy) || trustProxy);
+}
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({

@@ -13,6 +13,7 @@ import { Plus, Search, Pencil, Trash2, Check, X, Eye, RefreshCw } from 'lucide-r
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
 
 type StatutClient = 'actif' | 'inactif' | 'blackliste';
 
@@ -24,7 +25,11 @@ const STATUT_CONFIG: Record<StatutClient, { label: string; color: string }> = {
 
 export default function ClientsPage() {
   const router = useRouter();
-  const { isAgent, canDelete, utilisateurId } = useAuth();
+  const { isAgent, utilisateurId } = useAuth();
+  const { can } = useCan();
+  // DELETE /clients/:id exige `crm:UPDATE` (backend/src/modules/clients/clients.routes.ts), le même
+  // droit que la modification : la suppression n'a pas de code dédié.
+  const canDelete = can('crm:UPDATE');
 
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

@@ -24,6 +24,20 @@ export interface LoginResult {
   refreshToken: string;
 }
 
+/** Le compte a la double authentification : le mot de passe seul ne suffit pas. */
+export interface MfaRequise {
+  mfaRequired: true;
+  mfaToken: string;
+}
+
+function lireSession(payload: Record<string, any>): LoginResult { // eslint-disable-line @typescript-eslint/no-explicit-any
+  return {
+    user: mapUser(payload.user ?? payload),
+    accessToken: payload.access_token,
+    refreshToken: payload.refresh_token,
+  };
+}
+
 /**
  * Connexion par adresse email ou par matricule d'agent.
  *
@@ -31,7 +45,7 @@ export interface LoginResult {
  * terrain ne peut pas se reconnecter toutes les quinze minutes, et le
  * rafraichissement echouerait justement la ou la couverture manque.
  */
-export async function login(identifiant: string, password: string): Promise<LoginResult> {
+export async function login(identifiant: string, password: string): Promise<LoginResult | MfaRequise> {
   // Instance nue : a la connexion il n'y a pas encore de jeton a joindre.
   const { data } = await axios.post(`${API_URL}/auth/login`, {
     identifiant,
@@ -39,11 +53,14 @@ export async function login(identifiant: string, password: string): Promise<Logi
     client: 'mobile',
   });
   const payload = data?.data ?? data;
-  return {
-    user: mapUser(payload.user ?? payload),
-    accessToken: payload.access_token,
-    refreshToken: payload.refresh_token,
-  };
+  if (payload.mfa_required) return { mfaRequired: true, mfaToken: payload.mfa_token };
+  return lireSession(payload);
+}
+
+/** Seconde etape : code a 6 chiffres de l'application d'authentification (ou code de secours). */
+export async function verifierMfa(mfaToken: string, code: string): Promise<LoginResult> {
+  const { data } = await axios.post(`${API_URL}/auth/mfa/verifier`, { mfa_token: mfaToken, code });
+  return lireSession(data?.data ?? data);
 }
 
 export async function me(): Promise<User> {

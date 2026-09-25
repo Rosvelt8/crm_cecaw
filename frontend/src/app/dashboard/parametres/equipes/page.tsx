@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { z } from 'zod';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { equipeService } from '@/services/equipeService';
@@ -35,7 +35,9 @@ function validateForm(form: Form): Record<string, string> | null {
 }
 
 export default function EquipesPage() {
-  const { canEditParametres } = useAuth();
+  const { can } = useCan();
+  // POST/PUT/DELETE /equipes exigent tous `organisation:CREATE` (backend/src/modules/equipes/equipes.routes.ts).
+  const canEditParametres = can('organisation:CREATE');
   const [equipes, setEquipes] = useState<any[]>([]);
   const [agences, setAgences] = useState<any[]>([]);
   const [managers, setManagers] = useState<any[]>([]);

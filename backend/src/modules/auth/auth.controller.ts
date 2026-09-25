@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import * as svc from './auth.service';
+import * as mfa from './mfa.service';
 import { success, error, created } from '../../lib/response';
 import { createLog } from '../../lib/logger';
 
@@ -149,5 +150,45 @@ export async function verifierPin(req: Request, res: Response, next: NextFunctio
 export async function etatPin(req: Request, res: Response, next: NextFunction) {
   try {
     return success(res, { a_code_pin: await svc.aCodePin(req.user!.sub) });
+  } catch (e) { return next(e); }
+}
+
+
+// ─── Authentification à deux facteurs ─────────────────────────────────────────
+
+const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/, 'Le code comporte 6 chiffres') });
+
+/** Échange le jeton temporaire de connexion et le code contre la session. Route publique. */
+export async function verifierMfa(req: Request, res: Response, next: NextFunction) {
+  try {
+    const b = z.object({ mfa_token: z.string().min(10) }).merge(codeSchema).parse(req.body);
+    const result = await svc.verifierMfa(b.mfa_token, b.code);
+    if (isServiceError(result)) return error(res, result.error, result.status);
+    return success(res, result);
+  } catch (e) { return next(e); }
+}
+
+export async function preparerMfa(req: Request, res: Response, next: NextFunction) {
+  try {
+    const r = await mfa.preparerMfa(req.user!.sub);
+    if (isServiceError(r)) return error(res, r.error, r.status);
+    return success(res, r);
+  } catch (e) { return next(e); }
+}
+
+export async function activerMfa(req: Request, res: Response, next: NextFunction) {
+  try {
+    const r = await mfa.activerMfa(req.user!.sub, codeSchema.parse(req.body).code);
+    if (isServiceError(r)) return error(res, r.error, r.status);
+    return success(res, { mfa_actif: true });
+  } catch (e) { return next(e); }
+}
+
+export async function desactiverMfa(req: Request, res: Response, next: NextFunction) {
+  try {
+    const b = z.object({ mot_de_passe: z.string().min(1) }).merge(codeSchema).parse(req.body);
+    const r = await mfa.desactiverMfa(req.user!.sub, b.mot_de_passe, b.code);
+    if (isServiceError(r)) return error(res, r.error, r.status);
+    return success(res, { mfa_actif: false });
   } catch (e) { return next(e); }
 }

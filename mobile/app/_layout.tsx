@@ -110,6 +110,10 @@ export default function RootLayout() {
               name="compte/[id]"
               options={{ headerShown: true, title: 'Opération de collecte' }}
             />
+            <Stack.Screen
+              name="visite/[id]"
+              options={{ headerShown: true, title: 'Visite' }}
+            />
           </Stack.Protected>
         </Stack>
       </AutoLockProvider>

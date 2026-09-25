@@ -1,18 +1,8 @@
 // Backend roles (4 real roles)
 export type BackendRole = 'admin' | 'manager' | 'backoffice' | 'agent';
 
-// Legacy roles kept for backwards-compat with existing UI code
-export type UserRole =
-  | BackendRole
-  | 'super_admin'
-  | 'directeur_general'
-  | 'responsable_agence'
-  | 'responsable_marketing'
-  | 'analyste_credit'
-  | 'superviseur_terrain'
-  | 'agent_terrain'
-  | 'auditeur'
-  | 'caissier';
+// Rôle historique du compte. Les habilitations fines viennent des rôles CECAW 360 (R01 à R17), lus via /rbac/me.
+export type UserRole = BackendRole;
 
 export type UserStatus = 'actif' | 'inactif' | 'suspendu' | 'en_attente';
 
@@ -67,6 +57,8 @@ import type { Produit, GroupeProduit } from './produit';
  * so existing UI code that reads user.role.slug keeps working.
  */
 export interface User {
+  /** Authentification à deux facteurs activée. */
+  mfa_actif?: boolean;
   id: number;
   nom: string;
   prenom: string;

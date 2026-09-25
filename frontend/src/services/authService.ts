@@ -4,20 +4,44 @@ import { TOKEN_KEYS } from '@/constants';
 import type { LoginCredentials } from '@/types/auth';
 
 export const authService = {
+  /**
+   * Première étape. Si l'utilisateur a activé la double authentification, aucune session n'est
+   * ouverte : la réponse porte un jeton temporaire à échanger avec le code (`verifierMfa`).
+   */
   login: async (credentials: LoginCredentials) => {
     const { data: body } = await apiClient.post('/auth/login', {
       email: credentials.email,
       password: credentials.password,
     });
-    // Backend: { success, data: { access_token, refresh_token, user, ... } }
     const payload = body.data ?? body;
+    if (payload.mfa_required) {
+      return { requires_mfa: true as const, mfa_token: payload.mfa_token as string };
+    }
     return {
-      access_token:  payload.access_token,
-      refresh_token: payload.refresh_token,
+      requires_mfa: false as const,
+      access_token:  payload.access_token as string,
+      refresh_token: payload.refresh_token as string,
       user:          mapBackendUser(payload.user),
-      requires_mfa:  false,
+      mfa_configuration_requise: Boolean(payload.mfa_configuration_requise),
     };
   },
+
+  verifierMfa: async (mfa_token: string, code: string) => {
+    const { data: body } = await apiClient.post('/auth/mfa/verifier', { mfa_token, code });
+    const payload = body.data ?? body;
+    return {
+      access_token:  payload.access_token as string,
+      refresh_token: payload.refresh_token as string,
+      user:          mapBackendUser(payload.user),
+    };
+  },
+
+  mfaPreparer: async () => {
+    const { data: body } = await apiClient.post('/auth/mfa/preparer');
+    return (body.data ?? body) as { secret: string; otpauth_url: string };
+  },
+  mfaActiver: async (code: string) => { await apiClient.post('/auth/mfa/activer', { code }); },
+  mfaDesactiver: async (mot_de_passe: string, code: string) => { await apiClient.post('/auth/mfa/desactiver', { mot_de_passe, code }); },
 
   me: async () => {
     const { data: body } = await apiClient.get('/auth/me');

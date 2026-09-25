@@ -32,6 +32,9 @@ const ROLE_COLORS: Record<string, string> = {
 function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // Deuxième étape : code de l'application d'authentification.
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [code, setCode] = useState('');
   const { setAuth } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,16 +45,39 @@ function LoginForm() {
   });
 
  
+  const terminer = (user: { prenom: string }, access: string, refresh: string, rappelMfa = false) => {
+    setAuth(user as never, access, refresh);
+    toast.success('Connexion réussie', { description: `Bienvenue, ${user.prenom} !` });
+    if (rappelMfa) toast.info("Activez l'authentification à deux facteurs", { description: 'Depuis votre profil, pour renforcer la sécurité de votre compte.', duration: 8000 });
+    router.replace(redirectTo);
+  };
+
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      const { user, access_token, refresh_token } = await authService.login(data);
-      setAuth(user, access_token, refresh_token);
-      toast.success('Connexion réussie', { description: `Bienvenue, ${user.prenom} !` });
-      router.replace(redirectTo);
+      const r = await authService.login(data);
+      if (r.requires_mfa) { setMfaToken(r.mfa_token); return; }
+      terminer(r.user, r.access_token, r.refresh_token, r.mfa_configuration_requise);
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? err?.message ?? 'Une erreur est survenue.';
       toast.error('Échec de connexion', { description: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaToken) return;
+    setIsLoading(true);
+    try {
+      const r = await authService.verifierMfa(mfaToken, code);
+      terminer(r.user, r.access_token, r.refresh_token);
+    } catch (err: any) {
+      toast.error('Code refusé', { description: err?.response?.data?.message ?? 'Code incorrect.' });
+      // Jeton expiré ou compte bloqué : retour à la saisie des identifiants.
+      if ([401, 423].includes(err?.response?.status) && /expir|bloqu/i.test(err?.response?.data?.message ?? '')) setMfaToken(null);
+      setCode('');
     } finally {
       setIsLoading(false);
     }
@@ -66,6 +92,14 @@ function LoginForm() {
         </p>
       </div>
 
+      {mfaToken ? (
+        <form onSubmit={verifier} className="space-y-4">
+          <p className="text-sm text-muted-foreground">Saisissez le code à 6 chiffres affiché par votre application d'authentification.</p>
+          <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus placeholder="000000" className="text-center text-xl tracking-[0.5em] font-mono" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
+          <Button type="submit" className="w-full h-11" variant="brand" loading={isLoading} disabled={code.length !== 6}>Vérifier</Button>
+          <button type="button" className="w-full text-xs text-muted-foreground hover:text-foreground" onClick={() => { setMfaToken(null); setCode(''); }}>Retour</button>
+        </form>
+      ) : (
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
         <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="email">Email professionnel</label>
@@ -108,6 +142,7 @@ function LoginForm() {
           Se connecter
         </Button>
       </form>
+      )}
 
      
     </div>

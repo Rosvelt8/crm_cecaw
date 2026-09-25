@@ -186,4 +186,58 @@ export interface QueuedTransaction {
   motif?: string;
   agentId: number;
   at: string;
+  /** Identifiant d'idempotence : un rejeu ne cree jamais de doublon cote serveur. */
+  uid?: string;
+}
+
+export type TypeTournee = 'commerciale' | 'collecte' | 'recouvrement';
+
+export interface VisiteTournee {
+  id: number;
+  ordre: number;
+  libelle: string;
+  adresse: string | null;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  statut: 'prevue' | 'realisee' | 'manquee' | 'annulee' | string;
+  priorite: number;
+  motifPriorite: string | null;
+  arriveeAt: string | null;
+  presenceValidee: boolean;
+  distanceCibleM: number | null;
+  compteRendu: string | null;
+  signatureNom: string | null;
+  version: number;
+  conflitDetecte?: boolean;
+  photos: { id: number }[];
+}
+
+export interface TourneeJour {
+  id: number;
+  reference: string;
+  type: TypeTournee;
+  statut: 'planifiee' | 'en_cours' | 'terminee' | 'annulee' | string;
+  distancePrevueKm: string | number;
+  dureePrevueMin: number;
+  zone: { id: number; nom: string } | null;
+  visites: VisiteTournee[];
+}
+
+/** Operation de terrain mise en file : rejouee dans l'ordre, l'arrivee avant la photo et la cloture. */
+export type OperationTerrain =
+  | { uid: string; kind: 'demarrer'; tourneeId: number }
+  | { uid: string; kind: 'terminer'; tourneeId: number }
+  | { uid: string; kind: 'arrivee'; visiteId: number; latitude: number; longitude: number; effectueLe: string }
+  | { uid: string; kind: 'photo'; visiteId: number; uri: string; latitude?: number; longitude?: number; prisLe: string }
+  | { uid: string; kind: 'cloture'; visiteId: number; corps: CorpsCloture };
+
+export interface CorpsCloture {
+  resultat: 'realisee' | 'manquee';
+  compte_rendu?: string;
+  latitude?: number;
+  longitude?: number;
+  client_uid: string;
+  base_version?: number;
+  effectue_le: string;
+  signature?: { points: number[][][]; nom: string; largeur: number; hauteur: number };
 }

@@ -4,6 +4,9 @@ import prisma from '../../lib/prisma';
 import { env } from '../../config/env';
 import { AuthJwtPayload } from '../../middleware/auth';
 import { createLog } from '../../lib/logger';
+import { parametre } from '../../lib/parametres';
+import { verifierMotDePasse } from '../../lib/crypto';
+import { enregistrerEchec, reinitialiserEchecs, messageBlocage, signerJetonMfa, lireJetonMfa, verifierCodeConnexion, JETON_MFA_DUREE_S } from './mfa.service';
 
 function signAccess(payload: Omit<AuthJwtPayload, 'iat' | 'exp'>, duree?: string) {
   return jwt.sign(payload, env.JWT_SECRET, {
@@ -17,7 +20,7 @@ function signRefresh(sub: number) {
 
 function formatUser(u: {
   id: number; nom: string; prenom: string; email: string; role: string;
-  fonction: string | null; actif: boolean; createdAt: Date;
+  fonction: string | null; actif: boolean; createdAt: Date; mfaActif?: boolean;
   agence: { id: number; nom: string } | null;
   equipe: { id: number; nom: string } | null;
 }) {
@@ -29,6 +32,7 @@ function formatUser(u: {
     role: u.role,
     fonction: u.fonction,
     actif: u.actif,
+    mfa_actif: Boolean(u.mfaActif),
     agence: u.agence,
     equipe: u.equipe,
     created_at: u.createdAt,
@@ -90,12 +94,30 @@ async function trouverUtilisateur(identifiant: string) {
 
 export async function login(identifiant: string, password: string, client?: string) {
   const u = await trouverUtilisateur(identifiant);
+  if (u?.bloqueJusquA && u.bloqueJusquA > new Date()) {
+    return { error: messageBlocage(u.bloqueJusquA), status: 423 };
+  }
   if (!u || !(await bcrypt.compare(password, u.password))) {
+    if (u) {
+      const bloque = await enregistrerEchec(u.id, u.email);
+      if (bloque) return { error: 'Trop d\'échecs : compte temporairement bloqué.', status: 423 };
+    }
     return { error: 'Identifiants incorrects', status: 401 };
   }
   if (!u.actif) {
     return { error: 'Compte suspendu. Contactez l\'administrateur.', status: 403 };
   }
+
+  // Second facteur : les jetons d'accès ne sont émis qu'après la saisie du code.
+  if (u.mfaActif) {
+    return { mfa_required: true, mfa_token: signerJetonMfa(u.id, client), expires_in: JETON_MFA_DUREE_S };
+  }
+  if (u.tentativesEchouees > 0 || u.bloqueJusquA) await reinitialiserEchecs(u.id);
+  return ouvrirSession(u, client, !u.mfaActif && (await parametre<boolean>('securite.mfa_obligatoire')));
+}
+
+/** Émet les jetons et journalise la connexion. */
+async function ouvrirSession(u: NonNullable<Awaited<ReturnType<typeof trouverUtilisateur>>>, client?: string, mfaARequerir = false) {
 
   const payload: Omit<AuthJwtPayload, 'iat' | 'exp'> = {
     sub: u.id, email: u.email, role: u.role, agenceId: u.agenceId,
@@ -120,7 +142,19 @@ export async function login(identifiant: string, password: string, client?: stri
     token_type: 'Bearer',
     expires_in: 900,
     user: formatUser(u),
+    ...(mfaARequerir ? { mfa_configuration_requise: true } : {}),
   };
+}
+
+/** Deuxième étape de connexion : le code TOTP échange le jeton temporaire contre la session. */
+export async function verifierMfa(mfaToken: string, code: string) {
+  const jeton = lireJetonMfa(mfaToken);
+  if (!jeton) return { error: 'Session de vérification expirée : reconnectez-vous.', status: 401 };
+  const r = await verifierCodeConnexion(jeton.sub, code);
+  if (!r.ok) return { error: r.erreur, status: r.status };
+  const u = await prisma.utilisateur.findUnique({ where: { id: jeton.sub }, include: userInclude });
+  if (!u || !u.actif) return { error: 'Compte indisponible.', status: 403 };
+  return ouvrirSession(u, jeton.client);
 }
 
 export async function refresh(refreshToken: string, client?: string) {
@@ -146,19 +180,22 @@ export async function refresh(refreshToken: string, client?: string) {
   }
 }
 
+/**
+ * Profil renvoyé au client. Liste blanche : la ligne complète contient l'empreinte du mot de
+ * passe, celle du PIN et le secret MFA, qui ne doivent jamais quitter le serveur.
+ */
+function profilPublic(u: Parameters<typeof formatUser>[0] & { agenceId: number | null; equipeId: number | null; updatedAt: Date }) {
+  return { ...formatUser(u), agenceId: u.agenceId, equipeId: u.equipeId, createdAt: u.createdAt, updatedAt: u.updatedAt };
+}
+
 export async function getMe(userId: number) {
-  return prisma.utilisateur.findUnique({
-    where: { id: userId },
-    include: userInclude,
-  });
+  const u = await prisma.utilisateur.findUnique({ where: { id: userId }, include: userInclude });
+  return u ? profilPublic(u) : null;
 }
 
 export async function updateMe(userId: number, fonction: string) {
-  return prisma.utilisateur.update({
-    where: { id: userId },
-    data: { fonction },
-    include: userInclude,
-  });
+  const u = await prisma.utilisateur.update({ where: { id: userId }, data: { fonction }, include: userInclude });
+  return profilPublic(u);
 }
 
 export async function changeMyPassword(
@@ -170,8 +207,12 @@ export async function changeMyPassword(
   if (!(await bcrypt.compare(currentPassword, u.password))) {
     return { error: 'Mot de passe actuel incorrect' };
   }
-  if (newPassword.length < 6) {
-    return { error: 'Minimum 6 caractères requis' };
+  const manques = verifierMotDePasse(newPassword);
+  if (manques.length > 0) {
+    return { error: `Mot de passe trop faible : il faut ${manques.join(', ')}.` };
+  }
+  if (await bcrypt.compare(newPassword, u.password)) {
+    return { error: "Le nouveau mot de passe doit différer de l'actuel." };
   }
   const hash = await bcrypt.hash(newPassword, 10);
   await prisma.utilisateur.update({ where: { id: userId }, data: { password: hash } });

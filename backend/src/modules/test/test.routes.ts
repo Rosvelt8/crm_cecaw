@@ -1,13 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../../middleware/auth';
-import { isAdminOrManager } from '../../middleware/rbac';
+import { requirePermission as can } from '../../middleware/permissions';
 import { sendBienvenue, sendResetPassword, sendBienvenueClient } from '../../lib/mailer';
 import { success } from '../../lib/response';
 import { env } from '../../config/env';
 
 const router = Router();
-router.use(authenticate, isAdminOrManager);
+router.use(authenticate, can('socle:CONFIGURE'));
 
 const schema = z.object({
   to: z.string().email(),

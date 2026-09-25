@@ -69,4 +69,37 @@ export const clientService = {
   deletePJ: async (clientId: number | string, pjId: number | string) => {
     await apiClient.delete(`/clients/${clientId}/pj/${pjId}`);
   },
+
+  // ── Synthèse 360° (compléments stratégiques, points 11-12) ────────────────
+  getSynthese: async (id: number | string) => {
+    const { data: body } = await apiClient.get(`/clients/${id}/synthese`);
+    return body.data as {
+      credits: { id: number; reference: string; statut: string; produit: string; montant: number; date_decaissement: string | null; prochaine_echeance: { numero: number; date: string; reste: number } | null; nb_echeances_en_retard: number; montant_en_retard: number }[];
+      recouvrement: { id: number; reference: string; statut: string; classe: string; jours_retard: number; montant_impaye: number; niveau_relance: number; derniere_relance: { canal: string; date: string; resultat: string | null } | null; derniere_promesse: { montant: number; date_promise: string; statut: string } | null; prochaine_action_at: string | null }[];
+    };
+  },
+
+  // ── Segmentation et score (compléments stratégiques, point 1) ─────────────
+  getScores: async (params: { cycle_vie?: string; page?: number; per_page?: number } = {}) => {
+    const { data: body } = await apiClient.get('/clients/scores', { params });
+    return { data: body.data ?? [], meta: body.meta };
+  },
+  recalculerScores: async () => {
+    const { data: body } = await apiClient.post('/clients/scores/recalculer', {});
+    return body.data as { traites: number; par_cycle: Record<string, number> };
+  },
+
+  // ── Objectifs personnels (compléments stratégiques, point 13) ─────────────
+  getObjectifsPersonnels: async (clientId: number | string) => {
+    const { data: body } = await apiClient.get(`/clients/${clientId}/objectifs-personnels`);
+    return body.data ?? [];
+  },
+  creerObjectifPersonnel: async (clientId: number | string, payload: { type: string; titre: string; montant_cible?: number | null; date_cible?: string | null; compte_id?: number | null }) => {
+    const { data: body } = await apiClient.post(`/clients/${clientId}/objectifs-personnels`, payload);
+    return body.data;
+  },
+  modifierObjectifPersonnel: async (clientId: number | string, objectifId: number, payload: { titre?: string; montant_cible?: number | null; date_cible?: string | null; statut?: string }) => {
+    const { data: body } = await apiClient.put(`/clients/${clientId}/objectifs-personnels/${objectifId}`, payload);
+    return body.data;
+  },
 };

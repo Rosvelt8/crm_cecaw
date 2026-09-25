@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { z } from 'zod';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { produitService } from '@/services/produitService';
@@ -34,7 +34,9 @@ function validateForm(form: Form): Record<string, string> | null {
 }
 
 export default function GroupesPage() {
-  const { canEditParametres } = useAuth();
+  const { can } = useCan();
+  // POST/PUT/DELETE /groupes-produits exigent tous `produits:CONFIGURE`.
+  const canEditParametres = can('produits:CONFIGURE');
   const [groupes, setGroupes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

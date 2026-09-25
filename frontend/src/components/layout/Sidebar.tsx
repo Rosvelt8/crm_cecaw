@@ -8,15 +8,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import {
-  Users, UserSquare2, BookOpen, ArrowLeftRight,
+  Users, UserSquare2,
   UserCog, Target, MapPin,
   BarChart2, ScrollText, Settings,
   Layers, Package, Building2, UsersRound, ShieldCheck,
   LogOut, PanelLeftClose, PanelLeftOpen, ChevronDown, LayoutDashboard,
+  Landmark, FileCheck2, Percent, Map, KeyRound,
+  AlertOctagon, Route as RouteIcon, Globe2, Compass, Calculator, ShieldAlert, PieChart, Sliders, MessageSquare, Webhook, Network, CalendarCheck,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
 
-type NavItem  = { label: string; href: string; icon: React.ElementType; exact?: boolean };
+/** `perm` : l'entrée n'est affichée qu'à qui possède au moins un de ces droits (`domaine:VERBE`). */
+type NavItem  = { label: string; href: string; icon: React.ElementType; exact?: boolean; perm?: string[] };
 type NavGroup = {
   icon?: React.ElementType;
   id: string;
@@ -37,6 +41,16 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: 'credit',
+    label: 'Crédit & KYC',
+    accent: 'text-blue-600',
+    icon: Landmark,
+    items: [
+      { label: 'Demandes de crédit', href: '/dashboard/credits', icon: Landmark, perm: ['credit:VIEW'] },
+      { label: 'Dossiers KYC',       href: '/dashboard/kyc',     icon: FileCheck2, perm: ['kyc:VIEW'] },
+    ],
+  },
+  {
     id: 'collecte',
     label: 'Collecte Terrain',
     accent: 'text-emerald-600',
@@ -45,6 +59,38 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Agents',    href: '/dashboard/collecte/agents',    icon: UserCog },
       { label: 'Objectifs', href: '/dashboard/collecte/objectifs', icon: Target },
       { label: 'Terrain',   href: '/dashboard/collecte/terrain',   icon: MapPin },
+      { label: 'Journées de collecte', href: '/dashboard/collecte/journees', icon: CalendarCheck, perm: ['collecte:VIEW'] },
+    ],
+  },
+  {
+    id: 'recouvrement',
+    label: 'Recouvrement',
+    accent: 'text-red-600',
+    icon: AlertOctagon,
+    items: [
+      { label: 'Dossiers impayés', href: '/dashboard/recouvrement', icon: AlertOctagon, perm: ['recouvrement:VIEW'] },
+    ],
+  },
+  {
+    id: 'territoire',
+    label: 'Territoire & tournées',
+    accent: 'text-teal-600',
+    icon: Globe2,
+    items: [
+      { label: 'Tournées',    href: '/dashboard/terrain/tournees', icon: RouteIcon, perm: ['tournees:VIEW'] },
+      { label: 'Cartographie', href: '/dashboard/sig',             icon: Globe2,    perm: ['sig:VIEW'], exact: true },
+      { label: 'Territoire',  href: '/dashboard/sig/territoire',   icon: Compass,   perm: ['territoire:VIEW'] },
+    ],
+  },
+  {
+    id: 'finance',
+    label: 'Finance & conformité',
+    accent: 'text-emerald-700',
+    icon: Calculator,
+    items: [
+      { label: 'Comptabilité', href: '/dashboard/comptabilite', icon: Calculator, perm: ['comptabilite:VIEW'] },
+      { label: 'Conformité',   href: '/dashboard/conformite',   icon: ShieldAlert, perm: ['conformite:VIEW'] },
+      { label: 'Tableaux de bord', href: '/dashboard/analytique', icon: PieChart, perm: ['analytique:VIEW'] },
     ],
   },
   {
@@ -54,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
     accent: 'text-violet-600',
     items: [
       { label: 'Performances', href: '/dashboard/statistiques', icon: BarChart2 },
+      { label: 'Objectifs de pilotage', href: '/dashboard/objectifs', icon: Target, perm: ['objectifs:VIEW'] },
     ],
   },
   {
@@ -77,6 +124,15 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Agences',      href: '/dashboard/parametres/agences',       icon: Building2 },
       { label: 'Équipes',      href: '/dashboard/parametres/equipes',       icon: UsersRound },
       { label: 'Utilisateurs', href: '/dashboard/parametres/utilisateurs',  icon: ShieldCheck },
+      { label: 'Paramétrage financier', href: '/dashboard/parametres/financier', icon: Percent, perm: ['produits:VIEW'] },
+      { label: 'Zones',        href: '/dashboard/parametres/zones',         icon: Map, perm: ['organisation:VIEW'] },
+      { label: 'Marchés',      href: '/dashboard/parametres/marches',       icon: Building2, perm: ['organisation:VIEW'] },
+      { label: 'Rôles et droits', href: '/dashboard/parametres/roles',      icon: KeyRound, perm: ['securite:VIEW', 'socle:VIEW'] },
+      { label: 'Organisation', href: '/dashboard/parametres/organisation', icon: Network, perm: ['organisation:VIEW'] },
+      { label: 'Paramètres système', href: '/dashboard/parametres/systeme', icon: Sliders, perm: ['administration:VIEW'] },
+      { label: 'Communication', href: '/dashboard/parametres/communication', icon: MessageSquare, perm: ['communication:VIEW'] },
+      { label: 'Intégrations', href: '/dashboard/parametres/integrations', icon: Webhook, perm: ['integration:VIEW'] },
+      { label: 'Sécurité',     href: '/dashboard/parametres/securite', icon: ShieldCheck, perm: ['securite:VIEW'] },
     ],
   },
 ];
@@ -90,22 +146,38 @@ const AGENT_ALLOWED_HREFS = [
   '/dashboard/marketing/prospects',
   '/dashboard/marketing/clients',
   '/dashboard/collecte/objectifs',
+  // Ouverts aux agents : chaque entrée reste soumise à ses droits (`perm`) et à l'API.
+  '/dashboard/credits',
+  '/dashboard/kyc',
+  '/dashboard/recouvrement',
+  '/dashboard/terrain/tournees',
+  '/dashboard/sig',
+  '/dashboard/collecte/journees',
 ];
 
 export default function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boolean; onMobileClose: () => void }) {
   const { sidebarOpen, toggleSidebar } = useAppStore();
   const { user, logout } = useAuthStore();
   const { isAgent, canAccessParametres } = useAuth();
+  const { can, loaded: droitsCharges } = useCan();
   const pathname = usePathname();
 
   // Filter nav for agents, and hide the Paramètres module from anyone without access to it
   // (chef d'équipe included — it's an admin/manager-only module).
+  // Une entrée à `perm` exige le droit correspondant ; sans `perm`, le filtrage historique par rôle s'applique.
+  const autorise = (i: NavItem) => !i.perm || (droitsCharges && can(...i.perm));
   const visibleGroups = (isAgent
     ? NAV_GROUPS
         .map((g) => ({ ...g, items: g.items.filter((i) => AGENT_ALLOWED_HREFS.some((h) => i.href.startsWith(h))) }))
-        .filter((g) => g.items.length > 0)
     : NAV_GROUPS
-  ).filter((g) => g.id !== 'parametres' || canAccessParametres);
+  )
+    .map((g) => ({
+      ...g,
+      // Le groupe Paramètres reste visible aux rôles historiques admin/manager ; les entrées à droits
+      // s'y ajoutent pour quiconque en dispose (ex. administrateur fonctionnel).
+      items: g.items.filter((i) => (g.id === 'parametres' && !i.perm ? canAccessParametres : true) && autorise(i)),
+    }))
+    .filter((g) => g.items.length > 0);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
     () => NAV_GROUPS.reduce((acc, g) => ({ ...acc, [g.id]: true }), {} as Record<string, boolean>)

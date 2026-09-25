@@ -25,6 +25,7 @@ import {
 import {
   flushPositions,
   flushTransactions,
+  flushTerrain,
   queuedPositionCount,
   queuedTransactionCount,
 } from '../src/lib/queue';
@@ -146,10 +147,13 @@ export default function ParametresScreen() {
     setInfo(null);
     const p = await flushPositions(agent.id);
     const t = await flushTransactions();
+    const tr = await flushTerrain();
     await refresh();
     setSyncing(false);
     setInfo(
-      p + t === 0 ? 'Rien à transmettre.' : `${p} position(s) et ${t} opération(s) transmises.`,
+      p + t + tr.envoyees === 0
+        ? 'Rien à transmettre.'
+        : `${p} position(s), ${t} opération(s) et ${tr.envoyees} saisie(s) de tournée transmises.`,
     );
   };
 

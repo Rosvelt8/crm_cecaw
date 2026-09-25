@@ -42,4 +42,18 @@ export const compteService = {
     const { data: body } = await apiClient.get(`/comptes/${id}/transactions`, { params });
     return { data: body.data ?? [], meta: body.meta };
   },
+
+  /** Objectif d'épargne (compléments stratégiques, point 10) : purement déclaratif. `montant: null` l'efface. */
+  definirObjectifEpargne: async (id: number | string, montant: number | null, date: string | null) => {
+    const { data: body } = await apiClient.patch(`/comptes/${id}/objectif-epargne`, { montant, date });
+    return body.data;
+  },
+
+  getAnalyseEpargne: async (id: number | string) => {
+    const { data: body } = await apiClient.get(`/comptes/${id}/analyse-epargne`);
+    return body.data as {
+      solde: number; objectif_montant: number | null; objectif_date: string | null; progression_pct: number | null;
+      nb_versements: number; montant_moyen_versement: number; regularite_pct: number;
+    };
+  },
 };

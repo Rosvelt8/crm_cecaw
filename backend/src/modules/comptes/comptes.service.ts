@@ -1,7 +1,10 @@
 import prisma from '../../lib/prisma';
 import { createLog } from '../../lib/logger';
 import { JwtPayload } from '../../middleware/auth';
-import { StatutCompte } from '@prisma/client';
+import { Prisma, StatutCompte } from '@prisma/client';
+import { comptabiliser } from '../../lib/compta';
+import { droitsEffectifs } from '../../lib/rbac';
+import { verifierOperation } from '../../lib/conformite';
 import { parsePagination, paginationMeta } from '../../lib/pagination';
 
 async function generateNumero(): Promise<string> {
@@ -70,6 +73,42 @@ export async function updateStatut(id: number, statut: StatutCompte, _actor: Jwt
   return prisma.compteClient.update({ where: { id }, data: { statut }, include: compteInclude });
 }
 
+/**
+ * Objectif d'épargne (compléments stratégiques, point 10) : purement déclaratif, n'affecte
+ * aucun calcul financier. `null` efface l'objectif.
+ */
+export async function definirObjectifEpargne(id: number, montant: number | null, date: string | null, _actor: JwtPayload) {
+  return prisma.compteClient.update({
+    where: { id },
+    data: { objectifEpargneMontant: montant, objectifEpargneDate: date ? new Date(date) : null },
+    include: compteInclude,
+  });
+}
+
+/** Régularité et progression de l'épargne (compléments stratégiques, point 10). */
+export async function analyseEpargne(id: number) {
+  const compte = await prisma.compteClient.findUniqueOrThrow({ where: { id }, select: { solde: true, dateOuverture: true, objectifEpargneMontant: true, objectifEpargneDate: true } });
+  const versements = await prisma.transaction.findMany({
+    where: { compteId: id, type: 'credit' },
+    orderBy: { createdAt: 'asc' },
+    select: { montant: true, createdAt: true },
+  });
+  const moisCouverts = new Set(versements.map((v) => `${v.createdAt.getUTCFullYear()}-${v.createdAt.getUTCMonth()}`));
+  const ancienneteMois = Math.max(1, Math.round((Date.now() - compte.dateOuverture.getTime()) / (30 * 86_400_000)));
+  const regulariteFraction = moisCouverts.size / Math.min(ancienneteMois, 24); // fenêtre glissante de 2 ans max
+  const totalVerse = versements.reduce((s, v) => s + Number(v.montant), 0);
+  const moyenneParVersement = versements.length > 0 ? totalVerse / versements.length : 0;
+  return {
+    solde: Number(compte.solde),
+    objectif_montant: compte.objectifEpargneMontant ? Number(compte.objectifEpargneMontant) : null,
+    objectif_date: compte.objectifEpargneDate,
+    progression_pct: compte.objectifEpargneMontant && Number(compte.objectifEpargneMontant) > 0 ? Math.round((Number(compte.solde) / Number(compte.objectifEpargneMontant)) * 100) : null,
+    nb_versements: versements.length,
+    montant_moyen_versement: Math.round(moyenneParVersement),
+    regularite_pct: Math.round(Math.min(1, regulariteFraction) * 100),
+  };
+}
+
 export async function listTransactions(compteId: number, query: Record<string, unknown>) {
   const { skip, take, page, perPage } = parsePagination(query);
   const where: Record<string, unknown> = { compteId };
@@ -90,12 +129,41 @@ export async function listTransactions(compteId: number, query: Record<string, u
   return { items, meta: paginationMeta(page, perPage, total) };
 }
 
-export async function createTransaction(compteId: number, data: { type: 'credit' | 'debit'; montant: number; motif?: string; agent_id: number }) {
-  return prisma.$transaction(async (tx) => {
+/**
+ * Enregistre un dépôt ou un retrait.
+ *
+ * - `client_uid` (fourni par le mobile) rend le rejeu hors connexion idempotent : rejouer la même
+ *   opération renvoie l'écriture déjà enregistrée au lieu de créditer deux fois (TR-07).
+ * - Les encaissements sont rattachés à la journée de collecte de l'agent, base du contrôle par le
+ *   superviseur et du rapprochement avec la caisse.
+ * - Un reçu numérique est numéroté, l'écriture comptable est générée et le seuil de vigilance contrôlé.
+ */
+export async function createTransaction(
+  compteId: number,
+  data: { type: 'credit' | 'debit'; montant: number; motif?: string; agent_id: number; client_uid?: string; effectue_le?: string },
+  actor?: JwtPayload,
+) {
+  if (actor) {
+    // Un agent n'enregistre que ses propres opérations ; seul un profil de caisse peut saisir pour autrui.
+    const ag = await prisma.agent.findUnique({ where: { id: data.agent_id }, select: { utilisateurId: true } });
+    if (!ag) throw Object.assign(new Error('Agent introuvable'), { status: 404 });
+    if (ag.utilisateurId !== actor.sub && !(await droitsEffectifs(actor.sub, actor.role)).has('comptes:EXECUTE')) {
+      throw Object.assign(new Error("Vous ne pouvez enregistrer que vos propres opérations."), { status: 403 });
+    }
+  }
+  if (data.client_uid) {
+    const deja = await prisma.transaction.findUnique({ where: { clientUid: data.client_uid }, include: { agent: { include: { utilisateur: { select: { prenom: true, nom: true } } } } } });
+    if (deja) return deja;
+  }
+
+  const txn = await prisma.$transaction(async (tx) => {
     const compte = await tx.compteClient.findUniqueOrThrow({ where: { id: compteId } });
     if (compte.statut !== 'actif') throw Object.assign(new Error('Compte non actif'), { status: 422 });
 
-    const soldeAvant = Number(compte.solde);
+    // Le solde est relu et mis à jour dans la même transaction, sous verrou de ligne, pour que deux
+    // opérations simultanées ne partent pas du même solde.
+    const [verrou] = await tx.$queryRaw<{ solde: Prisma.Decimal }[]>`SELECT solde FROM comptes_clients WHERE id = ${compteId} FOR UPDATE`;
+    const soldeAvant = Number(verrou.solde);
     let soldeApres: number;
 
     if (data.type === 'debit') {
@@ -105,17 +173,45 @@ export async function createTransaction(compteId: number, data: { type: 'credit'
       soldeApres = soldeAvant + data.montant;
     }
 
-    const txn = await tx.transaction.create({
+    // Journée de collecte : celle de l'opération si elle est encore ouverte, sinon celle du jour.
+    let journeeId: number | null = null;
+    if (data.type === 'credit') {
+      const jour = (d: Date) => { const x = new Date(d); x.setUTCHours(0, 0, 0, 0); return x; };
+      const voulue = data.effectue_le && !Number.isNaN(new Date(data.effectue_le).getTime()) && Date.now() - new Date(data.effectue_le).getTime() < 7 * 86_400_000 ? jour(new Date(data.effectue_le)) : jour(new Date());
+      let journee = await tx.journeeCollecte.findUnique({ where: { agentId_date: { agentId: data.agent_id, date: voulue } } });
+      if (!journee || journee.statut !== 'ouverte') {
+        const aujourdhui = jour(new Date());
+        journee = await tx.journeeCollecte.findUnique({ where: { agentId_date: { agentId: data.agent_id, date: aujourdhui } } })
+          ?? await tx.journeeCollecte.create({ data: { agentId: data.agent_id, date: aujourdhui } });
+      }
+      if (journee.statut === 'ouverte') {
+        journeeId = journee.id;
+        await tx.journeeCollecte.update({ where: { id: journee.id }, data: { totalCollecte: { increment: data.montant }, nbOperations: { increment: 1 } } });
+      }
+    }
+
+    const cree = await tx.transaction.create({
       data: {
-        compteId, type: data.type, montant: data.montant,
-        soldeAvant, soldeApres, motif: data.motif, agentId: data.agent_id,
+        compteId, type: data.type, montant: data.montant, soldeAvant, soldeApres, motif: data.motif, agentId: data.agent_id,
+        journeeId, clientUid: data.client_uid ?? null,
       },
       include: { agent: { include: { utilisateur: { select: { prenom: true, nom: true } } } } },
     });
-
+    const ymd = cree.createdAt.toISOString().slice(0, 10).replace(/-/g, '');
+    const recuNumero = `REC-${ymd}-${String(cree.id).padStart(6, '0')}`;
+    await tx.transaction.update({ where: { id: cree.id }, data: { recuNumero } });
     await tx.compteClient.update({ where: { id: compteId }, data: { solde: soldeApres } });
-    return txn;
+    return { ...cree, recuNumero };
   });
+
+  const compte = await prisma.compteClient.findUnique({ where: { id: compteId }, select: { clientId: true, numero: true, client: { select: { agenceId: true } } } });
+  const agenceId = compte?.client.agenceId ?? null;
+  await comptabiliser.transactionCompte({
+    id: txn.id, type: txn.type as 'credit' | 'debit', montant: Number(txn.montant), agenceId, acteurId: actor?.sub, date: txn.createdAt,
+    libelle: `${txn.type === 'credit' ? 'Dépôt' : 'Retrait'} sur compte ${compte?.numero ?? compteId}`,
+  });
+  await verifierOperation({ montant: Number(txn.montant), type: txn.type, entiteType: 'transaction', entiteId: txn.id, agenceId, clientId: compte?.clientId, libelle: `${txn.type === 'credit' ? 'Dépôt' : 'Retrait'} sur compte ${compte?.numero ?? compteId}` });
+  return txn;
 }
 
 /**

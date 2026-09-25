@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import * as svc from './utilisateurs.service';
+import { verifierMotDePasse } from '../../lib/crypto';
 import { success, created, noContent, error } from '../../lib/response';
 
 const schema = z.object({
@@ -54,9 +55,10 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
 export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { new_password, new_password_confirmation } = req.body as { new_password?: string; new_password_confirmation?: string };
-    if (!new_password || new_password.length < 6) return error(res, 'Minimum 6 caractères requis', 422);
+    const manques = new_password ? verifierMotDePasse(new_password) : ['un mot de passe'];
+    if (manques.length > 0) return error(res, `Mot de passe trop faible : il faut ${manques.join(', ')}.`, 422);
     if (new_password !== new_password_confirmation) return error(res, 'Les mots de passe ne correspondent pas', 422);
-    await svc.changePassword(parseInt(req.params.id, 10), new_password, req.user!);
+    await svc.changePassword(parseInt(req.params.id, 10), new_password as string, req.user!);
     return success(res, { message: 'Mot de passe mis à jour' });
   } catch (e) { return next(e); }
 };

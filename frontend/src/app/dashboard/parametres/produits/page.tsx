@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { z } from 'zod';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { produitService } from '@/services/produitService';
@@ -41,7 +41,10 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void 
 );
 
 export default function ProduitsPage() {
-  const { canEditParametres } = useAuth();
+  const { can } = useCan();
+  // POST/PUT/DELETE /produits exigent tous `produits:CONFIGURE` (le taux/type se règlent séparément,
+  // voir Paramètres > Paramétrage financier).
+  const canEditParametres = can('produits:CONFIGURE');
   const [produits, setProduits] = useState<any[]>([]);
   const [groupes, setGroupes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { z } from 'zod';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { userService } from '@/services/userService';
@@ -58,7 +58,12 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
 }
 
 export default function UtilisateursPage() {
-  const { canEditParametres, canResetUserPassword } = useAuth();
+  const { can } = useCan();
+  // backend/src/modules/utilisateurs/utilisateurs.routes.ts : create/delete → socle:CREATE ;
+  // update/toggle/mot de passe → socle:UPDATE ; réinitialisation admin → socle:EXECUTE.
+  const canCreerUtilisateur = can('socle:CREATE');
+  const canModifierUtilisateur = can('socle:UPDATE');
+  const canResetUserPassword = can('socle:EXECUTE');
   const [utilisateurs, setUtilisateurs] = useState<User[]>([]);
   const [agences, setAgences] = useState<any[]>([]);
   const [equipes, setEquipes] = useState<any[]>([]);
@@ -223,7 +228,7 @@ export default function UtilisateursPage() {
           <h1 className="text-2xl font-bold">Utilisateurs</h1>
           <p className="text-sm text-muted-foreground">{utilisateurs.length} comptes enregistrés</p>
         </div>
-        {canEditParametres && (
+        {canCreerUtilisateur && (
           <Button variant="brand" size="sm" onClick={openCreate} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Nouvel utilisateur
           </Button>
@@ -313,24 +318,24 @@ export default function UtilisateursPage() {
                               <KeyRound className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          {canEditParametres && (
-                            <>
-                              <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => toggleActif(u)}>
-                                {u.actif ? 'Suspendre' : 'Activer'}
-                              </Button>
-                              {confirmId === u.id ? (
-                                <>
-                                  <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleDelete(u.id)}>
-                                    <Check className="mr-1 h-3 w-3" /> Confirmer
-                                  </Button>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setConfirmId(null)}><X className="h-3 w-3" /></Button>
-                                </>
-                              ) : (
-                                <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setConfirmId(u.id)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
+                          {canModifierUtilisateur && (
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => toggleActif(u)}>
+                              {u.actif ? 'Suspendre' : 'Activer'}
+                            </Button>
+                          )}
+                          {canCreerUtilisateur && (
+                            confirmId === u.id ? (
+                              <>
+                                <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleDelete(u.id)}>
+                                  <Check className="mr-1 h-3 w-3" /> Confirmer
                                 </Button>
-                              )}
-                            </>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setConfirmId(null)}><X className="h-3 w-3" /></Button>
+                              </>
+                            ) : (
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setConfirmId(u.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )
                           )}
                         </div>
                       </td>
@@ -363,7 +368,7 @@ export default function UtilisateursPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {!editMode && canEditParametres && (
+                {!editMode && canModifierUtilisateur && (
                   <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setEditMode(true)}>
                     <Pencil className="h-3 w-3" /> Éditer
                   </Button>
@@ -408,13 +413,13 @@ export default function UtilisateursPage() {
                       ))}
                     </div>
                   </section>
-                  {(canEditParametres || canResetUserPassword) && (
+                  {(canModifierUtilisateur || canResetUserPassword) && (
                     <>
                       <div className="border-t" />
                       <section className="space-y-3">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actions administrateur</p>
                         <div className="flex flex-wrap gap-2">
-                          {canEditParametres && (
+                          {canModifierUtilisateur && (
                             <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5"
                               onClick={() => toggleActif(drawer)}>
                               <ShieldCheck className="h-3.5 w-3.5" />

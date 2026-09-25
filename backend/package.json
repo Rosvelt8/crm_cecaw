@@ -12,6 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node prisma/seed.ts",
     "db:studio": "prisma studio",
+    "db:backup": "ts-node scripts/sauvegarde.ts",
+    "db:restore": "ts-node scripts/restauration.ts",
     "db:reset": "prisma migrate reset --force && ts-node prisma/seed.ts"
   },
   "dependencies": {

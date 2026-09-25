@@ -15,6 +15,10 @@ const transactionSchema = z.object({
   montant: z.number().positive(),
   motif: z.string().optional(),
   agent_id: z.number().int().positive(),
+  /** Identifiant unique généré par le mobile, pour rejouer une opération sans la dupliquer. */
+  client_uid: z.string().min(8).max(64).optional(),
+  /** Instant réel de l'opération quand elle a été saisie hors connexion. */
+  effectue_le: z.string().optional(),
 });
 
 export const listByClient = async (req: Request, res: Response, next: NextFunction) => {
@@ -39,6 +43,17 @@ export const updateStatut = async (req: Request, res: Response, next: NextFuncti
   } catch (e) { return next(e); }
 };
 
+export const definirObjectifEpargne = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const b = z.object({ montant: z.coerce.number().positive().nullable(), date: z.string().nullable().optional() }).parse(req.body);
+    return success(res, await svc.definirObjectifEpargne(parseInt(req.params.id, 10), b.montant, b.date ?? null, req.user!));
+  } catch (e) { return next(e); }
+};
+
+export const analyseEpargne = async (req: Request, res: Response, next: NextFunction) => {
+  try { return success(res, await svc.analyseEpargne(parseInt(req.params.id, 10))); } catch (e) { return next(e); }
+};
+
 export const listTransactions = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { items, meta } = await svc.listTransactions(parseInt(req.params.compte_id, 10), req.query as Record<string, unknown>);
@@ -49,7 +64,7 @@ export const listTransactions = async (req: Request, res: Response, next: NextFu
 export const createTransaction = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = transactionSchema.parse(req.body);
-    return created(res, await svc.createTransaction(parseInt(req.params.compte_id, 10), body));
+    return created(res, await svc.createTransaction(parseInt(req.params.compte_id, 10), body, req.user!));
   } catch (e) { return next(e); }
 };
 

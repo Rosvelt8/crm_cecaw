@@ -26,6 +26,8 @@ const PLAIN = {
   dernierEnvoiSource: 'cecaw.dernier_envoi_source',
   queuePositions: 'cecaw.queue.positions',
   queueTransactions: 'cecaw.queue.transactions',
+  queueTerrain: 'cecaw.queue.terrain',
+  tourneesCache: 'cecaw.cache.tournees',
 } as const;
 
 export async function getSecure(key: keyof typeof SECURE): Promise<string | null> {

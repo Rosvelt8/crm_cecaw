@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Lock, Eye, EyeOff, X, Building2, UsersRound, CalendarDays, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import MfaCard from '@/components/security/MfaCard';
 import { toast } from 'sonner';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -31,7 +32,12 @@ const profilSchema = z.object({
 
 const pwdSchema = z.object({
   current: z.string().min(1, 'Mot de passe actuel requis'),
-  next: z.string().min(6, 'Le nouveau mot de passe doit contenir au moins 6 caractères'),
+  next: z.string()
+    .min(10, 'Au moins 10 caractères')
+    .regex(/[a-z]/, 'Une minuscule au moins')
+    .regex(/[A-Z]/, 'Une majuscule au moins')
+    .regex(/\d/, 'Un chiffre au moins')
+    .regex(/[^A-Za-z0-9]/, 'Un caractère spécial au moins'),
   confirm: z.string(),
 }).refine((d) => d.next === d.confirm, { message: 'Les mots de passe ne correspondent pas', path: ['confirm'] });
 
@@ -233,6 +239,8 @@ export default function ProfilPage() {
       </div>
 
       {/* Modal mot de passe */}
+      <MfaCard />
+
       {showPwdModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4">
           <div className="bg-background rounded-xl shadow-xl w-full max-w-md">
@@ -257,7 +265,7 @@ export default function ProfilPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Nouveau mot de passe <span className="text-red-500">*</span></Label>
-                <Input type="password" value={pwdForm.next} onChange={(e) => setPwdForm({ ...pwdForm, next: e.target.value })} placeholder="Min. 6 caractères" />
+                <Input type="password" value={pwdForm.next} onChange={(e) => setPwdForm({ ...pwdForm, next: e.target.value })} placeholder="10 car. min. : majuscule, minuscule, chiffre, symbole" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Confirmer <span className="text-red-500">*</span></Label>

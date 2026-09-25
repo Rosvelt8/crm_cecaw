@@ -5,6 +5,11 @@ import app from './app';
 import { env } from './config/env';
 import prisma from './lib/prisma';
 import { setIO } from './lib/socket';
+import { synchroniserReferentiel } from './lib/rbac';
+import { synchroniserPlanComptable } from './lib/compta';
+import { synchroniserDeclencheurs } from './lib/notifier';
+import { rattraperDonnees } from './lib/montants';
+import { demarrerPlanificateur } from './lib/planificateur';
 import { AuthJwtPayload } from './middleware/auth';
 
 const httpServer = createServer(app);
@@ -107,8 +112,16 @@ io.on('connection', (socket: Socket) => {
 
 async function start() {
   await prisma.$connect();
+  // Un échec ici ne doit pas empêcher le démarrage : les anciens rôles restent
+  // fonctionnels grâce au repli sur la matrice du code.
+  await synchroniserReferentiel().catch((err) => console.error('[rbac] synchronisation du référentiel impossible :', err));
+  // Amorçage idempotent des données de référence ; un échec est signalé sans empêcher le démarrage.
+  await synchroniserPlanComptable().catch((err) => console.error('[compta] plan comptable :', err));
+  await synchroniserDeclencheurs().catch((err) => console.error('[notifications] déclencheurs :', err));
+  await rattraperDonnees().then((r) => { if (r.revenus || r.zones) console.log(`[rattrapage] ${r.revenus} revenu(s) converti(s), ${r.zones} rattachement(s) de zone`); }).catch((err) => console.error('[rattrapage]', err));
   httpServer.listen(env.PORT, () => {
     console.log(`[cecaw] Backend running on port ${env.PORT} (${env.NODE_ENV})`);
+    demarrerPlanificateur();
   });
 }
 

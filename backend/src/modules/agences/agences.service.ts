@@ -11,6 +11,7 @@ function fmt(a: Awaited<ReturnType<typeof prisma.agence.findMany>>[0] & {
 }) {
   return {
     id: a.id, nom: a.nom, ville: a.ville, adresse: a.adresse, actif: a.actif,
+    code: a.code, institutionId: a.institutionId, latitude: a.latitude, longitude: a.longitude,
     nb_equipes: a._count.equipes,
     nb_utilisateurs: a._count.utilisateurs,
     created_at: a.createdAt,
@@ -42,19 +43,22 @@ export async function getOne(id: number) {
   });
   return {
     id: a.id, nom: a.nom, ville: a.ville, adresse: a.adresse, actif: a.actif,
+    code: a.code, institutionId: a.institutionId, latitude: a.latitude, longitude: a.longitude,
     nb_utilisateurs: a._count.utilisateurs,
     equipes: a.equipes.map((e) => ({ id: e.id, nom: e.nom, nb_membres: e._count.membres })),
     created_at: a.createdAt,
   };
 }
 
-export async function create(data: { nom: string; ville: string; adresse?: string; actif?: boolean }, actor: JwtPayload) {
-  const a = await prisma.agence.create({ data: { nom: data.nom, ville: data.ville, adresse: data.adresse, actif: data.actif ?? true } });
+type Extra = { code?: string | null; institutionId?: number | null; latitude?: number | null; longitude?: number | null };
+
+export async function create(data: { nom: string; ville: string; adresse?: string; actif?: boolean } & Extra, actor: JwtPayload) {
+  const a = await prisma.agence.create({ data: { nom: data.nom, ville: data.ville, adresse: data.adresse, actif: data.actif ?? true, code: data.code ?? null, institutionId: data.institutionId ?? null, latitude: data.latitude ?? null, longitude: data.longitude ?? null } });
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'parametres', action: 'CREATE_AGENCE', entiteType: 'agence', entiteId: a.id, description: `Création de l'agence ${a.nom}`, impact: '+1 agence' });
   return a;
 }
 
-export async function update(id: number, data: Partial<{ nom: string; ville: string; adresse: string; actif: boolean }>, actor: JwtPayload) {
+export async function update(id: number, data: Partial<{ nom: string; ville: string; adresse: string; actif: boolean } & Extra>, actor: JwtPayload) {
   const a = await prisma.agence.update({ where: { id }, data });
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'parametres', action: 'UPDATE_AGENCE', entiteType: 'agence', entiteId: id, description: `Modification de l'agence ${a.nom}` });
   return a;

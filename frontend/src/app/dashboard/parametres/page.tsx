@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
 import { agenceService } from '@/services/agenceService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,9 @@ import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { canEditParametres } = useAuth();
+  const { can } = useCan();
+  // Ce raccourci crée/active des agences : POST/PUT /agences exigent `organisation:CREATE`.
+  const canEditParametres = can('organisation:CREATE');
 
   // Agences (réel, via l'API /agences)
   const [agenceList, setAgenceList] = useState<any[]>([]);

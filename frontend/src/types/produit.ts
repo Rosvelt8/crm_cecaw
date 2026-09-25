@@ -1,39 +1,38 @@
-export type TypeProduit = 'credit' | 'epargne' | 'assurance' | 'service';
+// Aligné sur l'enum Prisma `TypeProduit` (backend/prisma/schema.prisma) : 'assurance' et 'service'
+// n'existent pas côté serveur, un produit non financier est classé 'autre'.
+export type TypeProduit = 'credit' | 'epargne' | 'autre';
 
 export interface GroupeProduit {
   id: number;
-  code: string;
   nom: string;
-  description?: string;
-  est_actif: boolean;
-  created_at: string;
-  updated_at: string;
-  produits_count?: number;
+  description?: string | null;
+  couleur?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
+// Champs alignés sur la sortie réelle de GET /produits (Prisma sérialisé en camelCase, sans mapping).
+// Le taux, les frais et les bornes de montant/durée ne vivent pas sur le produit lui-même mais sur son
+// paramétrage versionné (voir ParametrageProduit, /parametrages/produits/:id/en-vigueur).
 export interface Produit {
   id: number;
-  groupe_id?: number;
-  groupe?: GroupeProduit;
-  code: string;
   nom: string;
+  code: string | null;
+  groupeId: number;
+  groupe?: GroupeProduit;
   type: TypeProduit;
-  description?: string;
-  est_actif: boolean;
-  taux_interet_defaut?: number;
-  montant_min?: number;
-  montant_max?: number;
-  duree_min_mois?: number;
-  duree_max_mois?: number;
-  created_at: string;
-  updated_at: string;
+  description?: string | null;
+  actif: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
+// Paramètres de requête de GET /produits. Seuls `groupe_id`, `actif` et `search` sont filtrés côté
+// serveur (voir produits.service.ts `list`) ; `page`/`per_page` sont acceptés par des appelants qui
+// espèrent une pagination, mais la route ne pagine pas et les ignore silencieusement.
 export interface ProduitFilterParams {
-  type?: TypeProduit;
   groupe_id?: number;
   actif?: boolean;
-  est_actif?: boolean;
   search?: string;
   page?: number;
   per_page?: number;

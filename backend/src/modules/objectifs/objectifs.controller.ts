@@ -5,13 +5,16 @@ import { success, created, noContent } from '../../lib/response';
 
 const schema = z.object({
   titre: z.string().min(1).max(200),
-  produit_id: z.number().int().positive(),
+  produit_id: z.number().int().positive().nullish(),
+  categorie: z.enum(['produit', 'commercial', 'collecte', 'credit', 'recouvrement', 'nouveaux_clients']).optional(),
+  agence_id: z.number().int().positive().nullish(),
+  zone_id: z.number().int().positive().nullish(),
   cible: z.number().positive(),
   unite: z.enum(['clients', 'montant']),
   periodicite: z.enum(['semaine', 'mois', 'trimestre']),
   date_debut: z.string(),
   date_fin: z.string(),
-  assignation_type: z.enum(['equipe', 'agents']),
+  assignation_type: z.enum(['equipe', 'agents', 'institution', 'agence', 'zone']),
   equipe_id: z.number().int().positive().optional(),
   agent_ids: z.array(z.number().int().positive()).optional(),
 });

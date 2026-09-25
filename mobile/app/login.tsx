@@ -16,6 +16,10 @@ export default function LoginScreen() {
   const signIn = useSession((s) => s.signIn);
   const error = useSession((s) => s.error);
   const clearError = useSession((s) => s.clearError);
+  const mfaToken = useSession((s) => s.mfaToken);
+  const submitMfa = useSession((s) => s.submitMfa);
+  const cancelMfa = useSession((s) => s.cancelMfa);
+  const [code, setCode] = useState('');
 
   const [identifiant, setIdentifiant] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +30,14 @@ export default function LoginScreen() {
     setSubmitting(true);
     await signIn(identifiant, password);
     setSubmitting(false);
+  };
+
+  const validerCode = async () => {
+    if (code.trim().length < 6) return;
+    setSubmitting(true);
+    await submitMfa(code);
+    setSubmitting(false);
+    setCode('');
   };
 
   return (
@@ -49,6 +61,29 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.sheet}>
+            {mfaToken ? (
+              <>
+                <Text style={styles.heading}>Verification en deux etapes</Text>
+                <Text style={styles.sub}>
+                  Saisissez le code a 6 chiffres de votre application d&apos;authentification, ou un code de secours.
+                </Text>
+                {error ? <ErrorNote message={error} /> : null}
+                <Field
+                  label="Code de verification"
+                  value={code}
+                  onChangeText={(v) => {
+                    clearError();
+                    setCode(v);
+                  }}
+                  keyboardType="number-pad"
+                  autoCorrect={false}
+                  placeholder="123456"
+                />
+                <Button title="Valider" onPress={validerCode} loading={submitting} disabled={code.trim().length < 6} />
+                <Button title="Retour" variant="ghost" onPress={() => { setCode(''); cancelMfa(); }} />
+              </>
+            ) : (
+              <>
             <Text style={styles.heading}>Connexion agent</Text>
             <Text style={styles.sub}>
               Réservée aux agents de collecte. Les autres profils passent par le back-office.
@@ -86,6 +121,8 @@ export default function LoginScreen() {
               loading={submitting}
               disabled={!identifiant.trim() || !password}
             />
+              </>
+            )}
 
             <View style={styles.noteRow}>
               <View style={styles.noteDot} />

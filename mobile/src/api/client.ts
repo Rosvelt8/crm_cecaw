@@ -23,12 +23,25 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-/** Un seul rafraichissement a la fois ; les requetes concurrentes attendent le meme resultat. */
-let refreshing: Promise<string | null> | null = null;
+/**
+ * Resultat d'un rafraichissement.
+ *
+ * La distinction est capitale : un refus du serveur signifie que la session est
+ * bel et bien perimee, alors qu'une coupure reseau est passagere. Confondre les
+ * deux effacait la session d'un agent des la moindre perte de couverture, en
+ * pleine tournee, avec son code PIN et son suivi.
+ */
+type ResultatRafraichissement =
+  | { etat: 'ok'; token: string }
+  | { etat: 'refuse' }
+  | { etat: 'reseau' };
 
-async function refreshAccessToken(): Promise<string | null> {
+/** Un seul rafraichissement a la fois ; les requetes concurrentes attendent le meme resultat. */
+let refreshing: Promise<ResultatRafraichissement> | null = null;
+
+async function refreshAccessToken(): Promise<ResultatRafraichissement> {
   const refresh = await getSecure('refresh');
-  if (!refresh) return null;
+  if (!refresh) return { etat: 'refuse' };
   try {
     // Instance nue : passer par `api` relancerait l'intercepteur en boucle.
     // `client: 'mobile'` conserve la session longue au rafraichissement, sans
@@ -38,11 +51,14 @@ async function refreshAccessToken(): Promise<string | null> {
       client: 'mobile',
     });
     const token: string | undefined = data?.data?.access_token ?? data?.access_token;
-    if (!token) return null;
+    if (!token) return { etat: 'refuse' };
     await setSecure('access', token);
-    return token;
-  } catch {
-    return null;
+    return { etat: 'ok', token };
+  } catch (e) {
+    const err = e as AxiosError;
+    // Sans reponse HTTP, le serveur n'a pas refuse : le reseau a manque.
+    const refuse = err.response?.status === 401 || err.response?.status === 403;
+    return refuse ? { etat: 'refuse' } : { etat: 'reseau' };
   }
 }
 
@@ -57,17 +73,23 @@ api.interceptors.response.use(
 
     original._retry = true;
     refreshing = refreshing ?? refreshAccessToken();
-    const token = await refreshing;
+    const resultat = await refreshing;
     refreshing = null;
 
-    if (!token) {
-      // Le backend n'emet pas de nouveau refresh token : s'il est refuse, tout est perime.
+    if (resultat.etat === 'reseau') {
+      // Coupure passagere : on laisse l'appel echouer, l'appelant mettra sa
+      // position ou son operation en file. La session reste intacte.
+      return Promise.reject(error);
+    }
+
+    if (resultat.etat === 'refuse') {
+      // Le serveur a bel et bien refuse : la session est perimee.
       await wipeAll();
       onSessionLost?.();
       return Promise.reject(error);
     }
 
-    original.headers.Authorization = `Bearer ${token}`;
+    original.headers.Authorization = `Bearer ${resultat.token}`;
     return api(original);
   },
 );

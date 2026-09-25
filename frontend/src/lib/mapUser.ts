@@ -33,6 +33,7 @@ export function mapBackendUser(raw: any): User {
     roleString: roleSlug,
     fonction: raw.fonction ?? null,
     actif: raw.actif ?? true,
+    mfa_actif: Boolean(raw.mfa_actif),
     statut: raw.actif === false ? 'suspendu' : 'actif',
     agence_id: raw.agence?.id ?? raw.agenceId,
     agence: raw.agence

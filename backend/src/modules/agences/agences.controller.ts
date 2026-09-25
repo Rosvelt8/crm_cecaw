@@ -7,6 +7,10 @@ const schema = z.object({
   nom: z.string().min(1).max(150),
   ville: z.string().min(1),
   adresse: z.string().optional(),
+  code: z.string().max(20).nullish(),
+  institutionId: z.coerce.number().int().positive().nullish(),
+  latitude: z.coerce.number().min(-90).max(90).nullish(),
+  longitude: z.coerce.number().min(-180).max(180).nullish(),
   actif: z.boolean().optional(),
 });
 

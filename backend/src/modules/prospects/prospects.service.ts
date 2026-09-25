@@ -1,4 +1,5 @@
 import prisma from '../../lib/prisma';
+import { parseMontant } from '../../lib/montants';
 import { createLog } from '../../lib/logger';
 import { JwtPayload } from '../../middleware/auth';
 import { parsePagination, paginationMeta } from '../../lib/pagination';
@@ -97,6 +98,7 @@ export async function create(data: Record<string, unknown>, actor: JwtPayload) {
       employeur: data.employeur as string | undefined,
       secteurActivite: data.secteur_activite as string | undefined,
       revenuMensuel: data.revenu_mensuel as string | undefined,
+      revenusMensuels: parseMontant(data.revenu_mensuel as string | undefined),
       situationFamiliale: ((data.situation_familiale as string) || 'VIDE') as never,
       nombreEnfants: (data.nombre_enfants as number) ?? 0,
       referentNom: data.referent_nom as string | undefined,
@@ -179,7 +181,7 @@ export async function updateStatut(id: number, statut: StatutProspect, actor: Jw
         email: current.email ?? '', adresse: current.adresse ?? '',
         quartier: current.quartier, ville: current.ville,
         profession: current.profession, employeur: current.employeur,
-        secteurActivite: current.secteurActivite, revenuMensuel: current.revenuMensuel,
+        secteurActivite: current.secteurActivite, revenuMensuel: current.revenuMensuel, revenusMensuels: current.revenusMensuels, zoneId: current.zoneId,
         situationFamiliale: current.situationFamiliale,
         nombreEnfants: current.nombreEnfants,
         referentNom: current.referentNom, referentTelephone: current.referentTelephone,

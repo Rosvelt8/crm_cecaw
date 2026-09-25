@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { z } from 'zod';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/useCan';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { agenceService } from '@/services/agenceService';
@@ -14,8 +14,10 @@ import { Plus, Pencil, Trash2, X, Check, Eye, Building2, MapPin, RefreshCw } fro
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-type Form = { nom: string; ville: string; adresse: string; telephone: string; email: string };
-const EMPTY: Form = { nom: '', ville: '', adresse: '', telephone: '', email: '' };
+type Form = { nom: string; ville: string; adresse: string; telephone: string; email: string; code: string; latitude: string; longitude: string };
+/** Champs optionnels vides transmis en `null` : `Number('')` vaudrait 0, un point en plein golfe de Guinée. */
+const versPayload = (f: Form) => ({ ...f, code: f.code.trim() || null, latitude: f.latitude.trim() === '' ? null : Number(f.latitude), longitude: f.longitude.trim() === '' ? null : Number(f.longitude) });
+const EMPTY: Form = { nom: '', ville: '', adresse: '', telephone: '', email: '', code: '', latitude: '', longitude: '' };
 
 const agenceSchema = z.object({
   nom: z.string().trim().min(1, 'Nom requis').max(150, 'Maximum 150 caractères'),
@@ -41,7 +43,9 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void 
 );
 
 export default function AgencesPage() {
-  const { canEditParametres } = useAuth();
+  const { can } = useCan();
+  // POST/PUT/DELETE /agences exigent tous `organisation:CREATE` (backend/src/modules/agences/agences.routes.ts).
+  const canEditParametres = can('organisation:CREATE');
   const [agences, setAgences] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -67,7 +71,7 @@ export default function AgencesPage() {
 
   const openDrawer = (a: any) => {
     setDrawer(a); setEditMode(false); setErrors({});
-    setForm({ nom: a.nom, ville: a.ville ?? '', adresse: a.adresse ?? '', telephone: a.telephone ?? '', email: a.email ?? '' });
+    setForm({ nom: a.nom, ville: a.ville ?? '', adresse: a.adresse ?? '', telephone: a.telephone ?? '', email: a.email ?? '', code: a.code ?? '', latitude: a.latitude != null ? String(a.latitude) : '', longitude: a.longitude != null ? String(a.longitude) : '' });
   };
   const closeDrawer = () => { setDrawer(null); setEditMode(false); };
 
@@ -78,7 +82,7 @@ export default function AgencesPage() {
     setErrors({});
     setSaving(true);
     try {
-      await agenceService.create(form);
+      await agenceService.create(versPayload(form));
       toast.success(`Agence "${form.nom}" créée`);
       setModal(null);
       await load();
@@ -94,7 +98,7 @@ export default function AgencesPage() {
     setErrors({});
     setSaving(true);
     try {
-      const updated = await agenceService.update(drawer.id, form);
+      const updated = await agenceService.update(drawer.id, versPayload(form));
       setAgences((prev) => prev.map((a) => a.id === drawer.id ? { ...a, ...form } : a));
       setDrawer({ ...drawer, ...form });
       setEditMode(false);
@@ -120,6 +124,12 @@ export default function AgencesPage() {
         <div className="space-y-1.5"><Label>Ville *</Label><Input value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} placeholder="Douala" />{errors.ville && <p className="text-xs text-red-500">{errors.ville}</p>}</div>
       </div>
       <div className="space-y-1.5"><Label>Adresse</Label><Input value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} placeholder="Rue, quartier…" />{errors.adresse && <p className="text-xs text-red-500">{errors.adresse}</p>}</div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-1.5"><Label>Code</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="DLA-01" /></div>
+        <div className="space-y-1.5"><Label>Latitude</Label><Input type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} placeholder="4.0511" /></div>
+        <div className="space-y-1.5"><Label>Longitude</Label><Input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} placeholder="9.7679" /></div>
+      </div>
+      <p className="text-xs text-muted-foreground">Les coordonnées placent l'agence sur la carte et servent au calcul de couverture territoriale.</p>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5"><Label>Téléphone</Label><Input value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} />{errors.telephone && <p className="text-xs text-red-500">{errors.telephone}</p>}</div>
         <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />{errors.email && <p className="text-xs text-red-500">{errors.email}</p>}</div>

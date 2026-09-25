@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -14,10 +15,25 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { notificationsApi } from '@/services/metierService';
 
-const UNREAD_NOTIF_COUNT = 2;
+/** Nombre de notifications non lues, actualisé chaque minute et au retour sur l'onglet. */
+function useNonLues() {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let actif = true;
+    const lire = () => notificationsApi.nonLues().then((c) => { if (actif) setN(c); }).catch(() => undefined);
+    void lire();
+    const t = setInterval(lire, 60_000);
+    const visible = () => { if (document.visibilityState === 'visible') void lire(); };
+    document.addEventListener('visibilitychange', visible);
+    return () => { actif = false; clearInterval(t); document.removeEventListener('visibilitychange', visible); };
+  }, []);
+  return n;
+}
 
 export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () => void }) {
+  const nonLues = useNonLues();
   const { user, logout } = useAuthStore();
   const { canAccessParametres } = useAuth();
 
@@ -41,15 +57,15 @@ export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () =>
 
       {/* Right section: Notifications + User menu */}
       <div className="flex items-center gap-2">
-        <Link href="/dashboard/logs" className="relative">
+        <Link href="/dashboard/notifications" className="relative" aria-label="Notifications">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
             <Bell className="h-4 w-4" />
-            {UNREAD_NOTIF_COUNT > 0 && (
+            {nonLues > 0 && (
               <span className={cn(
                 'absolute right-1 top-1 flex items-center justify-center rounded-full bg-red-500 text-white font-bold ring-2 ring-white',
                 'h-3.5 w-3.5 text-[8px]'
               )}>
-                {UNREAD_NOTIF_COUNT}
+                {nonLues > 99 ? '99+' : nonLues}
               </span>
             )}
           </Button>
