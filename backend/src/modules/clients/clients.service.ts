@@ -6,6 +6,7 @@ import { parsePagination, paginationMeta } from '../../lib/pagination';
 import { getResponsableEquipeIds } from '../../lib/teamScope';
 import { StatutClient, TypeObjectifClient, StatutObjectifClient } from '@prisma/client';
 import { recalculerScoresClients } from '../../lib/segmentation';
+import { ErreurMetier } from '../../lib/rbac';
 
 const include = {
   agence: { select: { id: true, nom: true } },
@@ -13,7 +14,8 @@ const include = {
   _count: { select: { comptes: true } },
 } as const;
 
-async function agenceFilter(actor: JwtPayload) {
+/** Périmètre de clients visible par l'acteur (réutilisé par les forfaits, Lot 15). */
+export async function agenceFilter(actor: JwtPayload) {
   if (actor.role === 'admin') return {};
   if (actor.role === 'agent') return { commercialId: actor.sub };
   if (actor.role === 'backoffice') {
@@ -250,6 +252,24 @@ export async function listScores(actor: JwtPayload, query: Record<string, unknow
 export async function recalculerScores(actor: JwtPayload) {
   const r = await recalculerScoresClients();
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, module: 'marketing', action: 'RECALCUL_SCORES_CLIENTS', entiteType: 'client', entiteId: 'global', description: `Recalcul du score de ${r.traites} client(s)` });
+  return r;
+}
+
+/** Matrice client × produit d'un client (Lot 15) : opportunités de cross-sell/up-sell, triées par score. */
+export async function getAppetences(clientId: number) {
+  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } });
+  if (!client) throw new ErreurMetier('Client introuvable', 404);
+  return prisma.appetenceProduit.findMany({
+    where: { clientId, detenu: false, eligible: true },
+    orderBy: { score: 'desc' },
+    include: { produit: { select: { id: true, nom: true, type: true, groupe: { select: { id: true, nom: true } } } } },
+  });
+}
+
+/** Recalcule scores et appétences (les secondes dépendent des premiers, voir `lib/segmentation.ts`). */
+export async function recalculerAppetences(actor: JwtPayload) {
+  const r = await recalculerScoresClients();
+  await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, module: 'marketing', action: 'RECALCUL_APPETENCES_PRODUITS', entiteType: 'client', entiteId: 'global', description: `Recalcul des scores et de la matrice produit de ${r.traites} client(s)` });
   return r;
 }
 

@@ -52,7 +52,6 @@ export interface RoleReferentiel {
 }
 
 const d = (domaine: string, ...verbes: VerbePermission[]) => verbes.map((v) => `${domaine}:${v}`);
-const tous = (domaine: string) => d(domaine, ...VERBES);
 const lecture = (...domaines: string[]) => domaines.flatMap((x) => d(x, 'VIEW'));
 
 /**
@@ -69,7 +68,7 @@ export const ROLES_REFERENTIEL: RoleReferentiel[] = [
     droits: [
       ...d('socle', 'VIEW', 'CREATE', 'UPDATE', 'EXECUTE', 'CONFIGURE', 'AUDIT'),
       ...d('organisation', 'VIEW', 'CREATE', 'UPDATE'),
-      ...tous('securite'),
+      ...d('securite', 'VIEW', 'CONFIGURE'),
       ...d('conformite', 'VIEW', 'AUDIT'),
       ...d('integration', 'VIEW', 'CONFIGURE'),
       ...d('administration', 'VIEW', 'CONFIGURE'),
@@ -81,9 +80,9 @@ export const ROLES_REFERENTIEL: RoleReferentiel[] = [
     description: 'Paramétrage métier : produits, agences, zones, workflows, objectifs et règles.',
     droits: [
       ...lecture('socle'),
-      ...tous('organisation'),
-      ...tous('produits'),
-      ...tous('objectifs'),
+      ...d('organisation', 'VIEW', 'CREATE', 'UPDATE'),
+      ...d('produits', 'VIEW', 'CONFIGURE'),
+      ...d('objectifs', 'VIEW', 'CREATE', 'UPDATE', 'CONFIGURE'),
       ...d('communication', 'VIEW', 'CONFIGURE'),
       ...d('conformite', 'VIEW', 'CONFIGURE'),
       ...d('integration', 'VIEW', 'CONFIGURE'),
@@ -113,7 +112,7 @@ export const ROLES_REFERENTIEL: RoleReferentiel[] = [
       ...d('organisation', 'VIEW', 'UPDATE'),
       ...d('crm', 'VIEW', 'CREATE', 'UPDATE', 'EXPORT'),
       ...d('kyc', 'VIEW'),
-      ...d('comptes', 'VIEW', 'CREATE', 'UPDATE', 'EXECUTE'),
+      ...d('comptes', 'VIEW', 'CREATE', 'UPDATE', 'EXECUTE', 'EXPORT'),
       ...d('credit', 'VIEW', 'CREATE', 'UPDATE', 'SUBMIT', 'APPROVE', 'REJECT', 'EXPORT'),
       ...d('analyse', 'VIEW'),
       ...d('collecte', 'VIEW', 'UPDATE', 'APPROVE', 'REJECT', 'EXPORT'),
@@ -257,6 +256,7 @@ export const ROLES_REFERENTIEL: RoleReferentiel[] = [
     description: 'Journaux, rapprochements, exports et intégration comptable.',
     droits: [
       ...d('produits', 'VIEW'),
+      ...d('comptes', 'VIEW', 'EXPORT'),
       ...d('collecte', 'VIEW', 'EXPORT'),
       ...d('recouvrement', 'VIEW', 'EXPORT'),
       ...d('analytique', 'VIEW', 'EXPORT'),
@@ -271,7 +271,7 @@ export const ROLES_REFERENTIEL: RoleReferentiel[] = [
     droits: [
       ...d('socle', 'VIEW', 'AUDIT'),
       ...d('kyc', 'VIEW', 'AUDIT'),
-      ...d('comptes', 'VIEW', 'AUDIT'),
+      ...d('comptes', 'VIEW', 'AUDIT', 'EXPORT'),
       ...d('produits', 'VIEW', 'AUDIT'),
       ...d('credit', 'VIEW', 'AUDIT', 'EXPORT'),
       ...d('analyse', 'VIEW', 'AUDIT'),
@@ -346,13 +346,177 @@ export const REPLI_ROLE_HISTORIQUE: Record<RoleUtilisateur, string[] | '*'> = {
   agent: ['R05', 'R10'],
 };
 
+/**
+ * Catalogue réel des droits, domaine par domaine : seuls les couples domaine:VERBE qui
+ * correspondent à une fonctionnalité effective (vérifiée par une route ou accordée à un rôle du
+ * référentiel) y figurent, avec un libellé qui décrit l'action plutôt que de répéter le verbe brut.
+ * Tenu à jour par `scripts/audit-permissions.ts`, qui compare ce catalogue à l'usage réel des
+ * middlewares `can(...)` dans les modules et aux droits accordés dans `ROLES_REFERENTIEL`.
+ */
+const CATALOGUE_DOMAINE: Record<string, Partial<Record<VerbePermission, string>>> = {
+  socle: {
+    VIEW: 'Consulter les comptes utilisateurs',
+    CREATE: 'Créer un compte utilisateur',
+    UPDATE: 'Modifier ou suspendre un compte utilisateur',
+    EXECUTE: "Réinitialiser le mot de passe d'un utilisateur",
+    CONFIGURE: 'Exécuter des opérations techniques avancées (maintenance, jeux de test)',
+    AUDIT: "Consulter le journal d'activité",
+  },
+  organisation: {
+    VIEW: 'Consulter agences, équipes, zones, marchés, secteurs et métiers',
+    CREATE: 'Créer une agence, équipe, zone, marché, secteur ou métier',
+    UPDATE: "Modifier l'organisation (agences, équipes, zones, marchés, affectations)",
+  },
+  crm: {
+    VIEW: 'Consulter les prospects et clients',
+    CREATE: 'Créer un prospect ou un client',
+    UPDATE: 'Modifier un prospect ou un client, ses interactions et pièces jointes',
+    EXPORT: 'Exporter la liste des prospects et clients',
+  },
+  kyc: {
+    VIEW: 'Consulter les dossiers KYC',
+    CREATE: 'Créer un dossier KYC et y joindre des pièces',
+    UPDATE: 'Modifier un dossier KYC',
+    SUBMIT: 'Soumettre un dossier KYC pour validation',
+    APPROVE: 'Valider un dossier KYC',
+    REJECT: 'Rejeter un dossier KYC',
+    EXECUTE: 'Évaluer un contrôle KYC ou vérifier une liste de sanctions',
+    AUDIT: 'Auditer les dossiers KYC',
+  },
+  comptes: {
+    VIEW: 'Consulter les comptes clients et leurs transactions',
+    CREATE: 'Ouvrir un compte client',
+    UPDATE: 'Modifier le statut d’un compte ou le supprimer',
+    EXECUTE: 'Enregistrer une transaction sur un compte',
+    EXPORT: 'Exporter un relevé de compte',
+    AUDIT: 'Auditer les comptes clients',
+  },
+  produits: {
+    VIEW: 'Consulter le catalogue et le paramétrage des produits',
+    CONFIGURE: 'Créer, modifier ou paramétrer un produit ou un groupe de produits',
+    AUDIT: 'Auditer le paramétrage des produits',
+  },
+  credit: {
+    VIEW: 'Consulter les demandes de crédit et leurs échéances',
+    CREATE: 'Monter un dossier de crédit (garanties, garants, visites)',
+    UPDATE: 'Modifier un dossier de crédit ou l’annuler',
+    SUBMIT: 'Soumettre un dossier de crédit pour décision',
+    APPROVE: 'Approuver un dossier de crédit ou un avenant',
+    REJECT: 'Rejeter un dossier de crédit',
+    EXECUTE: 'Éditer le contrat, décaisser ou enregistrer un remboursement',
+    EXPORT: "Exporter l'échéancier ou le contrat de crédit",
+    AUDIT: 'Auditer les dossiers de crédit',
+  },
+  analyse: {
+    VIEW: "Consulter la grille d'analyse (compte d'exploitation et bilan)",
+    CREATE: "Créer une grille d'analyse",
+    UPDATE: "Modifier une grille d'analyse",
+    SUBMIT: 'Terminer et soumettre une analyse financière',
+    EXPORT: "Exporter une grille d'analyse",
+    AUDIT: "Auditer les grilles d'analyse",
+  },
+  collecte: {
+    VIEW: 'Consulter les journées de collecte, portefeuilles et reçus',
+    CREATE: 'Enregistrer une opération de collecte terrain',
+    UPDATE: 'Modifier un portefeuille de collecte ou rouvrir une journée',
+    EXECUTE: 'Clôturer une journée de collecte ou son rapprochement',
+    APPROVE: 'Valider le contrôle d’une journée de collecte',
+    REJECT: 'Rejeter le contrôle d’une journée de collecte',
+    EXPORT: 'Exporter les données de collecte',
+    AUDIT: 'Auditer les journées de collecte',
+  },
+  recouvrement: {
+    VIEW: 'Consulter les dossiers de recouvrement',
+    CREATE: 'Créer un dossier de recouvrement',
+    UPDATE: 'Réaffecter un dossier ou mettre à jour sa localisation',
+    EXECUTE: 'Relancer un client, créer une promesse ou un plan de paiement',
+    APPROVE: 'Valider un plan de paiement ou une escalade',
+    EXPORT: 'Exporter les données de recouvrement',
+    AUDIT: 'Auditer les dossiers de recouvrement',
+  },
+  objectifs: {
+    VIEW: 'Consulter les objectifs',
+    CREATE: 'Créer un objectif',
+    UPDATE: 'Modifier ou recalculer un objectif',
+    CONFIGURE: 'Paramétrer le cadre des objectifs',
+  },
+  sig: {
+    VIEW: 'Consulter la cartographie et les couches SIG',
+    CONFIGURE: 'Configurer les couches cartographiques',
+    EXPORT: 'Exporter des données cartographiques',
+  },
+  territoire: {
+    VIEW: 'Consulter la couverture et le potentiel du territoire',
+    CREATE: 'Créer un découpage territorial',
+    UPDATE: 'Modifier un découpage territorial',
+    EXECUTE: 'Recalculer le découpage territorial',
+    EXPORT: 'Exporter les données de territoire',
+  },
+  tournees: {
+    VIEW: 'Consulter les tournées et leurs visites',
+    CREATE: 'Générer ou planifier une tournée',
+    UPDATE: 'Réoptimiser ou annuler une tournée',
+    EXECUTE: 'Démarrer, terminer une tournée ou enregistrer une visite',
+    APPROVE: 'Arbitrer une visite contestée',
+  },
+  tracking: {
+    VIEW: 'Consulter la position et le suivi terrain des agents',
+    EXECUTE: 'Exécuter le suivi terrain (tournées en cours)',
+    AUDIT: 'Auditer le suivi terrain',
+  },
+  analytique: {
+    VIEW: 'Consulter les tableaux de bord et indicateurs',
+    EXPORT: 'Exporter les indicateurs et statistiques',
+  },
+  communication: {
+    VIEW: 'Consulter les campagnes, le calendrier et les déclencheurs de communication',
+    CONFIGURE: 'Créer ou paramétrer campagnes, déclencheurs, SMS/WhatsApp et calendrier',
+  },
+  comptabilite: {
+    VIEW: 'Consulter le plan comptable, journal et états financiers',
+    CREATE: 'Créer une écriture comptable ou un compte du plan',
+    UPDATE: 'Rapprocher un relevé bancaire',
+    EXECUTE: "Pousser un export vers l'intégration comptable",
+    APPROVE: 'Annuler une écriture ou clôturer/rouvrir une période',
+    EXPORT: 'Exporter les états comptables',
+    AUDIT: 'Auditer la comptabilité',
+  },
+  documentaire: {
+    VIEW: 'Consulter les archives documentaires',
+    CREATE: 'Archiver un document',
+    AUDIT: "Vérifier l'intégrité d'une archive",
+  },
+  conformite: {
+    VIEW: 'Consulter le résumé, les alertes et les listes de conformité',
+    UPDATE: 'Gérer les listes de sanctions et de vigilance',
+    EXECUTE: 'Traiter une alerte ou lancer une analyse de conformité',
+    CONFIGURE: 'Paramétrer les listes et règles de conformité',
+    AUDIT: 'Auditer la conformité et les règles de séparation des fonctions',
+    EXPORT: 'Exporter les données de conformité',
+  },
+  integration: {
+    VIEW: 'Consulter les webhooks et le journal d’échanges',
+    CONFIGURE: 'Créer, modifier ou tester un webhook',
+    AUDIT: 'Auditer le journal des échanges API',
+  },
+  securite: {
+    VIEW: 'Consulter l’état de sécurité et les sauvegardes',
+    CONFIGURE: 'Débloquer un utilisateur, réinitialiser un MFA ou créer une sauvegarde',
+    AUDIT: 'Auditer la sécurité du système',
+  },
+  administration: {
+    VIEW: 'Consulter les paramètres système et l’état des tâches planifiées',
+    CONFIGURE: 'Modifier un paramètre système ou exécuter une tâche planifiée',
+  },
+};
+
 export function catalogue(): { code: string; domaine: string; verbe: VerbePermission; libelle: string }[] {
-  return Object.entries(DOMAINES).flatMap(([domaine, libelleDomaine]) =>
-    VERBES.map((verbe) => ({
+  return Object.entries(CATALOGUE_DOMAINE).flatMap(([domaine, verbes]) =>
+    (Object.entries(verbes) as [VerbePermission, string][]).map(([verbe, libelle]) => ({
       code: `${domaine}:${verbe}`,
       domaine,
       verbe,
-      libelle: `${libelleDomaine} — ${verbe}`,
+      libelle,
     })),
   );
 }

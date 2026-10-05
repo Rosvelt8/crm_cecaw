@@ -6,11 +6,11 @@ import { success, created, noContent } from '../../lib/response';
 const schema = z.object({
   titre: z.string().min(1).max(200),
   produit_id: z.number().int().positive().nullish(),
-  categorie: z.enum(['produit', 'commercial', 'collecte', 'credit', 'recouvrement', 'nouveaux_clients']).optional(),
+  categorie: z.enum(['produit', 'commercial', 'collecte', 'credit', 'recouvrement', 'nouveaux_clients', 'cross_selling', 'up_selling']).optional(),
   agence_id: z.number().int().positive().nullish(),
   zone_id: z.number().int().positive().nullish(),
   cible: z.number().positive(),
-  unite: z.enum(['clients', 'montant']),
+  unite: z.enum(['clients', 'montant', 'produits_client', 'panier_moyen']),
   periodicite: z.enum(['semaine', 'mois', 'trimestre']),
   date_debut: z.string(),
   date_fin: z.string(),
@@ -34,17 +34,36 @@ export const getOne = async (req: Request, res: Response, next: NextFunction) =>
 export const projection = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const o = await svc.getOne(parseInt(req.params.id, 10));
-    const { projeterAvancement } = await import('./objectifs.calcul');
-    return success(res, projeterAvancement(o.dateDebut, o.dateFin, Number(o.cible), Number(o.realise)));
+    const { projeterAvancement, estIndicateurDeStock } = await import('./objectifs.calcul');
+    return success(res, projeterAvancement(o.dateDebut, o.dateFin, Number(o.cible), Number(o.realise), new Date(), estIndicateurDeStock(o.unite)));
   } catch (e) { return next(e); }
 };
 
+/** Le cross/up-selling se mesure en nombre de clients : toute autre unité serait remplie d'un comptage. */
+function verifierUnite(categorie: string | undefined, unite: string | undefined) {
+  if ((categorie === 'cross_selling' || categorie === 'up_selling') && unite !== 'clients') {
+    throw Object.assign(new Error("Un objectif de cross-selling ou d'up-selling se mesure en nombre de clients."), { status: 422 });
+  }
+}
+
 export const create = async (req: Request, res: Response, next: NextFunction) => {
-  try { return created(res, await svc.create(schema.parse(req.body), req.user!)); } catch (e) { return next(e); }
+  try {
+    const body = schema.parse(req.body);
+    verifierUnite(body.categorie, body.unite);
+    return created(res, await svc.create(body, req.user!));
+  } catch (e) { return next(e); }
 };
 
 export const update = async (req: Request, res: Response, next: NextFunction) => {
-  try { return success(res, await svc.update(parseInt(req.params.id, 10), schema.partial().parse(req.body) as Record<string, unknown>, req.user!)); } catch (e) { return next(e); }
+  try {
+    const id = parseInt(req.params.id, 10);
+    const body = schema.partial().parse(req.body);
+    if (body.categorie !== undefined || body.unite !== undefined) {
+      const actuel = await svc.getOne(id);
+      verifierUnite(body.categorie ?? actuel.categorie, body.unite ?? actuel.unite);
+    }
+    return success(res, await svc.update(id, body as Record<string, unknown>, req.user!));
+  } catch (e) { return next(e); }
 };
 
 export const updateRealise = async (req: Request, res: Response, next: NextFunction) => {

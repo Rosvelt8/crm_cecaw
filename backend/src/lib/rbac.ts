@@ -158,9 +158,15 @@ export async function synchroniserReferentiel() {
     await prisma.permission.upsert({
       where: { code: p.code },
       create: p,
-      update: { libelle: p.libelle },
+      update: { libelle: p.libelle, domaine: p.domaine, verbe: p.verbe },
     });
   }
+
+  // Nettoyage : un droit retiré du catalogue (jamais exigé par une route ni accordé à un rôle) ne
+  // doit pas continuer à traîner comme un intitulé vide dans l'écran Rôles et droits.
+  const codesActuels = new Set(permissions.map((p) => p.code));
+  const perimes = [...dejaConnus].filter((c) => !codesActuels.has(c));
+  if (perimes.length > 0) await prisma.permission.deleteMany({ where: { code: { in: perimes } } });
   const idParCode = new Map(
     (await prisma.permission.findMany({ select: { id: true, code: true } })).map((p) => [p.code, p.id]),
   );

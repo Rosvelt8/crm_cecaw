@@ -38,6 +38,7 @@ export default function NouveauProspectPage() {
         statut: data.statut,
         produit_interet_id: data.produitInteretId ? Number(data.produitInteretId) : null,
         commercial_id: commercialId ? Number(commercialId) : undefined,
+        campagne_id: data.campagneId ? Number(data.campagneId) : undefined,
         notes: data.notes || undefined,
         latitude: data.latitude ?? undefined, longitude: data.longitude ?? undefined,
       });

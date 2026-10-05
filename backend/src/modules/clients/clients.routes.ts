@@ -11,10 +11,12 @@ router.use(authenticate);
 // Routes fixes avant `/:id`.
 router.get('/scores', can('crm:VIEW'), ctrl.listScores);
 router.post('/scores/recalculer', can('crm:UPDATE'), ctrl.recalculerScores);
+router.post('/appetences/recalculer', can('crm:UPDATE'), ctrl.recalculerAppetences);
 
 router.get('/', can('crm:VIEW'), ctrl.list);
 router.get('/:id', can('crm:VIEW'), ctrl.getOne);
 router.get('/:id/synthese', can('crm:VIEW'), ctrl.synthese);
+router.get('/:id/appetences', can('crm:VIEW'), ctrl.getAppetences);
 router.post('/', can('crm:CREATE'), ctrl.create);
 router.put('/:id', can('crm:UPDATE'), ctrl.update);
 router.patch('/:id/statut', can('crm:UPDATE'), ctrl.updateStatut);

@@ -44,6 +44,8 @@ export const DEFAUTS: Record<string, DefinitionParametre> = {
   'securite.retention_sauvegardes_jours': { valeur: 30, categorie: 'securite', description: 'Durée de conservation des sauvegardes (jours)' },
   'segmentation.dormant_jours_contact': { valeur: 180, categorie: 'segmentation', description: "Jours sans interaction ni transaction au-delà desquels un client est considéré dormant" },
   'segmentation.premium_score_min': { valeur: 80, categorie: 'segmentation', description: 'Score minimal (sur 100) pour classer un client en cycle de vie « premium »' },
+  'segmentation.perdu_jours_sans_activite': { valeur: 540, categorie: 'segmentation', description: "Jours sans interaction ni transaction, encours nul, au-delà desquels un client dormant est considéré perdu" },
+  'segmentation.reactivation_jours_recents': { valeur: 7, categorie: 'segmentation', description: "Jours depuis une interaction récente, pour un client qui était dormant, déclenchant le statut « à réactiver »" },
   'commercial.relance_cooldown_jours': { valeur: 14, categorie: 'commercial', description: 'Jours minimum entre deux relances suggérées pour le même client ou prospect' },
   'commercial.potentiel_score_min': { valeur: 70, categorie: 'commercial', description: 'Score de potentiel (sur 100) à partir duquel un client est signalé comme opportunité commerciale' },
   'commercial.prospect_stagnant_jours': { valeur: 21, categorie: 'commercial', description: 'Jours sans contact au-delà desquels un prospect non converti est signalé comme stagnant' },

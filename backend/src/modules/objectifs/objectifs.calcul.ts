@@ -13,7 +13,7 @@ import { calcStatut } from './objectifs.service';
  * Les objectifs « par produit » et « commercial » restent saisis à la main : ils ne sont pas touchés.
  */
 
-const AUTOMATIQUES = ['credit', 'recouvrement', 'collecte', 'nouveaux_clients'];
+const AUTOMATIQUES = ['credit', 'recouvrement', 'collecte', 'nouveaux_clients', 'cross_selling', 'up_selling'];
 
 interface Portee { utilisateurIds: number[] | null; agentIds: number[] | null; agenceId?: number; zoneId?: number }
 
@@ -34,11 +34,85 @@ async function portee(o: Objectif): Promise<Portee> {
 /** Fin de période incluse : le dernier jour compte en entier. */
 const fin = (d: Date) => new Date(d.getTime() + 86_400_000 - 1);
 
+/** Clause `where` sur `Client` dérivée d'une portée d'objectif (institution/agence/zone/agents). */
+function clientWhereDePortee(p: Portee): Record<string, unknown> {
+  return {
+    ...(p.agenceId ? { agenceId: p.agenceId } : {}),
+    ...(p.zoneId ? { zoneId: p.zoneId } : {}),
+    ...(p.utilisateurIds ? { commercialId: { in: p.utilisateurIds } } : {}),
+  };
+}
+
+/**
+ * Objectifs de croissance (Lot 15, doc "Customer Value Growth" §9-13) : moyenne du taux
+ * d'équipement ou du panier moyen sur les clients de la portée, lue directement sur `ScoreClient`
+ * (déjà recalculé par `lib/segmentation.ts`). Rattachés à l'unité plutôt qu'à la catégorie : ce
+ * sont des métriques toujours calculées, jamais saisies à la main.
+ */
+async function calculerRealiseCroissance(o: Objectif): Promise<number> {
+  const p = await portee(o);
+  const scores = await prisma.scoreClient.findMany({ where: { client: clientWhereDePortee(p) }, select: { nombreProduits: true, panierMoyen: true } });
+  if (scores.length === 0) return 0;
+  if (o.unite === 'produits_client') return arrondi(scores.reduce((s, x) => s + x.nombreProduits, 0) / scores.length);
+  return arrondi(scores.reduce((s, x) => s + Number(x.panierMoyen), 0) / scores.length);
+}
+
+/**
+ * Cross-selling / up-selling (Lot 15) : compte des clients de la portée ayant acquis un nouveau
+ * produit pendant la période alors qu'ils en détenaient déjà au moins un avant celle-ci — un
+ * cross-sell réel, pas un nouveau client. L'up-sell affine ce comptage aux seuls cas où le
+ * nouveau produit appartient à la même famille qu'un produit déjà détenu, avec un plafond
+ * (`montantMax`) supérieur — même heuristique documentée que `lib/appetence.ts`.
+ */
+async function calculerRealiseVenteAdditionnelle(o: Objectif, p: Portee, periode: { gte: Date; lte: Date }): Promise<number> {
+  const clients = await prisma.client.findMany({ where: clientWhereDePortee(p), select: { id: true } });
+  const clientIds = clients.map((c) => c.id);
+  if (clientIds.length === 0) return 0;
+
+  // Un crédit compte dès son décaissement, même remboursé depuis (`cloturee`) ; daté par son
+  // décaissement, pas par la création de la demande.
+  const decaisses = { in: ['decaissee', 'cloturee'] as ('decaissee' | 'cloturee')[] };
+  const [comptesAvant, demandesAvant, comptesPeriode, demandesPeriode] = await Promise.all([
+    prisma.compteClient.findMany({ where: { clientId: { in: clientIds }, dateOuverture: { lt: o.dateDebut } }, select: { clientId: true } }),
+    prisma.demandeCredit.findMany({ where: { clientId: { in: clientIds }, statut: decaisses, dateDecaissement: { lt: o.dateDebut } }, select: { clientId: true, produitId: true, produit: { select: { groupeId: true } } } }),
+    prisma.compteClient.findMany({ where: { clientId: { in: clientIds }, dateOuverture: periode }, select: { clientId: true } }),
+    prisma.demandeCredit.findMany({ where: { clientId: { in: clientIds }, statut: decaisses, dateDecaissement: periode }, select: { clientId: true, produitId: true, produit: { select: { groupeId: true } } } }),
+  ]);
+  const avaitDejaUnProduit = new Set([...comptesAvant.map((c) => c.clientId), ...demandesAvant.map((d) => d.clientId)]);
+  const nouveauxProduitsPeriode = [...comptesPeriode, ...demandesPeriode].filter((x) => avaitDejaUnProduit.has(x.clientId));
+
+  if (o.categorie === 'cross_selling') return new Set(nouveauxProduitsPeriode.map((x) => x.clientId)).size;
+
+  // up_selling : parmi les nouvelles demandes de la période, celles dont le produit a un plafond
+  // supérieur à un produit déjà détenu de la même famille avant cette demande.
+  const produitIds = [...new Set([...demandesAvant.map((d) => d.produitId), ...demandesPeriode.map((d) => d.produitId)])];
+  if (produitIds.length === 0) return 0;
+  const parametrages = await prisma.parametrageProduit.findMany({ where: { produitId: { in: produitIds } }, orderBy: { dateEffet: 'desc' }, select: { produitId: true, montantMax: true } });
+  const montantMaxParProduit = new Map<number, number | null>();
+  for (const pm of parametrages) if (!montantMaxParProduit.has(pm.produitId)) montantMaxParProduit.set(pm.produitId, pm.montantMax !== null ? Number(pm.montantMax) : null);
+
+  let compte = 0;
+  for (const demande of demandesPeriode) {
+    if (!avaitDejaUnProduit.has(demande.clientId)) continue;
+    const montantMaxCandidat = montantMaxParProduit.get(demande.produitId) ?? null;
+    if (montantMaxCandidat === null) continue;
+    const dejaPlusPetit = demandesAvant.some((a) =>
+      a.clientId === demande.clientId && a.produit.groupeId === demande.produit.groupeId &&
+      (montantMaxParProduit.get(a.produitId) ?? null) !== null && (montantMaxParProduit.get(a.produitId) as number) < montantMaxCandidat,
+    );
+    if (dejaPlusPetit) compte++;
+  }
+  return compte;
+}
+
 export async function calculerRealise(o: Objectif): Promise<number | null> {
+  if (o.unite === 'produits_client' || o.unite === 'panier_moyen') return calculerRealiseCroissance(o);
   if (!AUTOMATIQUES.includes(o.categorie)) return null;
   const p = await portee(o);
   const periode = { gte: o.dateDebut, lte: fin(o.dateFin) };
   const enNombre = o.unite === 'clients';
+
+  if (o.categorie === 'cross_selling' || o.categorie === 'up_selling') return calculerRealiseVenteAdditionnelle(o, p, periode);
 
   if (o.categorie === 'credit') {
     const demandes = await prisma.demandeCredit.findMany({
@@ -112,11 +186,20 @@ export interface Projection {
   cible_suggeree: number | null;
 }
 
-export function projeterAvancement(dateDebut: Date, dateFin: Date, cible: number, realise: number, maintenant = new Date()): Projection {
+/** Indicateur de stock (moyenne à un instant t) plutôt que de flux cumulé sur la période. */
+export const estIndicateurDeStock = (unite: string) => unite === 'produits_client' || unite === 'panier_moyen';
+
+export function projeterAvancement(dateDebut: Date, dateFin: Date, cible: number, realise: number, maintenant = new Date(), stock = false): Projection {
   const debut = dateDebut.getTime();
   const finPeriode = fin(dateFin).getTime();
   const joursTotaux = Math.max(1, Math.round((finPeriode - debut) / 86_400_000));
   const joursEcoules = Math.max(0, Math.min(joursTotaux, Math.round((maintenant.getTime() - debut) / 86_400_000)));
+
+  // Un panier moyen ou un taux d'équipement ne s'accumule pas au fil des jours : l'extrapoler
+  // linéairement n'a pas de sens. On compare la valeur actuelle à la cible, sans projection.
+  if (stock) {
+    return { jours_ecoules: joursEcoules, jours_totaux: joursTotaux, rythme_journalier: 0, projection_fin_periode: realise, ecart_projete_pct: cible > 0 ? arrondi(((realise - cible) / cible) * 100) : null, cible_suggeree: null };
+  }
 
   // Trop tôt dans la période (moins d'une semaine) : la tendance ne serait pas significative.
   if (joursEcoules < 7) {
@@ -138,7 +221,12 @@ export function projeterAvancement(dateDebut: Date, dateFin: Date, cible: number
 
 export async function recalculerObjectifs(): Promise<{ recalcules: number; alertes: number }> {
   const tolerance = await parametreNombre('objectifs.tolerance_ecart_pct');
-  const objectifs = await prisma.objectif.findMany({ where: { categorie: { in: AUTOMATIQUES as never[] }, dateDebut: { lte: new Date() } } });
+  const objectifs = await prisma.objectif.findMany({
+    where: {
+      dateDebut: { lte: new Date() },
+      OR: [{ categorie: { in: AUTOMATIQUES as never[] } }, { unite: { in: ['produits_client', 'panier_moyen'] as never[] } }],
+    },
+  });
   let recalcules = 0;
   let alertes = 0;
   const aujourdhui = new Date(); aujourdhui.setUTCHours(0, 0, 0, 0);
@@ -151,7 +239,8 @@ export async function recalculerObjectifs(): Promise<{ recalcules: number; alert
     await prisma.objectif.update({ where: { id: o.id }, data: { realise, statut: calcStatut(Number(o.cible), realise, o.dateFin) } });
     recalcules++;
 
-    if (fin(o.dateFin) < new Date() || Number(o.cible) <= 0) continue;
+    // L'alerte d'écart compare à une progression linéaire : sans objet pour un indicateur de stock.
+    if (fin(o.dateFin) < new Date() || Number(o.cible) <= 0 || estIndicateurDeStock(o.unite)) continue;
     const attendu = avancementAttendu(o.dateDebut, o.dateFin);
     const reel = arrondi((realise / Number(o.cible)) * 100);
     // Sous 25 % de la période écoulée, l'écart n'est pas significatif.

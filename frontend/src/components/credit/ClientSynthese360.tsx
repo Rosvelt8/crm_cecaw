@@ -13,9 +13,8 @@ import { adminService, type MarcheRef, type SecteurRef } from '@/services/adminS
 import { useCan } from '@/hooks/useCan';
 import { msg } from '@/lib/apiHelpers';
 import { formatDate } from '@/lib/utils';
+import { CYCLE_LABEL, CYCLE_TONE, SCORE_FAMILLES, TYPE_OPPORTUNITE_LABEL } from '@/lib/segmentationLabels';
 
-const CYCLE_LABEL: Record<string, string> = { nouveau: 'Nouveau', actif: 'Actif', dormant: 'Dormant', a_risque: 'À risque', premium: 'Premium' };
-const CYCLE_TONE: Record<string, 'info' | 'success' | 'warning' | 'destructive'> = { nouveau: 'info', actif: 'success', dormant: 'warning', a_risque: 'destructive', premium: 'success' };
 const OBJ_TYPE_LABEL: Record<string, string> = { financier: 'Financier', professionnel: 'Professionnel', personnel: 'Personnel' };
 
 /**
@@ -32,9 +31,15 @@ interface ProfilTerritorial {
 }
 const CANAL_LABEL: Record<string, string> = { sms: 'SMS', whatsapp: 'WhatsApp' };
 
+interface ScoreClient360 {
+  score: number; potentiel: number; cycleVie: string; calculeAt: string;
+  scoreCredit?: number; scoreRisque?: number; scoreRelationnel?: number; scoreStrategique?: number;
+  scoreCroissance?: number; scoreAttrition?: number; nombreProduits?: number; panierMoyen?: number | string;
+}
+
 export default function ClientSynthese360({ clientId, score, profil, onProfilChange }: {
   clientId: number;
-  score: { score: number; potentiel: number; cycleVie: string; calculeAt: string } | null;
+  score: ScoreClient360 | null;
   profil: ProfilTerritorial;
   onProfilChange?: () => void;
 }) {
@@ -42,6 +47,7 @@ export default function ClientSynthese360({ clientId, score, profil, onProfilCha
   const voir = can('crm:VIEW');
   const peutModifier = can('crm:UPDATE');
   const [synthese, setSynthese] = useState<any>(null);
+  const [appetences, setAppetences] = useState<Awaited<ReturnType<typeof clientService.getAppetences>> | null>(null);
   const [objectifs, setObjectifs] = useState<any[] | null>(null);
   const [formulaire, setFormulaire] = useState(false);
   const [type, setType] = useState('personnel');
@@ -65,6 +71,7 @@ export default function ClientSynthese360({ clientId, score, profil, onProfilCha
   useEffect(() => {
     if (!voir) return;
     clientService.getSynthese(clientId).then(setSynthese).catch(() => setSynthese(null));
+    clientService.getAppetences(clientId).then(setAppetences).catch(() => setAppetences(null));
     void chargerObjectifs();
   }, [clientId, voir, chargerObjectifs]);
 
@@ -149,6 +156,50 @@ export default function ClientSynthese360({ clientId, score, profil, onProfilCha
           </CardContent>
         )}
       </Card>
+
+      {score && (
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Scores 360°</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {SCORE_FAMILLES.map(({ cle, label }) => (
+                <div key={cle} className="rounded-md border p-2 text-center">
+                  <p className="text-lg font-bold text-brand-700">{(score as unknown as Record<string, number>)[cle] ?? '—'}</p>
+                  <p className="text-[11px] text-muted-foreground">{label}</p>
+                </div>
+              ))}
+              <div className="rounded-md border p-2 text-center">
+                <p className="text-lg font-bold text-foreground">{score.nombreProduits ?? '—'}</p>
+                <p className="text-[11px] text-muted-foreground">Produits détenus</p>
+              </div>
+              <div className="rounded-md border p-2 text-center">
+                <p className="text-lg font-bold text-foreground">{score.panierMoyen !== undefined ? fcfa(score.panierMoyen) : '—'}</p>
+                <p className="text-[11px] text-muted-foreground">Panier moyen</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {appetences && appetences.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Opportunités produits ({appetences.length})</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {appetences.map((a) => (
+              <div key={a.id} className="rounded-md border p-2 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">{a.produit.nom} <span className="text-xs text-muted-foreground">({a.produit.groupe.nom})</span></p>
+                  <p className="text-xs text-muted-foreground">{a.raison}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant={a.typeOpportunite === 'up_sell' ? 'brand' : 'info'}>{a.typeOpportunite ? TYPE_OPPORTUNITE_LABEL[a.typeOpportunite] : ''}</Badge>
+                  <span className="text-sm font-bold text-brand-700">{a.score}/100</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid md:grid-cols-2 gap-4">
         {synthese && (

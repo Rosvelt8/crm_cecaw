@@ -776,3 +776,99 @@ backend et sur le frontend (Next.js, 45 routes générées), `npm run typecheck`
 d'intégration `scripts/it/04-strategique.ts` (59 contrôles au total : 24 pour les Lots 9-10, 12
 pour le Lot 11, 10 pour le Lot 12, 5 pour le Lot 13, 8 ajoutés par cet audit), aucune régression
 sur les 3 suites précédentes (64 + 66 + 67 contrôles). Total : 256 contrôles, 0 échec.
+
+---
+
+## 10. Lot 15 — Intelligence client, scoring 360° et croissance commerciale (05/10/2026)
+
+Deux notes de cadrage de la direction marketing (segmentation 30 axes / 7 familles de score, puis
+un moteur « Customer Value Growth » : cross-selling, up-selling, forfaits, panier moyen) ont été
+traduites en extension du moteur de règles existant — aucune IA/ML introduite, conformément au
+périmètre exclu du produit et au choix déjà fait pour les compléments stratégiques
+(« Automatisation à règles »). Implémenté en une seule vague, à la demande explicite de
+l'utilisateur plutôt qu'en MVP puis phase 2.
+
+**Schéma (additif uniquement)** : `ScoreClient` étendu avec les 5 familles manquantes
+(`scoreCredit`, `scoreRisque`, `scoreRelationnel`, `scoreStrategique`, `scoreCroissance`,
+`scoreAttrition`) et 2 métriques de portefeuille (`nombreProduits`, `panierMoyen`) ; `CycleVieClient`
+étendu avec `perdu`/`a_reactiver` ; nouveau modèle `AppetenceProduit` (matrice client × produit,
+cross-sell/up-sell) ; nouveaux modèles `Forfait`/`ForfaitProduit` (bundles commerciaux) ;
+`campagneId` nullable ajouté sur `Prospect` et `DemandeCredit` (attribution de campagne pour le
+funnel) ; `UniteObjectif` étendu avec `produits_client`/`panier_moyen`, `CategorieObjectif` avec
+`cross_selling`/`up_selling`.
+
+**Moteur de règles** : `lib/segmentation.ts` étendu (`calculerScoreClient` d'origine inchangée et
+toujours couverte par `scripts/verif-segmentation.ts` ; nouvelle fonction `calculerScoresEtendus`
+qui l'enveloppe) ; nouveau `lib/appetence.ts` (règles d'éligibilité et de score cross-sell/up-sell,
+testé par `scripts/verif-appetence.ts`) ; nouveau `lib/cibleClient.ts` extrait de
+`campagnes.routes.ts` pour être réutilisé par le nouveau module `forfaits` ; `objectifs.calcul.ts`
+étendu avec les métriques de croissance et les comptages cross-sell/up-sell.
+
+**API** : `GET/POST /clients/appetences[/recalculer]`, module `forfaits` complet, `GET
+/campagnes/:id/funnel`, `campagne_id` optionnel à la création d'un prospect (attribution manuelle),
+attribution automatique héritée pour les demandes de crédit (via le prospect d'origine du client).
+Aucun nouveau domaine de droit RBAC : tout se range sous `crm:*`/`produits:*`/`communication:*`/
+`objectifs:*` déjà existants.
+
+**Frontend** : nouvelle page Segmentation clients (câble enfin `getScores`/`recalculerScores`,
+jusque-là définis mais jamais appelés par aucun écran) ; `ClientSynthese360` enrichie de blocs
+« Scores 360° » et « Opportunités produits » ; onglet Forfaits dans Paramètres > Produits ;
+critères de ciblage `agence_id`/`potentiel_min` ajoutés au formulaire de campagne (déjà supportés
+par le backend, absents du formulaire) et section Entonnoir par campagne ; objectifs de pilotage
+avec les nouvelles unités/catégories.
+
+**Piège évité** : le seuil par défaut du nouveau cycle de vie « perdu » (initialement 365 jours)
+entrait en collision avec un test d'intégration existant qui vieillit un client de 400 jours et
+attend « dormant » — corrigé en portant le défaut à 540 jours, préservant le comportement établi.
+
+**Vérifié** : `npx tsc --noEmit` et `npm run build` complets, backend et frontend (46 routes
+générées, incluant `/dashboard/marketing/segmentation`), sans erreur. `scripts/verif-segmentation.ts`
+et `scripts/verif-appetence.ts` passent. `scripts/it/04-strategique.ts` étendu avec 5 nouvelles
+sections de contrôles (scores 360°, cycle perdu/réactivation, matrice produit et forfaits,
+objectifs de croissance, funnel de campagne).
+
+### Audit expert du Lot 15 (05/10/2026)
+
+Les 4 suites d'intégration ont été exécutées pour de vrai contre une base PostgreSQL jetable
+(UTF-8) : **293 contrôles, 0 échec** (96 stratégique, 64 crédit, 66 terrain, 67 transverse). La
+suite stratégique tourne en ~33 s : le surcoût du recalcul des appétences est négligeable.
+Seize défauts trouvés et corrigés :
+
+1. **Bloquant** — colonnes `NOT NULL` ajoutées à `scores_clients` sans valeur par défaut : le
+   `db push` aurait échoué sur la base de dev, qui contient déjà des scores. Défauts à 0 ajoutés.
+2. Le statut `a_reactiver` était inatteignable (la condition de réactivation — un contact récent —
+   empêchait précisément le passage par la branche « dormant » qui la testait).
+3. Un client jamais contacté ne pouvait jamais être dormant ni perdu (absence de contact ignorée,
+   alors qu'une absence de transaction comptait) : un client inerte depuis 2 ans restait « actif ».
+4. Up-sell : l'encours de *crédit* était comparé au plafond de produits d'*épargne*.
+5. Un client en impayé se voyait proposer du crédit (simple pénalité de score) : désormais exclu.
+6. Un client ayant un crédit en cours se voyait proposer un second crédit concurrent
+   (surendettement) : seule l'évolution vers un palier supérieur est proposée.
+7. Les appétences d'un produit désactivé restaient affichées comme opportunités.
+8. Régression : les clients `perdu` sortaient des relances « client dormant » et du décompte de
+   dormants par marché.
+9. **Fuite de données** : la liste des clients éligibles à un forfait ignorait le périmètre de
+   l'acteur (un agent voyait les clients des autres agences).
+10. Forfait avec produit répété ou inexistant : erreur SQL 500 au lieu d'un 422.
+11. Objectif de cross/up-selling accepté en unité « montant » et rempli d'un comptage de clients.
+12. Projection linéaire appliquée au panier moyen et au taux d'équipement (indicateurs de stock,
+    pas de flux) : un panier de 80 000 FCFA au 10e jour était « projeté » à 240 000. Idem pour
+    l'alerte d'écart nocturne.
+13. Comptage cross/up-selling : crédits remboursés (`cloturee`) ignorés, et antériorité datée par la
+    création de la demande au lieu du décaissement.
+14. `campagne_id` accepté à la modification d'un prospect mais silencieusement ignoré.
+15. Aucun champ ne permettait de saisir la campagne d'origine d'un prospect : l'entonnoir aurait
+    toujours affiché 0 prospect. Champ ajouté (création et modification), limité aux campagnes
+    lancées ; une campagne annulée après coup ne bloque pas la modification du prospect.
+16. Les forfaits ne pouvaient être ni modifiés ni désactivés depuis l'interface (service lié mais
+    jamais appelé) ; la sélection proposait des produits inactifs.
+
+Également : tests IT corrigés (Prisma renvoie les décimaux en chaîne ; ils vérifient maintenant
+les moyennes exactes recalculées indépendamment), bruit `prisma:error` d'une fixture de test
+supprimé, 3 avertissements ESLint introduits supprimés (fichiers revenus à leur niveau d'origine).
+Le seul `prisma:error` restant (suite transverse) est le test volontaire du verrou des tâches
+quotidiennes.
+
+**Reste à faire au prochain démarrage de Docker** : `docker compose exec backend npx prisma
+generate && docker compose exec backend npx prisma db push --skip-generate`, puis
+`docker compose restart backend` (le rechargement automatique est peu fiable sur ce montage).

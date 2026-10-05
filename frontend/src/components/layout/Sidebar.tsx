@@ -36,8 +36,9 @@ const NAV_GROUPS: NavGroup[] = [
     accent: 'text-amber-600',
     icon: BarChart2,
     items: [
-      { label: 'Prospects',    href: '/dashboard/marketing/prospects',    icon: Users },
-      { label: 'Clients',      href: '/dashboard/marketing/clients',      icon: UserSquare2 },
+      { label: 'Prospects',    href: '/dashboard/marketing/prospects',    icon: Users,       perm: ['crm:VIEW'] },
+      { label: 'Clients',      href: '/dashboard/marketing/clients',      icon: UserSquare2, perm: ['crm:VIEW'] },
+      { label: 'Segmentation', href: '/dashboard/marketing/segmentation', icon: PieChart, perm: ['crm:VIEW'] },
     ],
   },
   {
@@ -56,9 +57,9 @@ const NAV_GROUPS: NavGroup[] = [
     accent: 'text-emerald-600',
     icon: Package,
     items: [
-      { label: 'Agents',    href: '/dashboard/collecte/agents',    icon: UserCog },
-      { label: 'Objectifs', href: '/dashboard/collecte/objectifs', icon: Target },
-      { label: 'Terrain',   href: '/dashboard/collecte/terrain',   icon: MapPin },
+      { label: 'Agents',    href: '/dashboard/collecte/agents',    icon: UserCog, perm: ['organisation:VIEW'] },
+      { label: 'Objectifs', href: '/dashboard/collecte/objectifs', icon: Target,  perm: ['objectifs:VIEW'] },
+      { label: 'Terrain',   href: '/dashboard/collecte/terrain',   icon: MapPin,  perm: ['tracking:VIEW'] },
       { label: 'Journées de collecte', href: '/dashboard/collecte/journees', icon: CalendarCheck, perm: ['collecte:VIEW'] },
     ],
   },
@@ -99,7 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Statistiques',
     accent: 'text-violet-600',
     items: [
-      { label: 'Performances', href: '/dashboard/statistiques', icon: BarChart2 },
+      { label: 'Performances', href: '/dashboard/statistiques', icon: BarChart2, perm: ['analytique:VIEW', 'analytique:EXPORT'] },
       { label: 'Objectifs de pilotage', href: '/dashboard/objectifs', icon: Target, perm: ['objectifs:VIEW'] },
     ],
   },
@@ -109,7 +110,7 @@ const NAV_GROUPS: NavGroup[] = [
     accent: 'text-sky-600',
     icon: ScrollText,
     items: [
-      { label: "Activité", href: '/dashboard/logs', icon: ScrollText },
+      { label: "Activité", href: '/dashboard/logs', icon: ScrollText, perm: ['socle:VIEW', 'socle:AUDIT', 'conformite:AUDIT'] },
     ],
   },
   {
@@ -119,11 +120,11 @@ const NAV_GROUPS: NavGroup[] = [
     icon: UserCog,
     items: [
       { label: 'Général',      href: '/dashboard/parametres',              icon: Settings, exact: true },
-      { label: 'Groupes',      href: '/dashboard/parametres/groupes',      icon: Layers },
-      { label: 'Produits',     href: '/dashboard/parametres/produits',      icon: Package },
-      { label: 'Agences',      href: '/dashboard/parametres/agences',       icon: Building2 },
-      { label: 'Équipes',      href: '/dashboard/parametres/equipes',       icon: UsersRound },
-      { label: 'Utilisateurs', href: '/dashboard/parametres/utilisateurs',  icon: ShieldCheck },
+      { label: 'Groupes',      href: '/dashboard/parametres/groupes',      icon: Layers,      perm: ['produits:VIEW', 'produits:CONFIGURE'] },
+      { label: 'Produits',     href: '/dashboard/parametres/produits',      icon: Package,     perm: ['produits:VIEW', 'produits:CONFIGURE'] },
+      { label: 'Agences',      href: '/dashboard/parametres/agences',       icon: Building2,   perm: ['organisation:VIEW'] },
+      { label: 'Équipes',      href: '/dashboard/parametres/equipes',       icon: UsersRound,  perm: ['organisation:VIEW'] },
+      { label: 'Utilisateurs', href: '/dashboard/parametres/utilisateurs',  icon: ShieldCheck, perm: ['socle:VIEW'] },
       { label: 'Paramétrage financier', href: '/dashboard/parametres/financier', icon: Percent, perm: ['produits:VIEW'] },
       { label: 'Zones',        href: '/dashboard/parametres/zones',         icon: Map, perm: ['organisation:VIEW'] },
       { label: 'Marchés',      href: '/dashboard/parametres/marches',       icon: Building2, perm: ['organisation:VIEW'] },
@@ -141,40 +142,23 @@ function getInitials(prenom?: string, nom?: string) {
   return `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase() || '?';
 }
 
-// Items accessible to agents (by href prefix)
-const AGENT_ALLOWED_HREFS = [
-  '/dashboard/marketing/prospects',
-  '/dashboard/marketing/clients',
-  '/dashboard/collecte/objectifs',
-  // Ouverts aux agents : chaque entrée reste soumise à ses droits (`perm`) et à l'API.
-  '/dashboard/credits',
-  '/dashboard/kyc',
-  '/dashboard/recouvrement',
-  '/dashboard/terrain/tournees',
-  '/dashboard/sig',
-  '/dashboard/collecte/journees',
-];
-
 export default function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boolean; onMobileClose: () => void }) {
   const { sidebarOpen, toggleSidebar } = useAppStore();
   const { user, logout } = useAuthStore();
-  const { isAgent, canAccessParametres } = useAuth();
+  const { canAccessParametres } = useAuth();
   const { can, loaded: droitsCharges } = useCan();
   const pathname = usePathname();
 
-  // Filter nav for agents, and hide the Paramètres module from anyone without access to it
-  // (chef d'équipe included — it's an admin/manager-only module).
-  // Une entrée à `perm` exige le droit correspondant ; sans `perm`, le filtrage historique par rôle s'applique.
+  // Chaque entrée à `perm` n'apparaît qu'à qui possède au moins un des droits RBAC listés (voir
+  // /rbac/me) — agent de terrain compris : son rôle historique retombe déjà sur R05/R10 côté
+  // serveur (lib/rbac.ts REPLI_ROLE_HISTORIQUE), donc ses droits effectifs sont déjà corrects ici,
+  // sans liste blanche de routes séparée à maintenir.
   const autorise = (i: NavItem) => !i.perm || (droitsCharges && can(...i.perm));
-  const visibleGroups = (isAgent
-    ? NAV_GROUPS
-        .map((g) => ({ ...g, items: g.items.filter((i) => AGENT_ALLOWED_HREFS.some((h) => i.href.startsWith(h))) }))
-    : NAV_GROUPS
-  )
+  const visibleGroups = NAV_GROUPS
     .map((g) => ({
       ...g,
-      // Le groupe Paramètres reste visible aux rôles historiques admin/manager ; les entrées à droits
-      // s'y ajoutent pour quiconque en dispose (ex. administrateur fonctionnel).
+      // Seul « Général » (l'accueil du module) n'a pas de droit propre : il reste visible à qui a
+      // accès à au moins un écran de Paramètres. Toute autre entrée est filtrée par son propre `perm`.
       items: g.items.filter((i) => (g.id === 'parametres' && !i.perm ? canAccessParametres : true) && autorise(i)),
     }))
     .filter((g) => g.items.length > 0);

@@ -174,7 +174,7 @@ import { verifierEquilibre } from '../../src/lib/compta';
   verifier(csvT.statut === 200 && csvT.type?.includes('csv'), 'export CSV du territoire');
 
   titre('Conformité');
-  await api(r09.token, 'POST', `/comptes/${compteId}/transactions`, { type: 'credit', montant: 6000000, motif: 'Gros dépôt', agent_id: (await prisma.agent.findFirstOrThrow({ where: { utilisateurId: r09.id } }).catch(async () => prisma.agent.create({ data: { utilisateurId: r09.id, matricule: 'IT-CAISSE' } }))).id });
+  await api(r09.token, 'POST', `/comptes/${compteId}/transactions`, { type: 'credit', montant: 6000000, motif: 'Gros dépôt', agent_id: ((await prisma.agent.findFirst({ where: { utilisateurId: r09.id } })) ?? (await prisma.agent.create({ data: { utilisateurId: r09.id, matricule: 'IT-CAISSE' } }))).id });
   const al2 = await api(auditeur.token, 'GET', '/conformite/alertes?code=montant_eleve');
   verifier(al2.corps.data.length >= 1 && al2.corps.data[0].niveau, 'opération de 6 000 000 : alerte de montant élevé', al2.corps);
   const imp = await api(r06.token, 'POST', '/conformite/listes/import', { csv: 'nom;prenom;numero_piece;pays;categorie;source\nMartin;Paul;;FR;pep;Liste interne\n;X;;;sanction;\nZed;Y;;;inconnue;' });

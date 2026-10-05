@@ -56,7 +56,7 @@ export const TACHES: Tache[] = [
   { nom: 'rappels_echeance', libelle: "SMS de rappel avant échéance", heureUtc: 6, executer: rappelsEcheance },
   { nom: 'analyse_anomalies', libelle: "Analyse des anomalies de conformité", heureUtc: 4, executer: analyserAnomalies },
   { nom: 'objectifs', libelle: 'Recalcul des objectifs et alertes sur écarts', heureUtc: 5, executer: recalculerObjectifs },
-  { nom: 'score_clients', libelle: 'Recalcul du score et du cycle de vie des clients', heureUtc: 1, executer: recalculerScoresClients },
+  { nom: 'score_clients', libelle: 'Recalcul des scores 360°, du cycle de vie et de la matrice client × produit', heureUtc: 1, executer: recalculerScoresClients },
   { nom: 'relances_commerciales', libelle: 'Suggestions de relance pour les commerciaux (clients dormants, opportunités, prospects stagnants)', heureUtc: 2, executer: genererRelancesCommerciales },
   { nom: 'sauvegarde', libelle: 'Sauvegarde chiffrée de la base', heureUtc: 2, actif: () => process.env.BACKUP_ENABLED === 'true', executer: sauvegarder },
   { nom: 'file_sms', libelle: "Envoi des SMS en attente", intervalMin: 2, executer: () => traiterFileSms() },

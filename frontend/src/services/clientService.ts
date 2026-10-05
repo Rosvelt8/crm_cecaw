@@ -80,10 +80,12 @@ export const clientService = {
   },
 
   // ── Segmentation et score (compléments stratégiques, point 1) ─────────────
-  getScores: async (params: { cycle_vie?: string; page?: number; per_page?: number } = {}) => {
+  getScores: async (params: FilterParams = {}) => {
     const { data: body } = await apiClient.get('/clients/scores', { params });
     return { data: body.data ?? [], meta: body.meta };
   },
+  /** Toutes les pages agrégées — le backend plafonne `per_page` à 100. */
+  getAllScores: async (params: FilterParams = {}) => fetchAllPages(clientService.getScores, params),
   recalculerScores: async () => {
     const { data: body } = await apiClient.post('/clients/scores/recalculer', {});
     return body.data as { traites: number; par_cycle: Record<string, number> };
@@ -101,5 +103,15 @@ export const clientService = {
   modifierObjectifPersonnel: async (clientId: number | string, objectifId: number, payload: { titre?: string; montant_cible?: number | null; date_cible?: string | null; statut?: string }) => {
     const { data: body } = await apiClient.put(`/clients/${clientId}/objectifs-personnels/${objectifId}`, payload);
     return body.data;
+  },
+
+  // ── Matrice client × produit : cross-sell / up-sell (Lot 15) ─────────────
+  getAppetences: async (clientId: number | string) => {
+    const { data: body } = await apiClient.get(`/clients/${clientId}/appetences`);
+    return (body.data ?? []) as { id: number; produitId: number; score: number; typeOpportunite: 'cross_sell' | 'up_sell' | null; raison: string; produit: { id: number; nom: string; type: string; groupe: { id: number; nom: string } } }[];
+  },
+  recalculerAppetences: async () => {
+    const { data: body } = await apiClient.post('/clients/appetences/recalculer', {});
+    return body.data as { traites: number; par_cycle: Record<string, number> };
   },
 };

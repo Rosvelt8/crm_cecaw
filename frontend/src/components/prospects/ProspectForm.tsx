@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { produitService } from '@/services/produitService';
 import { userService } from '@/services/userService';
+import { campagnesApi } from '@/services/metierService';
 import type { StatutProspect, GenreProspect, SituationFamiliale, TypePersonne } from '@/lib/storage/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +78,8 @@ export type ProspectFormData = {
   statut: StatutProspect;
   produitInteretId: string;
   commercialId: string;
+  /** Campagne à l'origine du contact (Lot 15) : alimente l'entonnoir de la campagne. */
+  campagneId: string;
   notes: string;
   // Localisation
   latitude: number | null;
@@ -94,7 +97,7 @@ export const EMPTY_FORM: ProspectFormData = {
   profession: '', employeur: '', secteurActivite: '', revenuMensuel: '',
   situationFamiliale: '', nombreEnfants: 0,
   referentNom: '', referentTelephone: '', referentRelation: '',
-  statut: 'nouveau', produitInteretId: '', commercialId: '', notes: '',
+  statut: 'nouveau', produitInteretId: '', commercialId: '', campagneId: '', notes: '',
   latitude: null, longitude: null,
   piecesJointes: [],
 };
@@ -168,9 +171,13 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
   const router = useRouter();
   const [produits, setProduits] = React.useState<any[]>([]);
   const [commerciaux, setCommerciaux] = React.useState<any[]>([]);
+  const [campagnes, setCampagnes] = React.useState<{ id: number; nom: string; statut: string }[]>([]);
 
   React.useEffect(() => {
     produitService.getProduits().then((r) => setProduits(r.data ?? [])).catch(() => {});
+    // Seules les campagnes lancées ont pu toucher un contact (le backend refuse brouillon/annulée).
+    // Sans droit `communication:VIEW`, la liste reste vide et le champ est masqué.
+    campagnesApi.lister().then((rows) => setCampagnes(rows.filter((c: { statut: string }) => c.statut === 'en_cours' || c.statut === 'terminee'))).catch(() => {});
     userService.getAllUsers().then((rows) => {
       setCommerciaux(rows.filter((u: any) => {
         const slug = typeof u.role === 'string' ? u.role : u.role?.slug ?? '';
@@ -418,6 +425,17 @@ export default function ProspectForm({ title, defaultValues, onSubmit, isSubmitt
               </SelectContent>
             </Select>
           </Field>
+          {(campagnes.length > 0 || form.campagneId) && (
+            <Field label="Campagne d'origine">
+              <Select value={form.campagneId || '__none__'} onValueChange={(v) => set({ campagneId: v === '__none__' ? '' : v })}>
+                <SelectTrigger><SelectValue placeholder="Aucune" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Aucune (contact spontané)</SelectItem>
+                  {campagnes.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.nom}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
           <Field label="Commercial assigné">
             {lockedCommercialId ? (
               <div className="h-10 px-3 flex items-center rounded-lg border bg-muted text-sm text-muted-foreground">

@@ -135,14 +135,17 @@ function RolesPageContent() {
                 <p className="text-sm text-muted-foreground">{choisi.description}</p>
                 {domaines.map(([domaine, liste]) => (
                   <div key={domaine} className="rounded-md border p-2">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-1.5">{domaine}</p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-1.5">{liste[0]?.domaine_libelle ?? domaine}</p>
+                    <div className="space-y-1">
                       {liste.map((p) => {
                         const actif = droits.has(p.code);
                         return (
                           <button key={p.code} type="button" disabled={!peutModifier} onClick={() => basculer(p.code)}
-                            className={cn('rounded-full border px-2.5 py-0.5 text-xs transition-colors', actif ? 'bg-brand-600 text-white border-brand-600' : 'bg-background text-muted-foreground hover:bg-muted', !peutModifier && 'cursor-default')}>
-                            {p.verbe}
+                            className={cn('w-full flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors',
+                              actif ? 'bg-brand-600 text-white border-brand-600' : 'bg-background text-foreground hover:bg-muted',
+                              !peutModifier && 'cursor-default')}>
+                            <span>{p.libelle}</span>
+                            <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[9px] font-mono', actif ? 'bg-white/20' : 'bg-muted text-muted-foreground')}>{p.verbe}</span>
                           </button>
                         );
                       })}

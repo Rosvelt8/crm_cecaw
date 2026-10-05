@@ -6,6 +6,7 @@ import { parsePagination, paginationMeta } from '../../lib/pagination';
 import { getResponsableEquipeIds } from '../../lib/teamScope';
 import { StatutProspect } from '@prisma/client';
 import { sendBienvenueClient } from '../../lib/mailer';
+import { ErreurMetier } from '../../lib/rbac';
 
 const TRANSITIONS: Record<StatutProspect, StatutProspect[]> = {
   nouveau: ['contacte', 'interesse', 'negocie', 'converti', 'perdu'],
@@ -72,7 +73,18 @@ export async function getOne(id: number) {
   });
 }
 
+/** Campagne d'origine (Lot 15) : doit exister et avoir été lancée (un brouillon n'a touché personne). */
+async function campagneOrigine(valeur: unknown): Promise<number | null> {
+  if (valeur === null || valeur === undefined || valeur === '') return null;
+  const id = Number(valeur);
+  const campagne = await prisma.campagne.findUnique({ where: { id }, select: { statut: true } });
+  if (!campagne) throw new ErreurMetier('Campagne introuvable', 422);
+  if (campagne.statut === 'brouillon' || campagne.statut === 'annulee') throw new ErreurMetier(`Une campagne ${campagne.statut} ne peut pas être à l'origine d'un contact.`, 422);
+  return id;
+}
+
 export async function create(data: Record<string, unknown>, actor: JwtPayload) {
+  const campagneId = await campagneOrigine(data.campagne_id);
   const p = await prisma.prospect.create({
     data: {
       typePersonne: (data.type_personne as never) ?? 'physique',
@@ -110,6 +122,7 @@ export async function create(data: Record<string, unknown>, actor: JwtPayload) {
       notes: data.notes as string | undefined,
       latitude: data.latitude ? parseFloat(data.latitude as string) : null,
       longitude: data.longitude ? parseFloat(data.longitude as string) : null,
+      campagneId,
     },
     include,
   });
@@ -118,9 +131,15 @@ export async function create(data: Record<string, unknown>, actor: JwtPayload) {
 }
 
 export async function update(id: number, data: Record<string, unknown>, actor: JwtPayload) {
+  // Ne revalide que si l'attribution change : une campagne annulée après coup ne doit pas bloquer
+  // la modification d'autres champs du prospect.
+  const actuelle = data.campagne_id !== undefined ? (await prisma.prospect.findUnique({ where: { id }, select: { campagneId: true } }))?.campagneId ?? null : null;
+  const demandee = data.campagne_id === undefined || data.campagne_id === null || data.campagne_id === '' ? null : Number(data.campagne_id);
+  const campagneId = data.campagne_id === undefined || demandee === actuelle ? undefined : await campagneOrigine(data.campagne_id);
   const p = await prisma.prospect.update({
     where: { id },
     data: {
+      ...(campagneId !== undefined && { campagneId }),
       ...(data.type_personne !== undefined && { typePersonne: data.type_personne as never }),
       ...(data.nom !== undefined && { nom: data.nom as string }),
       ...(data.prenom !== undefined && { prenom: data.prenom as string }),

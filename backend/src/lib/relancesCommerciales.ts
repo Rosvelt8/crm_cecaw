@@ -25,12 +25,13 @@ export async function genererRelancesCommerciales(): Promise<{ dormants: number;
 
   // ── Clients dormants ou à fort potentiel, vus via leur score déjà calculé (lib/segmentation.ts) ──
   const scores = await prisma.scoreClient.findMany({
-    where: { OR: [{ cycleVie: 'dormant' }, { potentiel: { gte: seuilPotentiel } }] },
+    // `perdu` (Lot 15) = dormant de longue date : reste une cible de relance, à plus forte raison.
+    where: { OR: [{ cycleVie: { in: ['dormant', 'perdu'] } }, { potentiel: { gte: seuilPotentiel } }] },
     include: { client: { select: { id: true, nom: true, prenom: true, commercialId: true, agenceId: true } } },
   });
   for (const s of scores) {
     const c = s.client;
-    if (s.cycleVie === 'dormant') {
+    if (s.cycleVie === 'dormant' || s.cycleVie === 'perdu') {
       if (await dejaNotifie('commercial.client_dormant', 'client', c.id, cooldownJours)) continue;
       await emettre('commercial.client_dormant', {
         entiteType: 'client', entiteId: c.id, agenceId: c.agenceId, acteurId: c.commercialId,

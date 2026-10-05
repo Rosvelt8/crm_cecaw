@@ -131,6 +131,15 @@ export const recalculerScores = async (req: Request, res: Response, next: NextFu
   try { return success(res, await svc.recalculerScores(req.user!)); } catch (e) { return next(e); }
 };
 
+// ── Matrice client × produit (Lot 15) ─────────────────────────────────────
+export const getAppetences = async (req: Request, res: Response, next: NextFunction) => {
+  try { return success(res, await svc.getAppetences(parseInt(req.params.id, 10))); } catch (e) { return next(e); }
+};
+
+export const recalculerAppetences = async (req: Request, res: Response, next: NextFunction) => {
+  try { return success(res, await svc.recalculerAppetences(req.user!)); } catch (e) { return next(e); }
+};
+
 // ── Objectifs personnels du client (compléments stratégiques, point 13) ───
 const objectifClientSchema = z.object({
   type: z.enum(['financier', 'professionnel', 'personnel']),

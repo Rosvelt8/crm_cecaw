@@ -187,7 +187,7 @@ export async function analyserMarches(agenceId?: number): Promise<LigneMarche[]>
     prisma.client.groupBy({ by: ['marcheId'], where: { marcheId: { in: ids }, statut: 'actif' }, _count: true }),
     prisma.prospect.groupBy({ by: ['marcheId'], where: { marcheId: { in: ids }, statut: { notIn: ['converti', 'perdu'] } }, _count: true }),
     prisma.$queryRaw<{ marche_id: number; total: string }[]>`SELECT c.marche_id, COALESCE(SUM(cc.solde), 0) AS total FROM comptes_clients cc JOIN clients c ON c.id = cc.client_id JOIN produits p ON p.id = cc.produit_id WHERE p.type = 'epargne' AND c.marche_id = ANY(${ids}) GROUP BY c.marche_id`,
-    prisma.$queryRaw<{ marche_id: number; nb_dormants: bigint; moyenne_potentiel: string | null }[]>`SELECT c.marche_id, COUNT(*) FILTER (WHERE s.cycle_vie = 'dormant') AS nb_dormants, AVG(s.potentiel) AS moyenne_potentiel FROM clients c JOIN scores_clients s ON s.client_id = c.id WHERE c.marche_id = ANY(${ids}) GROUP BY c.marche_id`,
+    prisma.$queryRaw<{ marche_id: number; nb_dormants: bigint; moyenne_potentiel: string | null }[]>`SELECT c.marche_id, COUNT(*) FILTER (WHERE s.cycle_vie IN ('dormant', 'perdu')) AS nb_dormants, AVG(s.potentiel) AS moyenne_potentiel FROM clients c JOIN scores_clients s ON s.client_id = c.id WHERE c.marche_id = ANY(${ids}) GROUP BY c.marche_id`,
   ]);
   const nbClients = new Map(clients.map((c) => [c.marcheId, c._count]));
   const nbProspects = new Map(prospects.map((p) => [p.marcheId, p._count]));

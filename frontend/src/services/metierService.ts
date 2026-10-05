@@ -91,6 +91,8 @@ export const campagnesApi = {
   lancer: (id: number) => post(`/campagnes/${id}/lancer`),
   cloturer: (id: number) => post(`/campagnes/${id}/cloturer`),
   annuler: (id: number) => post(`/campagnes/${id}/annuler`),
+  /** Entonnoir de conversion (Lot 15) : ciblés → atteints → prospects créés → convertis → demandes → accordées. */
+  funnel: (id: number) => get<{ cibles: number; atteints: number; prospects_crees: number; convertis: number; demandes_creees: number; accordees: number }>(`/campagnes/${id}/funnel`),
 };
 export const integrationApi = {
   webhooks: () => get('/integration/webhooks'),

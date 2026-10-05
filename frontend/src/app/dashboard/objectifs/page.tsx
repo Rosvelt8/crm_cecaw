@@ -23,6 +23,7 @@ import { formatDate } from '@/lib/utils';
 const CATEGORIES: Record<string, { l: string; auto: boolean }> = {
   credit: { l: 'Crédit décaissé', auto: true }, recouvrement: { l: 'Recouvrement', auto: true }, collecte: { l: 'Collecte', auto: true },
   nouveaux_clients: { l: 'Nouveaux clients', auto: true }, commercial: { l: 'Commercial (saisi)', auto: false }, produit: { l: 'Par produit (saisi)', auto: false },
+  cross_selling: { l: 'Vente complémentaire (cross-selling)', auto: true }, up_selling: { l: 'Palier supérieur (up-selling)', auto: true },
 };
 const PORTEES: Record<string, string> = { institution: 'Institution', agence: 'Agence', zone: 'Zone', equipe: 'Équipe', agents: 'Agents' };
 const STATUT: Record<string, 'info' | 'success' | 'warning' | 'destructive'> = { en_cours: 'info', atteint: 'success', depasse: 'success', echec: 'destructive' };
@@ -99,7 +100,7 @@ export default function ObjectifsPilotagePage() {
             <div className="grid sm:grid-cols-4 gap-3">
               <div className="space-y-1.5 sm:col-span-2"><Label>Titre</Label><Input value={f.titre} onChange={(e) => setF({ ...f, titre: e.target.value })} placeholder="Ex. Décaissements agence Akwa, septembre" /></div>
               <div className="space-y-1.5"><Label>Catégorie</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.categorie} onChange={(e) => setF({ ...f, categorie: e.target.value })}>{Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v.l}</option>)}</select></div>
-              <div className="space-y-1.5"><Label>Unité</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.unite} onChange={(e) => setF({ ...f, unite: e.target.value })}><option value="montant">Montant (FCFA)</option><option value="clients">Nombre</option></select></div>
+              <div className="space-y-1.5"><Label>Unité</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.unite} onChange={(e) => setF({ ...f, unite: e.target.value })}><option value="montant">Montant (FCFA)</option><option value="clients">Nombre</option><option value="produits_client">Produits / client (moyenne)</option><option value="panier_moyen">Panier moyen (FCFA)</option></select></div>
               <div className="space-y-1.5"><Label>Cible</Label><Input type="number" min={0} value={f.cible} onChange={(e) => setF({ ...f, cible: e.target.value })} /></div>
               <div className="space-y-1.5"><Label>Du</Label><Input type="date" value={f.date_debut} onChange={(e) => setF({ ...f, date_debut: e.target.value })} /></div>
               <div className="space-y-1.5"><Label>Au</Label><Input type="date" value={f.date_fin} onChange={(e) => setF({ ...f, date_fin: e.target.value })} /></div>
@@ -109,7 +110,7 @@ export default function ObjectifsPilotagePage() {
               {f.portee === 'equipe' && <div className="space-y-1.5"><Label>Équipe</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.equipe_id} onChange={(e) => setF({ ...f, equipe_id: e.target.value })}><option value="">Choisir…</option>{equipes.map((z) => <option key={z.id} value={z.id}>{z.nom}</option>)}</select></div>}
               {f.categorie === 'produit' && <div className="space-y-1.5"><Label>Produit</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.produit_id} onChange={(e) => setF({ ...f, produit_id: e.target.value })}><option value="">Choisir…</option>{produits.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}</select></div>}
             </div>
-            <p className="text-xs text-muted-foreground">{CATEGORIES[f.categorie].auto ? 'Le réalisé est calculé chaque nuit depuis les décaissements, remboursements, encaissements ou créations de clients de la portée choisie. Une alerte est envoyée si l\'avancement prend du retard.' : 'Le réalisé de cette catégorie se saisit à la main. Les objectifs par agents se gèrent dans Collecte › Objectifs.'}</p>
+            <p className="text-xs text-muted-foreground">{CATEGORIES[f.categorie].auto || f.unite === 'produits_client' || f.unite === 'panier_moyen' ? 'Le réalisé est calculé chaque nuit depuis les décaissements, remboursements, encaissements ou créations de clients de la portée choisie. Une alerte est envoyée si l\'avancement prend du retard.' : 'Le réalisé de cette catégorie se saisit à la main. Les objectifs par agents se gèrent dans Collecte › Objectifs.'}</p>
             <Button variant="brand" disabled={occupe || !pret} onClick={creer}>Créer l'objectif</Button>
           </CardContent>
         </Card>
@@ -122,7 +123,7 @@ export default function ObjectifsPilotagePage() {
             const pct = cible > 0 ? Math.round((realise / cible) * 100) : 0;
             const att = attendu(o.dateDebut, o.dateFin);
             const enRetard = o.statut === 'en_cours' && att - pct > 15;
-            const fmt = (n: number) => (o.unite === 'montant' ? fcfa(n) : String(n));
+            const fmt = (n: number) => (o.unite === 'montant' || o.unite === 'panier_moyen' ? fcfa(n) : String(n));
             return (
               <Card key={o.id}><CardContent className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2"><p className="font-medium text-sm">{o.titre}</p><Badge variant={STATUT[o.statut]}>{o.statut.replace('_', ' ')}</Badge></div>

@@ -281,6 +281,10 @@ export async function creer(actor: JwtPayload, corps: CorpsDemande) {
     select: { id: true },
   });
 
+  // Attribution de campagne (Lot 15 — funnel) : héritée du prospect d'origine du client, sans
+  // ressaisie. Pas d'attribution si le client n'est pas issu d'un prospect campagné.
+  const prospectOrigine = client.prospectId ? await prisma.prospect.findUnique({ where: { id: client.prospectId }, select: { campagneId: true } }) : null;
+
   const reference = await prochaineReference('CR', 'demande');
   const demande = await prisma.$transaction(async (tx) => {
     const d = await tx.demandeCredit.create({
@@ -302,6 +306,7 @@ export async function creer(actor: JwtPayload, corps: CorpsDemande) {
         latitude: corps.latitude ?? null,
         longitude: corps.longitude ?? null,
         monteParId: actor.sub,
+        campagneId: prospectOrigine?.campagneId ?? null,
       },
     });
     await consignerActe('demande', d.id, 'montage', actor.sub, undefined, tx);

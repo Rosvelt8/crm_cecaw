@@ -12,7 +12,7 @@ export interface Parametrage {
 }
 
 export interface RoleRef { id: number; code: string; nom: string; description: string | null; systeme: boolean; actif: boolean; nb_utilisateurs: number; droits: string[] }
-export interface PermissionRef { id: number; code: string; domaine: string; verbe: string; libelle: string }
+export interface PermissionRef { id: number; code: string; domaine: string; domaine_libelle: string; verbe: string; libelle: string }
 export interface ZoneRef {
   id: number; nom: string; code: string | null; type: 'zone' | 'secteur'; parentId: number | null; agenceId: number | null;
   latitude: string | null; longitude: string | null; population: number | null; potentielEstime: string | null; actif: boolean;
@@ -33,6 +33,18 @@ export interface PotentielMarche {
   marche_id: number; nom: string; type: string; agence: string | null;
   nb_clients: number; nb_prospects_actifs: number; nb_collecteurs: number;
   epargne_collectee: number; nb_clients_dormants: number; potentiel_moyen_clients: number | null;
+}
+export interface CriteresCible {
+  cycle_vie?: ('nouveau' | 'actif' | 'dormant' | 'a_risque' | 'premium' | 'perdu' | 'a_reactiver')[];
+  marche_id?: number; secteur_id?: number; agence_id?: number; potentiel_min?: number;
+}
+export interface ForfaitRef {
+  id: number; nom: string; description: string | null; criteres: CriteresCible; actif: boolean;
+  produits: { produit: { id: number; nom: string; groupeId: number; type: string } }[];
+}
+export interface OpportuniteForfait {
+  client: { id: number; nom: string; prenom: string | null; telephone: string };
+  score_forfait: number; produits_manquants: string[];
 }
 
 export const adminService = {
@@ -73,6 +85,14 @@ export const adminService = {
   modifierSecteur: async (id: number, p: { nom?: string; actif?: boolean }) => data<SecteurRef>(await apiClient.put(`/organisation/secteurs/${id}`, p)),
   creerMetier: async (nom: string, secteurId: number) => data<MetierRef>(await apiClient.post('/organisation/metiers', { nom, secteurId })),
   modifierMetier: async (id: number, p: { nom?: string; actif?: boolean }) => data<MetierRef>(await apiClient.put(`/organisation/metiers/${id}`, p)),
+
+  // Forfaits commerciaux (Lot 15)
+  forfaits: async () => data<ForfaitRef[]>(await apiClient.get('/forfaits')),
+  forfait: async (id: number) => data<ForfaitRef>(await apiClient.get(`/forfaits/${id}`)),
+  creerForfait: async (p: { nom: string; description?: string; criteres: CriteresCible; produit_ids: number[]; actif?: boolean }) => data<ForfaitRef>(await apiClient.post('/forfaits', p)),
+  modifierForfait: async (id: number, p: Partial<{ nom: string; description: string; criteres: CriteresCible; produit_ids: number[]; actif: boolean }>) => data<ForfaitRef>(await apiClient.put(`/forfaits/${id}`, p)),
+  supprimerForfait: async (id: number) => { await apiClient.delete(`/forfaits/${id}`); },
+  clientsEligiblesForfait: async (id: number) => data<OpportuniteForfait[]>(await apiClient.get(`/forfaits/${id}/clients-eligibles`)),
 
   // Archives
   archives: async (entite_type: 'demande_credit' | 'dossier_kyc', entite_id: number) =>

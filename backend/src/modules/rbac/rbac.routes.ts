@@ -6,6 +6,7 @@ import { requirePermission as can } from '../../middleware/permissions';
 import { success } from '../../lib/response';
 import { createLog } from '../../lib/logger';
 import { ErreurMetier, droitsEffectifs, rolesEffectifs, viderCacheDroits } from '../../lib/rbac';
+import { DOMAINES } from '../../lib/permissions';
 
 const wrap = (fn: (req: Request, res: Response) => Promise<unknown>) =>
   async (req: Request, res: Response, next: NextFunction) => { try { await fn(req, res); } catch (e) { next(e); } };
@@ -39,8 +40,10 @@ router.get('/roles', can('securite:VIEW', 'socle:VIEW'), wrap(async (_req, res) 
   })));
 }));
 
-router.get('/permissions', can('securite:VIEW', 'socle:VIEW'), wrap(async (_req, res) =>
-  success(res, await prisma.permission.findMany({ orderBy: [{ domaine: 'asc' }, { verbe: 'asc' }] }))));
+router.get('/permissions', can('securite:VIEW', 'socle:VIEW'), wrap(async (_req, res) => {
+  const permissions = await prisma.permission.findMany({ orderBy: [{ domaine: 'asc' }, { verbe: 'asc' }] });
+  return success(res, permissions.map((p) => ({ ...p, domaine_libelle: DOMAINES[p.domaine] ?? p.domaine })));
+}));
 
 router.put('/roles/:id/permissions', can('securite:CONFIGURE'), wrap(async (req, res) => {
   const id = parseInt(req.params.id, 10);

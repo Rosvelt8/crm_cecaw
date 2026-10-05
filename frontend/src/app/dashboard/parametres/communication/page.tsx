@@ -12,9 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { EnTete, Kpi, Onglets } from '@/components/ui/kpi';
 import { communicationApi, calendrierApi, campagnesApi } from '@/services/metierService';
 import { adminService, type MarcheRef, type SecteurRef } from '@/services/adminService';
+import { agenceService } from '@/services/agenceService';
 import { useCan } from '@/hooks/useCan';
 import { msg } from '@/lib/apiHelpers';
 import { formatDate, formatDateTime } from '@/lib/utils';
+import { CYCLE_LABEL } from '@/lib/segmentationLabels';
 
 type Onglet = 'declencheurs' | 'sms' | 'calendrier' | 'campagnes';
 const DEST: Record<string, string> = { acteur: "L'auteur de l'action", roles: 'Des rôles', client: 'Le client (SMS)' };
@@ -149,7 +151,6 @@ function Calendrier() {
 }
 
 const CANAL_LABEL: Record<string, string> = { sms: 'SMS', whatsapp: 'WhatsApp', email: 'Email' };
-const CYCLE_LABEL: Record<string, string> = { nouveau: 'Nouveau', actif: 'Actif', dormant: 'Dormant', a_risque: 'À risque', premium: 'Premium' };
 
 /** Campagnes commerciales 360° (compléments stratégiques, point 5), ciblées par segmentation. */
 function Campagnes() {
@@ -158,10 +159,12 @@ function Campagnes() {
   const [items, setItems] = useState<any[]>([]);
   const [marches, setMarches] = useState<MarcheRef[]>([]);
   const [secteurs, setSecteurs] = useState<SecteurRef[]>([]);
+  const [agences, setAgences] = useState<{ id: number; nom: string }[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [formulaire, setFormulaire] = useState(false);
-  const [f, setF] = useState({ nom: '', canal: 'sms', message: '', date_debut: new Date().toISOString().slice(0, 10), cycle_vie: [] as string[], marche_id: '', secteur_id: '' });
+  const [f, setF] = useState({ nom: '', canal: 'sms', message: '', date_debut: new Date().toISOString().slice(0, 10), cycle_vie: [] as string[], marche_id: '', secteur_id: '', agence_id: '', potentiel_min: '' });
   const [occupe, setOccupe] = useState(false);
+  const [funnels, setFunnels] = useState<Record<number, Awaited<ReturnType<typeof campagnesApi.funnel>> | undefined>>({});
 
   const charger = useCallback(async () => {
     try { setItems(await campagnesApi.lister()); setErreur(null); } catch (e) { setErreur(msg(e, 'Accès refusé')); }
@@ -170,6 +173,7 @@ function Campagnes() {
     void charger();
     adminService.marches().then(setMarches).catch(() => {});
     adminService.secteurs().then(setSecteurs).catch(() => {});
+    agenceService.getAgences({ per_page: 100 }).then((r) => setAgences(r.data)).catch(() => {});
   }, [charger]);
 
   const creer = async () => {
@@ -179,6 +183,8 @@ function Campagnes() {
       if (f.cycle_vie.length) criteres.cycle_vie = f.cycle_vie;
       if (f.marche_id) criteres.marche_id = Number(f.marche_id);
       if (f.secteur_id) criteres.secteur_id = Number(f.secteur_id);
+      if (f.agence_id) criteres.agence_id = Number(f.agence_id);
+      if (f.potentiel_min) criteres.potentiel_min = Number(f.potentiel_min);
       await campagnesApi.creer({ nom: f.nom, canal: f.canal, message: f.message, date_debut: f.date_debut, criteres });
       toast.success('Campagne créée en brouillon'); setFormulaire(false); setF({ ...f, nom: '', message: '', cycle_vie: [] });
       await charger();
@@ -188,6 +194,11 @@ function Campagnes() {
   const lancer = async (id: number) => {
     try { const r = await campagnesApi.lancer(id); toast.success(`${r.mises_en_file} mise(s) en file, ${r.en_attente_canal} en attente de canal`); await charger(); }
     catch (e) { toast.error(msg(e)); }
+  };
+
+  const basculerFunnel = async (id: number) => {
+    if (funnels[id]) { setFunnels((f2) => ({ ...f2, [id]: undefined })); return; }
+    try { const r = await campagnesApi.funnel(id); setFunnels((f2) => ({ ...f2, [id]: r })); } catch (e) { toast.error(msg(e)); }
   };
 
   if (erreur) return <p className="text-destructive text-sm">{erreur}</p>;
@@ -221,6 +232,10 @@ function Campagnes() {
                   <select className="h-9 rounded-md border bg-background px-2 text-sm" value={f.secteur_id} onChange={(e) => setF({ ...f, secteur_id: e.target.value })}>
                     <option value="">Tous les secteurs</option>{secteurs.map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}
                   </select>
+                  <select className="h-9 rounded-md border bg-background px-2 text-sm" value={f.agence_id} onChange={(e) => setF({ ...f, agence_id: e.target.value })}>
+                    <option value="">Toutes les agences</option>{agences.map((a) => <option key={a.id} value={a.id}>{a.nom}</option>)}
+                  </select>
+                  <Input type="number" min={0} max={100} placeholder="Potentiel minimal (0-100)" value={f.potentiel_min} onChange={(e) => setF({ ...f, potentiel_min: e.target.value })} />
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setFormulaire(false)}>Annuler</Button>
@@ -240,9 +255,20 @@ function Campagnes() {
               <Badge variant={c.statut === 'terminee' ? 'success' : c.statut === 'annulee' ? 'outline' : c.statut === 'en_cours' ? 'info' : 'warning'}>{c.statut.replace('_', ' ')}</Badge>
               {modif && c.statut === 'brouillon' && <Button size="sm" variant="outline" onClick={() => lancer(c.id)}>Lancer</Button>}
               {modif && c.statut === 'en_cours' && <Button size="sm" variant="ghost" onClick={async () => { try { await campagnesApi.cloturer(c.id); await charger(); } catch (e) { toast.error(msg(e)); } }}>Clôturer</Button>}
+              {c.statut !== 'brouillon' && <Button size="sm" variant="ghost" onClick={() => basculerFunnel(c.id)}>{funnels[c.id] ? 'Masquer' : 'Entonnoir'}</Button>}
             </div>
           </div>
           <p className="text-xs rounded bg-muted p-2">{c.message}</p>
+          {funnels[c.id] && (
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-1 text-center">
+              {([['cibles', 'Ciblés'], ['atteints', 'Atteints'], ['prospects_crees', 'Prospects'], ['convertis', 'Convertis'], ['demandes_creees', 'Demandes'], ['accordees', 'Accordées']] as const).map(([k, l]) => (
+                <div key={k} className="rounded-md border p-1.5">
+                  <p className="text-sm font-bold">{funnels[c.id]?.[k] ?? 0}</p>
+                  <p className="text-[10px] text-muted-foreground">{l}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent></Card>
       ))}
     </div>

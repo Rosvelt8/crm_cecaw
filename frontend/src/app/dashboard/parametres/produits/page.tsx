@@ -6,14 +6,20 @@ import { useCan } from '@/hooks/useCan';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { produitService } from '@/services/produitService';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Onglets } from '@/components/ui/kpi';
 import { Plus, Pencil, Trash2, X, Check, Search, Eye, Package, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { adminService, type ForfaitRef, type MarcheRef, type SecteurRef, type CriteresCible } from '@/services/adminService';
+import { agenceService } from '@/services/agenceService';
+import { CYCLE_LABEL } from '@/lib/segmentationLabels';
+import { msg } from '@/lib/apiHelpers';
 
 type Form = { nom: string; groupeId: string; description: string; actif: boolean };
 const EMPTY: Form = { nom: '', groupeId: '', description: '', actif: true };
@@ -41,6 +47,16 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void 
 );
 
 export default function ProduitsPage() {
+  const [onglet, setOnglet] = useState<'catalogue' | 'forfaits'>('catalogue');
+  return (
+    <div className="space-y-4">
+      <Onglets valeur={onglet} onChange={setOnglet} options={[{ id: 'catalogue', label: 'Catalogue' }, { id: 'forfaits', label: 'Forfaits' }]} />
+      {onglet === 'catalogue' ? <CatalogueTab /> : <ForfaitsTab />}
+    </div>
+  );
+}
+
+function CatalogueTab() {
   const { can } = useCan();
   // POST/PUT/DELETE /produits exigent tous `produits:CONFIGURE` (le taux/type se règlent séparément,
   // voir Paramètres > Paramétrage financier).
@@ -346,6 +362,173 @@ export default function ProduitsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Forfaits commerciaux (Lot 15) : bundles de produits ciblant un segment de clients. */
+function ForfaitsTab() {
+  const { can } = useCan();
+  const peutGerer = can('produits:CONFIGURE');
+  const [forfaits, setForfaits] = useState<ForfaitRef[]>([]);
+  const [produits, setProduits] = useState<{ id: number; nom: string; actif: boolean }[]>([]);
+  const [marches, setMarches] = useState<MarcheRef[]>([]);
+  const [secteurs, setSecteurs] = useState<SecteurRef[]>([]);
+  const [agences, setAgences] = useState<{ id: number; nom: string }[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [formulaire, setFormulaire] = useState(false);
+  const [occupe, setOccupe] = useState(false);
+  const [f, setF] = useState({ nom: '', description: '', produit_ids: [] as number[], cycle_vie: [] as string[], marche_id: '', secteur_id: '', agence_id: '', potentiel_min: '' });
+  const [opportunites, setOpportunites] = useState<{ forfaitId: number; data: Awaited<ReturnType<typeof adminService.clientsEligiblesForfait>> } | null>(null);
+
+  const charger = useCallback(() => adminService.forfaits()
+    .then(setForfaits)
+    .catch((e) => toast.error(msg(e, 'Accès refusé')))
+    .finally(() => setChargement(false)), []);
+  useEffect(() => {
+    void charger();
+    produitService.getProduits().then((r) => setProduits(r.data ?? [])).catch(() => {});
+    adminService.marches().then(setMarches).catch(() => {});
+    adminService.secteurs().then(setSecteurs).catch(() => {});
+    agenceService.getAgences({ per_page: 100 }).then((r) => setAgences(r.data)).catch(() => {});
+  }, [charger]);
+
+  const VIDE = { nom: '', description: '', produit_ids: [] as number[], cycle_vie: [] as string[], marche_id: '', secteur_id: '', agence_id: '', potentiel_min: '' };
+  const [enEdition, setEnEdition] = useState<number | null>(null);
+
+  const ouvrirEdition = (ft: ForfaitRef) => {
+    const c = ft.criteres ?? {};
+    setF({
+      nom: ft.nom, description: ft.description ?? '', produit_ids: ft.produits.map((p) => p.produit.id), cycle_vie: c.cycle_vie ?? [],
+      marche_id: c.marche_id ? String(c.marche_id) : '', secteur_id: c.secteur_id ? String(c.secteur_id) : '',
+      agence_id: c.agence_id ? String(c.agence_id) : '', potentiel_min: c.potentiel_min !== undefined ? String(c.potentiel_min) : '',
+    });
+    setEnEdition(ft.id); setFormulaire(true);
+  };
+  const fermer = () => { setFormulaire(false); setEnEdition(null); setF(VIDE); };
+
+  const enregistrer = async () => {
+    if (!f.nom.trim() || f.produit_ids.length === 0) { toast.error('Nom et au moins un produit requis'); return; }
+    setOccupe(true);
+    try {
+      const criteres: CriteresCible = {};
+      if (f.cycle_vie.length) criteres.cycle_vie = f.cycle_vie as CriteresCible['cycle_vie'];
+      if (f.marche_id) criteres.marche_id = Number(f.marche_id);
+      if (f.secteur_id) criteres.secteur_id = Number(f.secteur_id);
+      if (f.agence_id) criteres.agence_id = Number(f.agence_id);
+      if (f.potentiel_min) criteres.potentiel_min = Number(f.potentiel_min);
+      const corps = { nom: f.nom, description: f.description || undefined, criteres, produit_ids: f.produit_ids };
+      if (enEdition) { await adminService.modifierForfait(enEdition, corps); toast.success('Forfait modifié'); }
+      else { await adminService.creerForfait(corps); toast.success('Forfait créé'); }
+      fermer();
+      await charger();
+    } catch (e) { toast.error(msg(e)); } finally { setOccupe(false); }
+  };
+
+  const basculerActif = async (ft: ForfaitRef) => {
+    try { await adminService.modifierForfait(ft.id, { actif: !ft.actif }); await charger(); }
+    catch (e) { toast.error(msg(e)); }
+  };
+
+  const supprimer = async (id: number) => {
+    try { await adminService.supprimerForfait(id); toast.success('Forfait supprimé'); await charger(); }
+    catch (e) { toast.error(msg(e)); }
+  };
+
+  const voirOpportunites = async (forfaitId: number) => {
+    if (opportunites?.forfaitId === forfaitId) { setOpportunites(null); return; }
+    try { setOpportunites({ forfaitId, data: await adminService.clientsEligiblesForfait(forfaitId) }); }
+    catch (e) { toast.error(msg(e)); }
+  };
+
+  if (chargement) return <p className="text-sm text-muted-foreground py-8 text-center">Chargement…</p>;
+
+  return (
+    <div className="space-y-3">
+      {peutGerer && (
+        <Card>
+          <CardContent className="p-3 space-y-3">
+            {!formulaire ? (
+              <Button variant="brand" size="sm" onClick={() => setFormulaire(true)}><Plus className="mr-2 h-4 w-4" />Nouveau forfait</Button>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <Input placeholder="Nom du forfait" value={f.nom} onChange={(e) => setF({ ...f, nom: e.target.value })} />
+                  <Input placeholder="Description (optionnel)" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
+                </div>
+                <p className="text-xs text-muted-foreground">Produits du forfait :</p>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {produits.filter((p) => p.actif).map((p) => (
+                    <label key={p.id} className="flex items-center gap-1 rounded-md border px-2 py-1">
+                      <input type="checkbox" checked={f.produit_ids.includes(p.id)} onChange={() => setF({ ...f, produit_ids: f.produit_ids.includes(p.id) ? f.produit_ids.filter((x) => x !== p.id) : [...f.produit_ids, p.id] })} />
+                      {p.nom}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Ciblage (laisser vide = tous les clients actifs) :</p>
+                <div className="grid sm:grid-cols-4 gap-2">
+                  <div className="flex flex-wrap gap-2 items-center text-xs col-span-full sm:col-span-2">
+                    {Object.entries(CYCLE_LABEL).map(([k, l]) => (
+                      <label key={k} className="flex items-center gap-1"><input type="checkbox" checked={f.cycle_vie.includes(k)} onChange={() => setF({ ...f, cycle_vie: f.cycle_vie.includes(k) ? f.cycle_vie.filter((x) => x !== k) : [...f.cycle_vie, k] })} />{l}</label>
+                    ))}
+                  </div>
+                  <select className="h-9 rounded-md border bg-background px-2 text-sm" value={f.marche_id} onChange={(e) => setF({ ...f, marche_id: e.target.value })}>
+                    <option value="">Tous les marchés</option>{marches.map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                  </select>
+                  <select className="h-9 rounded-md border bg-background px-2 text-sm" value={f.secteur_id} onChange={(e) => setF({ ...f, secteur_id: e.target.value })}>
+                    <option value="">Tous les secteurs</option>{secteurs.map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}
+                  </select>
+                  <select className="h-9 rounded-md border bg-background px-2 text-sm" value={f.agence_id} onChange={(e) => setF({ ...f, agence_id: e.target.value })}>
+                    <option value="">Toutes les agences</option>{agences.map((a) => <option key={a.id} value={a.id}>{a.nom}</option>)}
+                  </select>
+                  <Input type="number" min={0} max={100} placeholder="Potentiel minimal (0-100)" value={f.potentiel_min} onChange={(e) => setF({ ...f, potentiel_min: e.target.value })} />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={fermer}>Annuler</Button>
+                  <Button size="sm" variant="brand" disabled={occupe} onClick={enregistrer}>{enEdition ? 'Enregistrer' : 'Créer'}</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {forfaits.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Aucun forfait.</p>}
+      {forfaits.map((ft) => (
+        <Card key={ft.id}>
+          <CardContent className="p-3 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">{ft.nom}</p>
+                <p className="text-xs text-muted-foreground">{ft.produits.map((p) => p.produit.nom).join(' + ')}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={ft.actif ? 'success' : 'secondary'}>{ft.actif ? 'Actif' : 'Inactif'}</Badge>
+                <Button size="sm" variant="outline" onClick={() => voirOpportunites(ft.id)}>{opportunites?.forfaitId === ft.id ? 'Masquer' : 'Clients éligibles'}</Button>
+                {peutGerer && (
+                  <>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => basculerActif(ft)}>{ft.actif ? 'Désactiver' : 'Activer'}</Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => ouvrirEdition(ft)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => supprimer(ft.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </>
+                )}
+              </div>
+            </div>
+            {ft.description && <p className="text-xs text-muted-foreground">{ft.description}</p>}
+            {opportunites?.forfaitId === ft.id && (
+              <div className="space-y-1.5 pt-2 border-t">
+                {opportunites.data.length === 0 && <p className="text-xs text-muted-foreground">Aucune opportunité : tous les clients ciblés détiennent déjà ce forfait, ou aucun client ne correspond au ciblage.</p>}
+                {opportunites.data.map((o) => (
+                  <div key={o.client.id} className="flex items-center justify-between gap-2 text-xs rounded-md border p-1.5">
+                    <span>{o.client.prenom} {o.client.nom} · manque : {o.produits_manquants.join(', ')}</span>
+                    <span className="font-bold text-brand-700">{o.score_forfait}/100</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

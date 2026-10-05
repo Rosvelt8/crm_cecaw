@@ -37,6 +37,8 @@ const baseSchema = z.object({
   statut: z.nativeEnum(StatutProspect).optional(),
   produit_interet_id: z.number().int().positive().optional().nullable(),
   commercial_id: z.number().int().positive().optional(),
+  /// Campagne à l'origine du contact (Lot 15 — attribution manuelle pour le funnel de campagne).
+  campagne_id: z.number().int().positive().optional().nullable(),
   notes: z.string().optional(),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),

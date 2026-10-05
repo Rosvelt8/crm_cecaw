@@ -91,6 +91,10 @@ enum TypeTransaction {
 enum UniteObjectif {
   clients
   montant
+  /// Nombre moyen de produits actifs par client dans la portée (Lot 15 — taux d'équipement).
+  produits_client
+  /// Valeur moyenne du portefeuille par client dans la portée (Lot 15 — panier moyen).
+  panier_moyen
 }
 
 enum PeriodiciteObjectif {
@@ -535,6 +539,8 @@ model Produit {
   objectifs      Objectif[]
   parametrages   ParametrageProduit[]
   demandesCredit DemandeCredit[]
+  appetences     AppetenceProduit[]
+  forfaits       ForfaitProduit[]
 
   @@map("produits")
 }
@@ -741,6 +747,8 @@ model Prospect {
   marcheId            Int?                @map("marche_id")
   secteurId           Int?                @map("secteur_id")
   metierId            Int?                @map("metier_id")
+  /// Campagne à l'origine du contact (attribution manuelle à la création, Lot 15 — funnel de campagne).
+  campagneId          Int?                @map("campagne_id")
   notes               String?             @db.Text
   latitude            Decimal?            @db.Decimal(10, 7)
   longitude           Decimal?            @db.Decimal(10, 7)
@@ -753,6 +761,7 @@ model Prospect {
   marche         Marche?         @relation(fields: [marcheId], references: [id], onDelete: SetNull)
   secteur        Secteur?        @relation(fields: [secteurId], references: [id], onDelete: SetNull)
   metier         Metier?         @relation(fields: [metierId], references: [id], onDelete: SetNull)
+  campagne       Campagne?       @relation(fields: [campagneId], references: [id], onDelete: SetNull)
   piecesJointes  PieceJointe[]
   clients        Client[]
   dossiersKyc    DossierKyc[]
@@ -763,6 +772,7 @@ model Prospect {
   @@index([statut])
   @@index([zoneId])
   @@index([marcheId])
+  @@index([campagneId])
   @@index([createdAt(sort: Desc)])
   @@map("prospects")
 }
@@ -886,6 +896,7 @@ model Client {
   interactions         Interaction[]
   objectifsClient      ObjectifClient[]
   score                ScoreClient?
+  appetences           AppetenceProduit[]
   campagnesCiblees     CampagneCible[]
 
   @@index([commercialId])
@@ -1093,6 +1104,8 @@ model DemandeCredit {
   dateDecaissement     DateTime?           @map("date_decaissement")
   motifDecision        String?             @map("motif_decision") @db.Text
   archiveAt            DateTime?           @map("archive_at")
+  /// Campagne à l'origine de la demande (attribution manuelle, Lot 15 — funnel de campagne).
+  campagneId           Int?                @map("campagne_id")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
 
@@ -1106,6 +1119,7 @@ model DemandeCredit {
   analysePar         Utilisateur?        @relation("DemandeAnalyseePar", fields: [analyseParId], references: [id], onDelete: SetNull)
   decidePar          Utilisateur?        @relation("DemandeDecideePar", fields: [decideParId], references: [id], onDelete: SetNull)
   compteDecaissement CompteClient?       @relation(fields: [compteDecaissementId], references: [id], onDelete: SetNull)
+  campagne           Campagne?           @relation(fields: [campagneId], references: [id], onDelete: SetNull)
 
   garanties            Garantie[]
   garants              Garant[]
@@ -1122,6 +1136,7 @@ model DemandeCredit {
   @@index([clientId])
   @@index([agenceId])
   @@index([statut])
+  @@index([campagneId])
   @@index([createdAt(sort: Desc)])
   @@map("demandes_credit")
 }
@@ -1506,6 +1521,10 @@ enum CategorieObjectif {
   credit
   recouvrement
   nouveaux_clients
+  /// Vente d'un produit complémentaire à un client existant (Lot 15).
+  cross_selling
+  /// Évolution d'un client vers une offre de niveau supérieur (Lot 15).
+  up_selling
 }
 
 enum StatutRecouvrement {
@@ -2340,28 +2359,112 @@ enum CycleVieClient {
   dormant
   a_risque
   premium
+  /// Dormant depuis longtemps, encours nul : relation considérée perdue (Lot 15, doc segmentation §8).
+  perdu
+  /// Était dormant, une interaction récente a été détectée : fenêtre de réactivation (Lot 15).
+  a_reactiver
 }
 
-/// Score et segment calculés d'un client (compléments stratégiques, point 1). Recalculé par la
-/// tâche planifiée `score_clients` (voir `lib/planificateur.ts`) à partir de règles déterministes
-/// et explicites (pas de modèle statistique) : encours, épargne, ancienneté, régularité des
-/// contacts et des transactions. Une seule ligne par client, réécrite à chaque recalcul.
+/// Score et segment calculés d'un client (compléments stratégiques, point 1 ; étendu Lot 15 avec
+/// les 7 familles de score du moteur de segmentation). Recalculé par la tâche planifiée
+/// `score_clients` (voir `lib/planificateur.ts`) à partir de règles déterministes et explicites
+/// (pas de modèle statistique) : encours, épargne, ancienneté, régularité des contacts et des
+/// transactions, incidents, interactions. Une seule ligne par client, réécrite à chaque recalcul.
 model ScoreClient {
-  id                             Int            @id @default(autoincrement())
-  clientId                       Int            @unique @map("client_id")
-  score                          Int
-  potentiel                      Int
-  cycleVie                       CycleVieClient @map("cycle_vie")
-  encoursCredit                  Decimal        @map("encours_credit") @db.Decimal(15, 2)
-  soldeEpargne                   Decimal        @map("solde_epargne") @db.Decimal(15, 2)
-  ancienneteMois                 Int            @map("anciennete_mois")
-  joursDepuisDernierContact      Int?           @map("jours_depuis_dernier_contact")
-  joursDepuisDerniereTransaction Int?           @map("jours_depuis_derniere_transaction")
-  calculeAt                      DateTime       @default(now()) @map("calcule_at")
+  id        Int            @id @default(autoincrement())
+  clientId  Int            @unique @map("client_id")
+  /// Famille A — Score client (valeur globale).
+  score     Int
+  /// Famille B — Score commercial (potentiel actuel).
+  potentiel Int
+  cycleVie  CycleVieClient @map("cycle_vie")
+
+  /// Famille D — Score crédit (profil de financement).
+  // Valeurs par défaut : la table contient déjà des lignes en base ; elles seront réécrites au
+  // prochain recalcul, mais l'ajout de colonnes NOT NULL sans défaut ferait échouer `db push`.
+  scoreCredit      Int @default(0) @map("score_credit")
+  /// Famille E — Score risque (niveau d'exposition).
+  scoreRisque      Int @default(0) @map("score_risque")
+  /// Famille F — Score relationnel (qualité de la relation).
+  scoreRelationnel Int @default(0) @map("score_relationnel")
+  /// Famille G — Score stratégique (valeur stratégique long terme).
+  scoreStrategique Int @default(0) @map("score_strategique")
+  /// Customer Growth Score (potentiel d'augmentation de la valeur client).
+  scoreCroissance  Int @default(0) @map("score_croissance")
+  /// Score d'attrition continu 0-100 (plus haut = plus de risque de désengagement).
+  scoreAttrition   Int @default(0) @map("score_attrition")
+
+  /// Nombre de produits actifs distincts détenus (taux d'équipement).
+  nombreProduits Int     @default(0) @map("nombre_produits")
+  /// Valeur du portefeuille client (encours crédit + solde épargne), proxy du panier moyen.
+  panierMoyen    Decimal @default(0) @map("panier_moyen") @db.Decimal(15, 2)
+
+  encoursCredit                  Decimal  @map("encours_credit") @db.Decimal(15, 2)
+  soldeEpargne                   Decimal  @map("solde_epargne") @db.Decimal(15, 2)
+  ancienneteMois                 Int      @map("anciennete_mois")
+  joursDepuisDernierContact      Int?     @map("jours_depuis_dernier_contact")
+  joursDepuisDerniereTransaction Int?     @map("jours_depuis_derniere_transaction")
+  calculeAt                      DateTime @default(now()) @map("calcule_at")
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@map("scores_clients")
+}
+
+/// Type d'opportunité commerciale détectée dans la matrice client × produit (Lot 15).
+enum TypeOpportuniteProduit {
+  cross_sell
+  up_sell
+}
+
+/// Matrice client × produit (Lot 15, doc "Customer Value Growth" §2-3) : pour chaque couple actif,
+/// indique si le produit est détenu, si le client y est éligible, et un score d'appétence calculé
+/// par règles explicites (pas de modèle statistique). Recalculée à la suite de `score_clients`.
+model AppetenceProduit {
+  id              Int                     @id @default(autoincrement())
+  clientId        Int                     @map("client_id")
+  produitId       Int                     @map("produit_id")
+  detenu          Boolean
+  eligible        Boolean
+  score           Int
+  typeOpportunite TypeOpportuniteProduit? @map("type_opportunite")
+  raison          String?                 @db.Text
+  calculeAt       DateTime                @default(now()) @map("calcule_at")
+
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  produit Produit @relation(fields: [produitId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, produitId])
+  @@index([produitId])
+  @@map("appetences_produits")
+}
+
+/// Forfait commercial (bundle de produits), Lot 15 doc "Customer Value Growth" §6. `criteres`
+/// reprend la même forme que `Campagne.criteres` (cycle_vie/marche/secteur/agence/potentiel_min),
+/// résolue par `lib/cibleClient.ts`.
+model Forfait {
+  id          Int      @id @default(autoincrement())
+  nom         String   @db.VarChar(150)
+  description String?  @db.Text
+  criteres    Json?
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  produits ForfaitProduit[]
+
+  @@map("forfaits")
+}
+
+model ForfaitProduit {
+  forfaitId Int @map("forfait_id")
+  produitId Int @map("produit_id")
+
+  forfait Forfait @relation(fields: [forfaitId], references: [id], onDelete: Cascade)
+  produit Produit @relation(fields: [produitId], references: [id], onDelete: Cascade)
+
+  @@id([forfaitId, produitId])
+  @@map("forfaits_produits")
 }
 
 // ─────────────────────────────────────────────
@@ -2468,6 +2571,10 @@ model Campagne {
   evenementCalendrier CalendrierEvenement? @relation(fields: [evenementCalendrierId], references: [id], onDelete: SetNull)
   creePar             Utilisateur          @relation(fields: [creeParId], references: [id], onDelete: Restrict)
   cibles              CampagneCible[]
+  /// Prospects créés en attribuant leur origine à cette campagne (Lot 15 — funnel).
+  prospectsOrigine    Prospect[]
+  /// Demandes de crédit attribuées à cette campagne (Lot 15 — funnel).
+  demandesOrigine     DemandeCredit[]
 
   @@map("campagnes")
 }
