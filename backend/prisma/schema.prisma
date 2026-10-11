@@ -416,6 +416,7 @@ model Agence {
   objectifs            Objectif[]
   alertes              AlerteConformite[]
   marches              Marche[]
+  campagnes            Campagne[]
 
   @@map("agences")
 }
@@ -653,7 +654,10 @@ model Utilisateur {
   ecrituresCreees       EcritureComptable[]
   interactions          Interaction[]
   objectifsClientCrees  ObjectifClient[]
-  campagnesCreees       Campagne[]
+  campagnesCreees       Campagne[]             @relation("CampagneCreePar")
+  campagnesResponsable  Campagne[]             @relation("CampagneResponsable")
+  campagnesMembre       CampagneMembre[]
+  ciblesAjoutees        CampagneCible[]        @relation("CibleAjouteePar")
 
   @@index([email])
   @@index([agenceId])
@@ -767,6 +771,7 @@ model Prospect {
   dossiersKyc    DossierKyc[]
   visitesTournee VisiteTournee[]
   interactions   Interaction[]
+  campagnesCiblees CampagneCible[]
 
   @@index([commercialId])
   @@index([statut])
@@ -1431,6 +1436,9 @@ model Objectif {
   assignationType AssignationObjectif @default(agents) @map("assignation_type")
   equipeId        Int?                @map("equipe_id")
   zoneId          Int?                @map("zone_id")
+  /// Campagne marketing à laquelle l'objectif contribue (facultatif) : une campagne porte
+  /// plusieurs objectifs, un objectif peut exister sans campagne.
+  campagneId      Int?                @map("campagne_id")
   realise         Decimal             @default(0) @db.Decimal(15, 2)
   statut          StatutObjectif      @default(en_cours)
   createdById     Int                 @map("created_by_id")
@@ -1441,10 +1449,12 @@ model Objectif {
   agence    Agence?         @relation(fields: [agenceId], references: [id], onDelete: SetNull)
   equipe    Equipe?         @relation(fields: [equipeId], references: [id], onDelete: SetNull)
   zone      Zone?           @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  campagne  Campagne?       @relation(fields: [campagneId], references: [id], onDelete: SetNull)
   createdBy Utilisateur     @relation(fields: [createdById], references: [id], onDelete: Restrict)
   agents    ObjectifAgent[]
 
   @@index([equipeId])
+  @@index([campagneId])
   @@index([zoneId])
   @@index([statut])
   @@map("objectifs")
@@ -1525,6 +1535,10 @@ enum CategorieObjectif {
   cross_selling
   /// Évolution d'un client vers une offre de niveau supérieur (Lot 15).
   up_selling
+  /// Prospects créés sur la période (rattachés à la campagne si l'objectif en a une).
+  prospection
+  /// Prospects convertis en clients sur la période (idem).
+  conversion
 }
 
 enum StatutRecouvrement {
@@ -2557,11 +2571,21 @@ enum StatutCampagne {
 model Campagne {
   id                    Int            @id @default(autoincrement())
   nom                   String         @db.VarChar(200)
+  /// Nature de l'opération marketing (acquisition, fidélisation…), sert de filtre d'évaluation.
+  type                  TypeCampagne   @default(autre)
+  description           String?        @db.Text
+  /// Finalité générale, en clair ; les cibles chiffrées sont portées par `objectifs`.
+  objectifGeneral       String?        @map("objectif_general") @db.Text
   criteres              Json
-  canal                 CanalCampagne
-  message               String         @db.Text
+  /// Canal d'envoi automatique ; vide pour une campagne sans message (terrain, événement…).
+  canal                 CanalCampagne?
+  message               String?        @db.Text
   dateDebut             DateTime       @map("date_debut") @db.Date
   dateFin               DateTime?      @map("date_fin") @db.Date
+  budget                Decimal?       @db.Decimal(15, 2)
+  coutReel              Decimal?       @map("cout_reel") @db.Decimal(15, 2)
+  responsableId         Int?           @map("responsable_id")
+  agenceId              Int?           @map("agence_id")
   evenementCalendrierId Int?           @map("evenement_calendrier_id")
   statut                StatutCampagne @default(brouillon)
   creeParId             Int            @map("cree_par_id")
@@ -2569,14 +2593,52 @@ model Campagne {
   updatedAt             DateTime       @updatedAt @map("updated_at")
 
   evenementCalendrier CalendrierEvenement? @relation(fields: [evenementCalendrierId], references: [id], onDelete: SetNull)
-  creePar             Utilisateur          @relation(fields: [creeParId], references: [id], onDelete: Restrict)
+  creePar             Utilisateur          @relation("CampagneCreePar", fields: [creeParId], references: [id], onDelete: Restrict)
+  responsable         Utilisateur?         @relation("CampagneResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  agence              Agence?              @relation(fields: [agenceId], references: [id], onDelete: SetNull)
   cibles              CampagneCible[]
+  membres             CampagneMembre[]
+  objectifs           Objectif[]
   /// Prospects créés en attribuant leur origine à cette campagne (Lot 15 — funnel).
   prospectsOrigine    Prospect[]
   /// Demandes de crédit attribuées à cette campagne (Lot 15 — funnel).
   demandesOrigine     DemandeCredit[]
 
+  @@index([statut])
+  @@index([dateDebut])
   @@map("campagnes")
+}
+
+enum TypeCampagne {
+  acquisition
+  fidelisation
+  reactivation
+  cross_selling
+  notoriete
+  evenementiel
+  recouvrement
+  autre
+}
+
+enum RoleMembreCampagne {
+  responsable
+  membre
+  observateur
+}
+
+/// Personnel interne mobilisé sur une campagne (chargés, commerciaux, agents de terrain).
+model CampagneMembre {
+  campagneId    Int                @map("campagne_id")
+  utilisateurId Int                @map("utilisateur_id")
+  role          RoleMembreCampagne @default(membre)
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  campagne    Campagne    @relation(fields: [campagneId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@id([campagneId, utilisateurId])
+  @@index([utilisateurId])
+  @@map("campagnes_membres")
 }
 
 enum StatutCibleCampagne {
@@ -2591,14 +2653,24 @@ enum StatutCibleCampagne {
 model CampagneCible {
   id         Int                 @id @default(autoincrement())
   campagneId Int                 @map("campagne_id")
-  clientId   Int                 @map("client_id")
+  /// Exactement un des deux est renseigné : un client ou un prospect.
+  clientId   Int?                @map("client_id")
+  prospectId Int?                @map("prospect_id")
   statut     StatutCibleCampagne @default(ciblee)
+  /// Ajout nominatif (hors critères) : conservé même si les critères changent.
+  ajoutManuel Boolean            @default(false) @map("ajout_manuel")
+  ajouteParId Int?               @map("ajoute_par_id")
+  note       String?             @db.Text
   envoyeAt   DateTime?           @map("envoye_at")
   createdAt  DateTime            @default(now()) @map("created_at")
 
-  campagne Campagne @relation(fields: [campagneId], references: [id], onDelete: Cascade)
-  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campagne  Campagne     @relation(fields: [campagneId], references: [id], onDelete: Cascade)
+  client    Client?      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  prospect  Prospect?    @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  ajoutePar Utilisateur? @relation("CibleAjouteePar", fields: [ajouteParId], references: [id], onDelete: SetNull)
 
   @@unique([campagneId, clientId])
+  @@unique([campagneId, prospectId])
+  @@index([prospectId])
   @@map("campagnes_cibles")
 }

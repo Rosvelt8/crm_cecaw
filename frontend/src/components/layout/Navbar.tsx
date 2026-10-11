@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, CalendarDays, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -57,6 +57,11 @@ export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () =>
 
       {/* Right section: Notifications + User menu */}
       <div className="flex items-center gap-2">
+        <Link href="/dashboard/calendrier" aria-label="Calendrier des opérations" title="Calendrier des opérations">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+            <CalendarDays className="h-4 w-4" />
+          </Button>
+        </Link>
         <Link href="/dashboard/notifications" className="relative" aria-label="Notifications">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
             <Bell className="h-4 w-4" />

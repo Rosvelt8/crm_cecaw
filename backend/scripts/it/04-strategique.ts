@@ -300,5 +300,58 @@ const aujourdhuiIso = () => new Date().toISOString().slice(0, 10);
   const listeApres2 = await api(r05.token, 'GET', `/kyc/clients/${clientId}/photos-activite`);
   verifier(listeApres2.corps.data.length === 2, 'une seconde photo s\'ajoute sans remplacer la première (galerie)');
 
+  titre('Module Campagnes : fiche, personnes liées, objectifs, évaluation');
+  const sansCanal = await api(admin.token, 'POST', '/campagnes', {
+    nom: 'Salon de l\'artisanat IT', type: 'evenementiel', description: 'Stand CECAW au salon', objectif_general: 'Recruter des artisans',
+    date_debut: aujourdhuiIso(), date_fin: '2099-12-31', budget: 500000, cout_reel: 200000, responsable_id: r05.id, criteres: { cycle_vie: ['premium'] },
+  });
+  verifier(sansCanal.statut === 201 && sansCanal.corps.data.canal === null, 'une campagne sans canal (terrain/événement) est acceptée', sansCanal.corps);
+  const idC = sansCanal.corps.data.id;
+  verifier((await api(admin.token, 'POST', '/campagnes', { nom: 'X', canal: 'sms', date_debut: aujourdhuiIso() })).statut === 422, 'un canal sans message est refusé');
+  verifier((await api(admin.token, 'POST', '/campagnes', { nom: 'X', date_debut: '2026-05-01', date_fin: '2026-04-01' })).statut === 422, 'une date de fin antérieure au début est refusée');
+  verifier((await api(r05.token, 'POST', '/campagnes', { nom: 'X', date_debut: aujourdhuiIso() })).statut === 403, 'un commercial ne crée pas de campagne');
+
+  const detailC = await api(r05.token, 'GET', `/campagnes/${idC}`);
+  verifier(detailC.statut === 200 && detailC.corps.data.membres.some((m: { utilisateurId: number; role: string }) => m.utilisateurId === r05.id && m.role === 'responsable'), 'le responsable est ajouté à l\'équipe et la fiche est lisible au CRM', detailC.corps.data?.membres);
+
+  const prospectLie = await api(r05.token, 'POST', '/prospects', { type_personne: 'physique', nom: 'Fotso', prenom: 'Aline', telephone: '677005566' });
+  const lien = await api(r05.token, 'POST', `/campagnes/${idC}/cibles`, { client_ids: [clientId], prospect_ids: [prospectLie.corps.data.id], note: 'rencontrés au salon' });
+  verifier(lien.statut === 201 && lien.corps.data.clients_ajoutes === 1 && lien.corps.data.prospects_ajoutes === 1, 'un commercial (crm:UPDATE) lie un client et un prospect', lien.corps);
+  const lien2 = await api(r05.token, 'POST', `/campagnes/${idC}/cibles`, { client_ids: [clientId] });
+  verifier(lien2.corps.data.clients_ajoutes === 0, 'pas de doublon de personne liée');
+  const ciblesP = await api(r05.token, 'GET', `/campagnes/${idC}/cibles?type=prospect`);
+  verifier(ciblesP.corps.data.length === 1 && ciblesP.corps.data[0].ajoutManuel === true, 'filtre des cibles par type, ajout manuel tracé', ciblesP.corps);
+
+  const lancementC = await api(admin.token, 'POST', `/campagnes/${idC}/lancer`, {});
+  verifier(lancementC.statut === 200 && lancementC.corps.data.mises_en_file === 0 && lancementC.corps.data.nb_cibles >= 2, 'lancer sans canal fige les cibles sans envoyer de message', lancementC.corps);
+
+  const objC = await api(admin.token, 'POST', '/objectifs', {
+    titre: 'Prospects salon IT', categorie: 'prospection', unite: 'clients', cible: 10, periodicite: 'mois',
+    date_debut: aujourdhuiIso(), date_fin: '2099-12-31', assignation_type: 'institution', campagne_id: idC,
+  });
+  verifier(objC.statut === 201 && objC.corps.data.campagneId === idC, 'un objectif peut être créé pour une campagne', objC.corps);
+  const objLibre = await api(admin.token, 'POST', '/objectifs', { titre: 'Objectif libre IT', categorie: 'commercial', unite: 'clients', cible: 5, periodicite: 'mois', date_debut: aujourdhuiIso(), date_fin: '2099-12-31', assignation_type: 'institution' });
+  verifier(objLibre.statut === 201 && objLibre.corps.data.campagneId === null, 'un objectif peut exister sans campagne');
+  await api(admin.token, 'POST', `/campagnes/${idC}/objectifs`, { objectif_ids: [objLibre.corps.data.id] });
+  await api(r05.token, 'POST', '/prospects', { type_personne: 'physique', nom: 'Kamga', prenom: 'Paul', telephone: '677007788', campagne_id: idC });
+  await api(admin.token, 'POST', '/objectifs/recalculer', {});
+  const detailC2 = await api(admin.token, 'GET', `/campagnes/${idC}`);
+  verifier(detailC2.corps.data.objectifs.length === 2, 'plusieurs objectifs rattachés à une campagne', detailC2.corps.data.objectifs);
+  const objCalc = detailC2.corps.data.objectifs.find((o: { id: number }) => o.id === objC.corps.data.id);
+  verifier(Number(objCalc.realise) === 1, 'le réalisé de l\'objectif de campagne ne compte que les prospects attribués à la campagne', objCalc);
+
+  const evalC = await api(admin.token, 'GET', `/campagnes/evaluation?ids=${idC}`);
+  const ligneC = evalC.corps.data.campagnes[0];
+  verifier(evalC.statut === 200 && ligneC.prospects_crees === 1 && ligneC.cibles_prospects === 1 && ligneC.consommation_budget === 40, 'évaluation : prospects, cibles prospects et consommation du budget', ligneC);
+  verifier(ligneC.cout_par_prospect === 200000 && ligneC.objectifs === 2, 'évaluation : coût par prospect et objectifs', ligneC);
+
+  titre('Calendrier des opérations');
+  const sourcesR05 = await api(r05.token, 'GET', '/agenda/sources');
+  verifier(sourcesR05.corps.data.includes('campagne') && !sourcesR05.corps.data.includes('promesse') && !sourcesR05.corps.data.includes('collecte'), 'les sources suivent les droits (commercial : campagnes oui, recouvrement et collecte non)', sourcesR05.corps.data);
+  const fin = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+  const agenda = await api(admin.token, 'GET', `/agenda?debut=${aujourdhuiIso()}&fin=${fin}`);
+  verifier(agenda.statut === 200 && agenda.corps.data.some((e: { id: string }) => e.id === `campagne-${idC}`), 'la campagne apparaît dans le calendrier des opérations', agenda.corps.meta);
+  verifier((await api(admin.token, 'GET', '/agenda?debut=2026-01-01&fin=2026-12-31')).statut === 422, 'une période de plus de 120 jours est refusée');
+
   await arreter();
 })().catch((e) => { console.error(e); process.exit(1); });

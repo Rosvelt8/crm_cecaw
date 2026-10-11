@@ -33,7 +33,8 @@ import creditRouter from '../modules/credit/credit.routes';
 import archivesRouter from '../modules/archives/archives.routes';
 import interactionsRouter from '../modules/interactions/interactions.routes';
 import calendrierRouter from '../modules/communication/calendrier.routes';
-import campagnesRouter from '../modules/communication/campagnes.routes';
+import campagnesRouter from '../modules/campagnes/campagnes.routes';
+import agendaRouter from '../modules/agenda/agenda.routes';
 import forfaitsRouter from '../modules/forfaits/forfaits.routes';
 
 const router = Router();
@@ -61,6 +62,7 @@ router.use('/archives', archivesRouter);
 router.use('/interactions', interactionsRouter);
 router.use('/calendrier', calendrierRouter);
 router.use('/campagnes', campagnesRouter);
+router.use('/agenda', agendaRouter);
 router.use('/forfaits', forfaitsRouter);
 router.use('/recouvrement', recouvrementRouter);
 router.use('/tournees', tourneesRouter);

@@ -14,7 +14,7 @@ import {
   Layers, Package, Building2, UsersRound, ShieldCheck,
   LogOut, PanelLeftClose, PanelLeftOpen, ChevronDown, LayoutDashboard,
   Landmark, FileCheck2, Percent, Map, KeyRound,
-  AlertOctagon, Route as RouteIcon, Globe2, Compass, Calculator, ShieldAlert, PieChart, Sliders, MessageSquare, Webhook, Network, CalendarCheck,
+  AlertOctagon, Route as RouteIcon, Globe2, Compass, Calculator, ShieldAlert, PieChart, Sliders, MessageSquare, Webhook, Network, CalendarCheck, Megaphone, Gauge,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCan } from '@/hooks/useCan';
@@ -39,6 +39,8 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Prospects',    href: '/dashboard/marketing/prospects',    icon: Users,       perm: ['crm:VIEW'] },
       { label: 'Clients',      href: '/dashboard/marketing/clients',      icon: UserSquare2, perm: ['crm:VIEW'] },
       { label: 'Segmentation', href: '/dashboard/marketing/segmentation', icon: PieChart, perm: ['crm:VIEW'] },
+      { label: 'Campagnes',    href: '/dashboard/marketing/campagnes',    icon: Megaphone, perm: ['communication:VIEW', 'crm:VIEW'] },
+      { label: 'Évaluation campagnes', href: '/dashboard/marketing/campagnes/evaluation', icon: Gauge, perm: ['communication:VIEW', 'crm:VIEW'], exact: true },
     ],
   },
   {
@@ -175,8 +177,12 @@ export default function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boo
   // for the permanently-docked desktop sidebar, not a full-width overlay drawer.
   const showFull = mobileOpen || sidebarOpen;
 
-  const isActive = (href: string, exact?: boolean) =>
+  const correspond = (href: string, exact?: boolean) =>
     pathname === href || (!exact && pathname.startsWith(href + '/'));
+  // Une entrée n'est pas active quand une entrée plus précise du menu correspond aussi
+  // (ex. « Campagnes » sur la page « Évaluation campagnes »).
+  const isActive = (href: string, exact?: boolean) =>
+    correspond(href, exact) && !NAV_GROUPS.some((g) => g.items.some((i) => i.href.length > href.length && i.href.startsWith(href + '/') && correspond(i.href, i.exact)));
 
   const handleLogout = () => {
     logout();

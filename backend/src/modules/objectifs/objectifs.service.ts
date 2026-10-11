@@ -15,6 +15,7 @@ const include = {
   produit: { select: { id: true, nom: true } },
   agence: { select: { id: true, nom: true } },
   equipe: { select: { id: true, nom: true } },
+  campagne: { select: { id: true, nom: true, statut: true } },
   createdBy: { select: { id: true, prenom: true, nom: true } },
   agents: { include: { agent: { include: { utilisateur: { select: { prenom: true, nom: true } } } } } },
 } as const;
@@ -34,6 +35,8 @@ export async function list(actor: JwtPayload, query: Record<string, unknown>) {
   }
 
   if (query.statut) where.statut = query.statut;
+  if (query.campagne_id === 'aucune') where.campagneId = null;
+  else if (query.campagne_id) where.campagneId = parseInt(query.campagne_id as string, 10);
   if (query.assignation_type) where.assignationType = query.assignation_type;
 
   const [items, total] = await Promise.all([
@@ -74,7 +77,7 @@ export async function create(data: {
   titre: string; produit_id?: number | null; cible: number; unite: string;
   periodicite: string; date_debut: string; date_fin: string;
   assignation_type: string; equipe_id?: number; agent_ids?: number[];
-  categorie?: string; agence_id?: number | null; zone_id?: number | null;
+  categorie?: string; agence_id?: number | null; zone_id?: number | null; campagne_id?: number | null;
 }, actor: JwtPayload) {
   verifierCoherence(data);
   const o = await prisma.objectif.create({
@@ -84,6 +87,7 @@ export async function create(data: {
       categorie: (data.categorie ?? 'produit') as never,
       agenceId: data.assignation_type === 'agence' ? (data.agence_id ?? null) : null,
       zoneId: data.assignation_type === 'zone' ? (data.zone_id ?? null) : null,
+      campagneId: data.campagne_id ?? null,
       cible: data.cible,
       unite: data.unite as never,
       periodicite: data.periodicite as never,
@@ -120,6 +124,7 @@ export async function update(id: number, data: Record<string, unknown>, actor: J
     ...(data.categorie !== undefined && { categorie: data.categorie as never }),
     ...(data.agence_id !== undefined && { agenceId: data.agence_id as number | null }),
     ...(data.zone_id !== undefined && { zoneId: data.zone_id as number | null }),
+    ...(data.campagne_id !== undefined && { campagneId: data.campagne_id as number | null }),
   };
 
   // Une cible revue a la hausse ou une echeance repoussee change le verdict :

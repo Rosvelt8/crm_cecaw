@@ -6,9 +6,11 @@ import { success, created, noContent } from '../../lib/response';
 const schema = z.object({
   titre: z.string().min(1).max(200),
   produit_id: z.number().int().positive().nullish(),
-  categorie: z.enum(['produit', 'commercial', 'collecte', 'credit', 'recouvrement', 'nouveaux_clients', 'cross_selling', 'up_selling']).optional(),
+  categorie: z.enum(['produit', 'commercial', 'collecte', 'credit', 'recouvrement', 'nouveaux_clients', 'cross_selling', 'up_selling', 'prospection', 'conversion']).optional(),
   agence_id: z.number().int().positive().nullish(),
   zone_id: z.number().int().positive().nullish(),
+  /// Campagne marketing à laquelle l'objectif contribue (facultatif).
+  campagne_id: z.number().int().positive().nullish(),
   cible: z.number().positive(),
   unite: z.enum(['clients', 'montant', 'produits_client', 'panier_moyen']),
   periodicite: z.enum(['semaine', 'mois', 'trimestre']),

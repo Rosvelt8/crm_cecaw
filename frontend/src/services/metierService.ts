@@ -85,14 +85,33 @@ export const calendrierApi = {
   supprimer: (id: number) => del(`/calendrier/${id}`),
 };
 export const campagnesApi = {
-  lister: (statut?: string) => get<any[]>('/campagnes', { statut }),
-  obtenir: (id: number) => get(`/campagnes/${id}`),
+  lister: (statut?: string, p: Q = {}) => get<any[]>('/campagnes', { statut, ...p }),
+  obtenir: (id: number | string) => get(`/campagnes/${id}`),
   creer: (b: Q) => post('/campagnes', b),
-  lancer: (id: number) => post(`/campagnes/${id}/lancer`),
-  cloturer: (id: number) => post(`/campagnes/${id}/cloturer`),
-  annuler: (id: number) => post(`/campagnes/${id}/annuler`),
+  modifier: (id: number | string, b: Q) => put(`/campagnes/${id}`, b),
+  supprimer: (id: number | string) => del(`/campagnes/${id}`),
+  lancer: (id: number | string) => post(`/campagnes/${id}/lancer`),
+  cloturer: (id: number | string) => post(`/campagnes/${id}/cloturer`),
+  annuler: (id: number | string) => post(`/campagnes/${id}/annuler`),
+  apercuCibles: (criteres: Q) => post<{ nb_cibles_estime: number }>('/campagnes/apercu-cibles', { criteres }),
+  personnel: (search: string) => get<any[]>('/campagnes/personnel', { search }),
   /** Entonnoir de conversion (Lot 15) : ciblés → atteints → prospects créés → convertis → demandes → accordées. */
-  funnel: (id: number) => get<{ cibles: number; atteints: number; prospects_crees: number; convertis: number; demandes_creees: number; accordees: number }>(`/campagnes/${id}/funnel`),
+  funnel: (id: number | string) => get<{ cibles: number; atteints: number; prospects_crees: number; convertis: number; demandes_creees: number; accordees: number }>(`/campagnes/${id}/funnel`),
+  evolution: (id: number | string) => get<{ semaine: string; envois: number; prospects: number; demandes: number; montant_decaisse: number }[]>(`/campagnes/${id}/evolution`),
+  evaluation: (p: Q) => get<{ campagnes: any[]; totaux: any }>('/campagnes/evaluation', p),
+  cibles: (id: number | string, p: Q) => liste(`/campagnes/${id}/cibles`, p),
+  ajouterCibles: (id: number | string, b: { client_ids?: number[]; prospect_ids?: number[]; note?: string }) => post(`/campagnes/${id}/cibles`, b),
+  retirerCible: (id: number | string, cibleId: number) => del(`/campagnes/${id}/cibles/${cibleId}`),
+  membres: (id: number | string, membres: { utilisateur_id: number; role: string }[]) => put(`/campagnes/${id}/membres`, { membres }),
+  lierObjectifs: (id: number | string, objectif_ids: number[]) => post(`/campagnes/${id}/objectifs`, { objectif_ids }),
+  delierObjectif: (id: number | string, objectifId: number) => del(`/campagnes/${id}/objectifs/${objectifId}`),
+};
+
+// ── Calendrier des opérations (agrégé depuis les modules) ───────────────────
+export interface ElementAgenda { id: string; source: string; titre: string; debut: string; fin?: string | null; details?: string; lien?: string; statut?: string }
+export const agendaApi = {
+  sources: () => get<string[]>('/agenda/sources'),
+  lister: (debut: string, fin: string, sources?: string[]) => get<ElementAgenda[]>('/agenda', { debut, fin, sources: sources?.join(',') }),
 };
 export const integrationApi = {
   webhooks: () => get('/integration/webhooks'),

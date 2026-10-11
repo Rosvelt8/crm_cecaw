@@ -13,11 +13,21 @@ import { calcStatut } from './objectifs.service';
  * Les objectifs « par produit » et « commercial » restent saisis à la main : ils ne sont pas touchés.
  */
 
-const AUTOMATIQUES = ['credit', 'recouvrement', 'collecte', 'nouveaux_clients', 'cross_selling', 'up_selling'];
+const AUTOMATIQUES = ['credit', 'recouvrement', 'collecte', 'nouveaux_clients', 'cross_selling', 'up_selling', 'prospection', 'conversion'];
 
-interface Portee { utilisateurIds: number[] | null; agentIds: number[] | null; agenceId?: number; zoneId?: number }
+interface Portee { utilisateurIds: number[] | null; agentIds: number[] | null; agenceId?: number; zoneId?: number; campagneId?: number }
 
+/**
+ * Un objectif rattaché à une campagne ne compte que ce que la campagne a produit : demandes et
+ * prospects attribués (`campagneId`), clients issus de ses prospects ou figurant parmi ses cibles.
+ * La portée (agence, zone, équipe…) s'applique en plus, en intersection.
+ */
 async function portee(o: Objectif): Promise<Portee> {
+  const p = await porteeSansCampagne(o);
+  return o.campagneId ? { ...p, campagneId: o.campagneId } : p;
+}
+
+async function porteeSansCampagne(o: Objectif): Promise<Portee> {
   if (o.assignationType === 'agence') return { utilisateurIds: null, agentIds: null, agenceId: o.agenceId ?? -1 };
   if (o.assignationType === 'zone') return { utilisateurIds: null, agentIds: null, zoneId: o.zoneId ?? -1 };
   if (o.assignationType === 'equipe') {
@@ -40,6 +50,7 @@ function clientWhereDePortee(p: Portee): Record<string, unknown> {
     ...(p.agenceId ? { agenceId: p.agenceId } : {}),
     ...(p.zoneId ? { zoneId: p.zoneId } : {}),
     ...(p.utilisateurIds ? { commercialId: { in: p.utilisateurIds } } : {}),
+    ...(p.campagneId ? { OR: [{ campagnesCiblees: { some: { campagneId: p.campagneId } } }, { prospect: { campagneId: p.campagneId } }] } : {}),
   };
 }
 
@@ -120,6 +131,7 @@ export async function calculerRealise(o: Objectif): Promise<number | null> {
         statut: { in: ['decaissee', 'cloturee'] }, dateDecaissement: periode,
         ...(p.agenceId ? { agenceId: p.agenceId } : {}), ...(p.zoneId ? { zoneId: p.zoneId } : {}),
         ...(p.utilisateurIds ? { monteParId: { in: p.utilisateurIds } } : {}),
+        ...(p.campagneId ? { campagneId: p.campagneId } : {}),
       },
       select: { montantAccorde: true, montantDemande: true },
     });
@@ -131,21 +143,35 @@ export async function calculerRealise(o: Objectif): Promise<number | null> {
       type: 'credit' as const, createdAt: periode,
       ...(p.agentIds ? { agentId: { in: p.agentIds } } : {}),
       ...(p.agenceId ? { agent: { utilisateur: { agenceId: p.agenceId } } } : {}),
-      ...(p.zoneId ? { compte: { client: { zoneId: p.zoneId } } } : {}),
+      ...(p.zoneId || p.campagneId ? { compte: { client: { ...(p.zoneId ? { zoneId: p.zoneId } : {}), ...(p.campagneId ? clientWhereDePortee({ utilisateurIds: null, agentIds: null, campagneId: p.campagneId }) : {}) } } } : {}),
     };
     if (enNombre) return (await prisma.transaction.findMany({ where, distinct: ['compteId'], select: { compteId: true } })).length;
     const r = await prisma.transaction.aggregate({ where, _sum: { montant: true } });
     return arrondi(Number(r._sum.montant ?? 0));
   }
 
-  if (o.categorie === 'nouveaux_clients') {
+  if (o.categorie === 'nouveaux_clients' || o.categorie === 'conversion') {
+    // Conversion : clients créés sur la période à partir d'un prospect. Pour une campagne, seuls
+    // les prospects qui lui sont attribués comptent (un client déjà ciblé n'est pas « nouveau »).
     const n = await prisma.client.count({
       where: {
         createdAt: periode, ...(p.agenceId ? { agenceId: p.agenceId } : {}), ...(p.zoneId ? { zoneId: p.zoneId } : {}),
         ...(p.utilisateurIds ? { commercialId: { in: p.utilisateurIds } } : {}),
+        ...(p.campagneId ? { prospect: { campagneId: p.campagneId } } : o.categorie === 'conversion' ? { prospectId: { not: null } } : {}),
       },
     });
     return n;
+  }
+
+  if (o.categorie === 'prospection') {
+    return prisma.prospect.count({
+      where: {
+        createdAt: periode, ...(p.zoneId ? { zoneId: p.zoneId } : {}),
+        ...(p.agenceId ? { commercial: { agenceId: p.agenceId } } : {}),
+        ...(p.utilisateurIds ? { commercialId: { in: p.utilisateurIds } } : {}),
+        ...(p.campagneId ? { campagneId: p.campagneId } : {}),
+      },
+    });
   }
 
   // recouvrement : remboursements reçus sur des crédits qui étaient déjà en recouvrement au moment du paiement.
@@ -156,6 +182,7 @@ export async function calculerRealise(o: Objectif): Promise<number | null> {
         dossiersRecouvrement: { some: { ouvertAt: { lte: fin(o.dateFin) } } },
         ...(p.agenceId ? { agenceId: p.agenceId } : {}), ...(p.zoneId ? { zoneId: p.zoneId } : {}),
         ...(p.utilisateurIds ? { dossiersRecouvrement: { some: { agentId: { in: p.utilisateurIds }, ouvertAt: { lte: fin(o.dateFin) } } } } : {}),
+        ...(p.campagneId ? { client: clientWhereDePortee({ utilisateurIds: null, agentIds: null, campagneId: p.campagneId }) } : {}),
       },
     },
     select: { montant: true, datePaiement: true, demande: { select: { dossiersRecouvrement: { select: { ouvertAt: true } } } } },

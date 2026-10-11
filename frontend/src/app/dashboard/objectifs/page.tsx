@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { EnTete, fcfa } from '@/components/ui/kpi';
 import { objectifService } from '@/services/objectifService';
-import { objectifsApi } from '@/services/metierService';
+import { objectifsApi, campagnesApi } from '@/services/metierService';
+import Link from 'next/link';
 import { agenceService } from '@/services/agenceService';
 import { adminService } from '@/services/adminService';
 import { equipeService } from '@/services/equipeService';
@@ -24,6 +25,7 @@ const CATEGORIES: Record<string, { l: string; auto: boolean }> = {
   credit: { l: 'Crédit décaissé', auto: true }, recouvrement: { l: 'Recouvrement', auto: true }, collecte: { l: 'Collecte', auto: true },
   nouveaux_clients: { l: 'Nouveaux clients', auto: true }, commercial: { l: 'Commercial (saisi)', auto: false }, produit: { l: 'Par produit (saisi)', auto: false },
   cross_selling: { l: 'Vente complémentaire (cross-selling)', auto: true }, up_selling: { l: 'Palier supérieur (up-selling)', auto: true },
+  prospection: { l: 'Prospects générés', auto: true }, conversion: { l: 'Prospects convertis en clients', auto: true },
 };
 const PORTEES: Record<string, string> = { institution: 'Institution', agence: 'Agence', zone: 'Zone', equipe: 'Équipe', agents: 'Agents' };
 const STATUT: Record<string, 'info' | 'success' | 'warning' | 'destructive'> = { en_cours: 'info', atteint: 'success', depasse: 'success', echec: 'destructive' };
@@ -40,7 +42,9 @@ export default function ObjectifsPilotagePage() {
   const [zones, setZones] = useState<any[]>([]);
   const [equipes, setEquipes] = useState<any[]>([]);
   const [produits, setProduits] = useState<any[]>([]);
-  const [f, setF] = useState({ titre: '', categorie: 'credit', unite: 'montant', cible: '', date_debut: aujourdhui(), date_fin: finDeMois(), portee: 'agence', agence_id: '', zone_id: '', equipe_id: '', produit_id: '' });
+  const [campagnes, setCampagnes] = useState<any[]>([]);
+  const [filtreCampagne, setFiltreCampagne] = useState('');
+  const [f, setF] = useState({ titre: '', categorie: 'credit', unite: 'montant', cible: '', date_debut: aujourdhui(), date_fin: finDeMois(), portee: 'agence', agence_id: '', zone_id: '', equipe_id: '', produit_id: '', campagne_id: '' });
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
@@ -55,6 +59,12 @@ export default function ObjectifsPilotagePage() {
     adminService.zones().then(setZones).catch(() => {});
     equipeService.getEquipes({ per_page: 100 } as never).then((r: any) => setEquipes(r.data ?? [])).catch(() => {});
     produitService.getProduits({ per_page: 100 } as never).then((r: any) => setProduits(r.data ?? [])).catch(() => {});
+    campagnesApi.lister().then((r) => {
+      setCampagnes(r.filter((c: any) => c.statut !== 'annulee'));
+      // Arrivée depuis une fiche campagne (« Créer un objectif pour cette campagne ») : préremplissage.
+      const cid = new URLSearchParams(window.location.search).get('campagne_id');
+      if (cid) { setF((x) => ({ ...x, campagne_id: cid, portee: 'institution', categorie: 'prospection', unite: 'clients' })); setFiltreCampagne(cid); }
+    }).catch(() => {});
   }, [charger]);
 
   const creer = async () => {
@@ -64,6 +74,7 @@ export default function ObjectifsPilotagePage() {
         titre: f.titre, categorie: f.categorie, unite: f.unite, cible: Number(f.cible), periodicite: 'mois', date_debut: f.date_debut, date_fin: f.date_fin, assignation_type: f.portee,
         ...(f.portee === 'agence' ? { agence_id: Number(f.agence_id) } : {}), ...(f.portee === 'zone' ? { zone_id: Number(f.zone_id) } : {}), ...(f.portee === 'equipe' ? { equipe_id: Number(f.equipe_id) } : {}),
         ...(f.categorie === 'produit' ? { produit_id: Number(f.produit_id) } : {}),
+        ...(f.campagne_id ? { campagne_id: Number(f.campagne_id) } : {}),
       });
       toast.success('Objectif créé'); setF({ ...f, titre: '', cible: '' }); await charger();
     } catch (e) { toast.error(msg(e, 'Création impossible')); } finally { setOccupe(false); }
@@ -108,17 +119,26 @@ export default function ObjectifsPilotagePage() {
               {f.portee === 'agence' && <div className="space-y-1.5"><Label>Agence</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.agence_id} onChange={(e) => setF({ ...f, agence_id: e.target.value })}><option value="">Choisir…</option>{agences.map((a) => <option key={a.id} value={a.id}>{a.nom}</option>)}</select></div>}
               {f.portee === 'zone' && <div className="space-y-1.5"><Label>Zone</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.zone_id} onChange={(e) => setF({ ...f, zone_id: e.target.value })}><option value="">Choisir…</option>{zones.map((z) => <option key={z.id} value={z.id}>{z.nom}</option>)}</select></div>}
               {f.portee === 'equipe' && <div className="space-y-1.5"><Label>Équipe</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.equipe_id} onChange={(e) => setF({ ...f, equipe_id: e.target.value })}><option value="">Choisir…</option>{equipes.map((z) => <option key={z.id} value={z.id}>{z.nom}</option>)}</select></div>}
+              <div className="space-y-1.5"><Label>Campagne (facultatif)</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.campagne_id} onChange={(e) => setF({ ...f, campagne_id: e.target.value })}><option value="">Aucune</option>{campagnes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}</select></div>
               {f.categorie === 'produit' && <div className="space-y-1.5"><Label>Produit</Label><select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.produit_id} onChange={(e) => setF({ ...f, produit_id: e.target.value })}><option value="">Choisir…</option>{produits.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}</select></div>}
             </div>
+            {f.campagne_id && <p className="text-xs text-brand-700">Objectif de campagne : seuls les prospects, demandes et clients attribués à cette campagne (ou ciblés par elle) sont comptés.</p>}
             <p className="text-xs text-muted-foreground">{CATEGORIES[f.categorie].auto || f.unite === 'produits_client' || f.unite === 'panier_moyen' ? 'Le réalisé est calculé chaque nuit depuis les décaissements, remboursements, encaissements ou créations de clients de la portée choisie. Une alerte est envoyée si l\'avancement prend du retard.' : 'Le réalisé de cette catégorie se saisit à la main. Les objectifs par agents se gèrent dans Collecte › Objectifs.'}</p>
             <Button variant="brand" disabled={occupe || !pret} onClick={creer}>Créer l'objectif</Button>
           </CardContent>
         </Card>
       )}
 
+      <div className="flex items-center gap-2">
+        <select className="h-9 rounded-md border bg-background px-2 text-sm" value={filtreCampagne} onChange={(e) => setFiltreCampagne(e.target.value)}>
+          <option value="">Tous les objectifs</option><option value="aucune">Hors campagne</option>
+          {campagnes.map((c) => <option key={c.id} value={c.id}>Campagne : {c.nom}</option>)}
+        </select>
+      </div>
+
       {erreur ? <p className="text-sm text-destructive">{erreur}</p> : chargement ? <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin" /></div> : items.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Aucun objectif.</p> : (
         <div className="grid md:grid-cols-2 gap-3">
-          {items.map((o) => {
+          {items.filter((o) => !filtreCampagne || (filtreCampagne === 'aucune' ? !o.campagneId : String(o.campagneId) === filtreCampagne)).map((o) => {
             const cible = Number(o.cible); const realise = Number(o.realise);
             const pct = cible > 0 ? Math.round((realise / cible) * 100) : 0;
             const att = attendu(o.dateDebut, o.dateFin);
@@ -128,6 +148,7 @@ export default function ObjectifsPilotagePage() {
               <Card key={o.id}><CardContent className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2"><p className="font-medium text-sm">{o.titre}</p><Badge variant={STATUT[o.statut]}>{o.statut.replace('_', ' ')}</Badge></div>
                 <p className="text-xs text-muted-foreground">{CATEGORIES[o.categorie]?.l ?? o.categorie} · {porteeLibelle(o)} · {formatDate(o.dateDebut)} au {formatDate(o.dateFin)}</p>
+                {o.campagne && <Link href={`/dashboard/marketing/campagnes/${o.campagne.id}`} className="inline-block"><Badge variant="secondary" className="text-[10px]">Campagne : {o.campagne.nom}</Badge></Link>}
                 <div className="relative h-2.5 rounded-full bg-muted overflow-hidden">
                   <div className={`h-full ${pct >= 100 ? 'bg-success' : enRetard ? 'bg-warning' : 'bg-brand-600'}`} style={{ width: `${Math.min(100, pct)}%` }} />
                   {o.statut === 'en_cours' && <div className="absolute top-0 h-full w-0.5 bg-foreground/60" style={{ left: `${att}%` }} title={`Avancement attendu : ${att} %`} />}
