@@ -35,6 +35,7 @@ import interactionsRouter from '../modules/interactions/interactions.routes';
 import calendrierRouter from '../modules/communication/calendrier.routes';
 import campagnesRouter from '../modules/campagnes/campagnes.routes';
 import agendaRouter from '../modules/agenda/agenda.routes';
+import screeningRouter from '../modules/screening/screening.routes';
 import forfaitsRouter from '../modules/forfaits/forfaits.routes';
 
 const router = Router();
@@ -73,6 +74,7 @@ router.use('/communication', communicationRouter);
 router.use('/integration', integrationRouter);
 router.use('/comptabilite', comptabiliteRouter);
 router.use('/conformite', conformiteRouter);
+router.use('/conformite', screeningRouter);
 router.use('/administration', administrationRouter);
 router.use('/securite', securiteRouter);
 router.use('/analytique', analytiqueRouter);

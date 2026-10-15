@@ -8,6 +8,7 @@ import { createLog } from '../../lib/logger';
 import { ErreurMetier } from '../../lib/rbac';
 import { parsePagination, paginationMeta } from '../../lib/pagination';
 import { analyserAnomalies, rechercherSurveillance } from '../../lib/conformite';
+import { synchroniserLocaleEtSurveiller } from '../screening/sanctionsTaches';
 
 const wrap = (fn: (req: Request, res: Response) => Promise<unknown>) =>
   async (req: Request, res: Response, next: NextFunction) => { try { await fn(req, res); } catch (e) { next(e); } };
@@ -56,11 +57,18 @@ router.post('/analyse', can('conformite:EXECUTE'), wrap(async (req, res) => {
 }));
 
 // ── Listes de surveillance ──────────────────────────────────────────────────
+const dateValide = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date attendue au format AAAA-MM-JJ').refine((v) => !Number.isNaN(new Date(v).getTime()), 'Date invalide');
 const entreeSchema = z.object({
-  nom: z.string().min(1).max(150), prenom: z.string().max(150).nullish(), date_naissance: z.string().nullish(), numero_piece: z.string().max(60).nullish(),
+  nom: z.string().min(1).max(150), prenom: z.string().max(150).nullish(), date_naissance: dateValide.nullish(), numero_piece: z.string().max(60).nullish(),
   pays: z.string().max(80).nullish(), categorie: z.enum(['sanction', 'pep', 'interne']).default('interne'), source: z.string().max(150).nullish(), motif: z.string().nullish(), actif: z.boolean().optional(),
+  /** Autres noms connus, comparés au même titre que le nom principal. */
+  alias: z.array(z.string().trim().min(1).max(150)).max(10).optional(),
+  /** Personne ou société : une personne n'est rapprochée que d'entrées « individu ». */
+  type_entree: z.enum(['individu', 'entite']).default('individu'),
 });
-const versDonnees = (b: z.infer<typeof entreeSchema>) => ({ nom: b.nom, prenom: b.prenom ?? null, dateNaissance: b.date_naissance ? new Date(b.date_naissance) : null, numeroPiece: b.numero_piece ?? null, pays: b.pays ?? null, categorie: b.categorie, source: b.source ?? null, motif: b.motif ?? null, actif: b.actif ?? true });
+const versDonnees = (b: z.infer<typeof entreeSchema>) => ({ nom: b.nom, prenom: b.prenom ?? null, dateNaissance: b.date_naissance ? new Date(b.date_naissance) : null, numeroPiece: b.numero_piece ?? null, pays: b.pays ?? null, categorie: b.categorie, source: b.source ?? null, motif: b.motif ?? null, actif: b.actif ?? true, alias: b.alias ?? [], typeEntree: b.type_entree });
+/** Les listes de surveillance alimentent le contrôle de sanctions : toute modification est répercutée sans attendre le cycle planifié. */
+const repercuter = (req: Request) => { void synchroniserLocaleEtSurveiller(req.user!.sub); };
 
 router.get('/listes', can('conformite:VIEW'), wrap(async (req, res) => {
   const { skip, take, page, perPage } = parsePagination(req.query as Record<string, unknown>);
@@ -72,36 +80,49 @@ router.get('/listes', can('conformite:VIEW'), wrap(async (req, res) => {
 router.post('/listes', can('conformite:UPDATE', 'conformite:CONFIGURE'), wrap(async (req, res) => {
   const e = await prisma.entreeSurveillance.create({ data: versDonnees(entreeSchema.parse(req.body)) });
   await journal(req, 'CREATE_ENTREE_SURVEILLANCE', 'liste', e.id, `Entrée « ${e.nom} » ajoutée (${e.categorie})`);
+  repercuter(req);
   return created(res, e);
 }));
 
 router.put('/listes/:id', can('conformite:UPDATE', 'conformite:CONFIGURE'), wrap(async (req, res) => {
   const e = await prisma.entreeSurveillance.update({ where: { id: pid(req) }, data: versDonnees(entreeSchema.parse(req.body)) });
   await journal(req, 'UPDATE_ENTREE_SURVEILLANCE', 'liste', e.id, `Entrée « ${e.nom} » modifiée`);
+  repercuter(req);
   return success(res, e);
 }));
 
 router.delete('/listes/:id', can('conformite:UPDATE', 'conformite:CONFIGURE'), wrap(async (req, res) => {
   await prisma.entreeSurveillance.delete({ where: { id: pid(req) } });
   await journal(req, 'DELETE_ENTREE_SURVEILLANCE', 'liste', pid(req), `Entrée #${pid(req)} supprimée`);
+  repercuter(req);
   return noContent(res);
 }));
 
-/** Import en masse : « nom;prenom;numero_piece;pays;categorie;source ». Les lignes invalides sont rapportées, pas ignorées en silence. */
+/**
+ * Import en masse : « nom;prenom;numero_piece;pays;categorie;source;date_naissance;alias;type ». Les trois dernières colonnes sont
+ * facultatives (date AAAA-MM-JJ, alias séparés par « | », type individu ou entite). Les lignes invalides sont rapportées, pas ignorées en silence.
+ */
 router.post('/listes/import', can('conformite:UPDATE', 'conformite:CONFIGURE'), wrap(async (req, res) => {
   const { csv } = z.object({ csv: z.string().min(3).max(2_000_000) }).parse(req.body);
   const lignes = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).filter((l, i) => !(i === 0 && /^nom;/i.test(l)));
   const valides: ReturnType<typeof versDonnees>[] = [];
   const erreurs: { ligne: number; message: string }[] = [];
   lignes.forEach((l, i) => {
-    const [nom, prenom, piece, pays, categorie, source] = l.split(';').map((x) => x.trim());
+    const [nom, prenom, piece, pays, categorie, source, naissance, alias, type] = l.split(';').map((x) => x.trim());
     const cat = (categorie || 'interne').toLowerCase();
+    const typeEntree = (type || 'individu').toLowerCase();
     if (!nom) { erreurs.push({ ligne: i + 1, message: 'Nom manquant' }); return; }
     if (!['sanction', 'pep', 'interne'].includes(cat)) { erreurs.push({ ligne: i + 1, message: `Catégorie invalide : ${categorie}` }); return; }
-    valides.push(versDonnees({ nom, prenom: prenom || null, numero_piece: piece || null, pays: pays || null, categorie: cat as 'sanction', source: source || 'Import', motif: null }));
+    if (!['individu', 'entite'].includes(typeEntree)) { erreurs.push({ ligne: i + 1, message: `Type invalide : ${type} (individu ou entite)` }); return; }
+    if (naissance && !dateValide.safeParse(naissance).success) { erreurs.push({ ligne: i + 1, message: `Date de naissance invalide : ${naissance} (AAAA-MM-JJ)` }); return; }
+    valides.push(versDonnees({
+      nom, prenom: prenom || null, numero_piece: piece || null, pays: pays || null, categorie: cat as 'sanction', source: source || 'Import', motif: null,
+      date_naissance: naissance || null, alias: alias ? alias.split('|').map((a) => a.trim()).filter(Boolean).slice(0, 10) : [], type_entree: typeEntree as 'individu',
+    }));
   });
   if (valides.length > 0) await prisma.entreeSurveillance.createMany({ data: valides });
   await journal(req, 'IMPORT_LISTE_SURVEILLANCE', 'liste', 0, `${valides.length} entrée(s) importée(s), ${erreurs.length} rejet(s)`);
+  if (valides.length) repercuter(req);
   return success(res, { importees: valides.length, rejetees: erreurs.length, erreurs: erreurs.slice(0, 50) });
 }));
 

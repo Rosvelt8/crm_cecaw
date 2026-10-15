@@ -23,7 +23,7 @@ const include = {
   _count: { select: { piecesJointes: true } },
 } as const;
 
-async function agenceFilter(actor: JwtPayload) {
+export async function agenceFilter(actor: JwtPayload) {
   if (actor.role === 'admin') return {};
   if (actor.role === 'agent') return { commercialId: actor.sub };
   if (actor.role === 'backoffice') {
@@ -127,6 +127,8 @@ export async function create(data: Record<string, unknown>, actor: JwtPayload) {
     include,
   });
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'marketing', action: 'CREATE_PROSPECT', entiteType: 'prospect', entiteId: p.id, description: `Création du prospect ${p.prenom} ${p.nom}`, impact: '+1 prospect' });
+  // Contrôle de sanctions OFAC en arrière-plan : ne retarde ni ne fait jamais échouer la création. Import différé (cycle de modules).
+  void import('../screening/ofacScreening.service').then((m) => m.lancerAutomatique({ prospect_id: p.id }));
   return p;
 }
 

@@ -160,6 +160,8 @@ export async function create(data: Record<string, unknown>, actor: JwtPayload) {
     include,
   });
   await createLog({ utilisateurId: actor.sub, utilisateurLabel: actor.email, agenceId: actor.agenceId ?? undefined, module: 'marketing', action: 'CREATE_CLIENT', entiteType: 'client', entiteId: c.id, description: `Création du client ${c.prenom} ${c.nom}`, impact: '+1 client' });
+  // Contrôle de sanctions OFAC en arrière-plan : ne retarde ni ne fait jamais échouer la création. Import différé (cycle de modules).
+  void import('../screening/ofacScreening.service').then((m) => m.lancerAutomatique({ client_id: c.id }));
   return c;
 }
 

@@ -25,6 +25,7 @@ import ClientCreditsKyc from '@/components/credit/ClientCreditsKyc';
 import ClientFinances from '@/components/credit/ClientFinances';
 import ClientSynthese360 from '@/components/credit/ClientSynthese360';
 import ClientInteractions from '@/components/credit/ClientInteractions';
+import SanctionsClientCard from '@/components/conformite/SanctionsClientCard';
 
 const STATUT_CLIENT_COLOR: Record<string, string> = {
   actif:      'bg-emerald-100 text-emerald-700',
@@ -381,7 +382,8 @@ export default function ClientDetailPage() {
       />
       <ClientInteractions cible={{ client_id: Number(id) }} />
 
-      {/* ── KYC et crédits ── */}
+      {/* ── KYC, sanctions et crédits ── */}
+      <SanctionsClientCard cible={{ client_id: Number(id) }} />
       <ClientCreditsKyc clientId={Number(id)} />
       <ClientFinances clientId={Number(id)} />
 

@@ -1,7 +1,8 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any, react/no-unescaped-entities */
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Loader2, ShieldAlert, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,20 +11,31 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { EnTete, Kpi, Onglets } from '@/components/ui/kpi';
+import SanctionsTab from '@/components/conformite/SanctionsTab';
 import { conformiteApi } from '@/services/metierService';
 import { useCan } from '@/hooks/useCan';
 import { msg } from '@/lib/apiHelpers';
-import { formatDateTime } from '@/lib/utils';
+import { formatDate, formatDateTime } from '@/lib/utils';
 
-type Onglet = 'alertes' | 'listes' | 'verification';
+type Onglet = 'alertes' | 'sanctions' | 'listes' | 'verification';
 const NIVEAU: Record<string, 'info' | 'warning' | 'destructive'> = { info: 'info', moyen: 'warning', eleve: 'destructive', critique: 'destructive' };
 
 export default function ConformitePage() {
-  const [onglet, setOnglet] = useState<Onglet>('alertes');
+  // useSearchParams impose une frontière Suspense lors du rendu statique.
+  return <Suspense fallback={null}><ConformiteContenu /></Suspense>;
+}
+
+function ConformiteContenu() {
+  // Lien profond depuis une fiche client (?screening=ID) : ouvre directement le contrôle concerné.
+  const params = useSearchParams();
+  const ciblee = Number(params.get('screening')) || undefined;
+  const demande = params.get('onglet');
+  const [onglet, setOnglet] = useState<Onglet>(ciblee ? 'sanctions' : demande === 'listes' || demande === 'verification' || demande === 'sanctions' ? demande : 'alertes');
   return (
     <div className="space-y-4">
-      <EnTete titre="Conformité" sousTitre="Alertes d'anomalies, listes de surveillance et contrôle LCB-FT" />
-      <Onglets valeur={onglet} onChange={setOnglet} options={[{ id: 'alertes', label: 'Alertes' }, { id: 'listes', label: 'Listes de surveillance' }, { id: 'verification', label: 'Vérifier une personne' }]} />
+      <EnTete titre="Conformité" sousTitre="Alertes d'anomalies, sanctions (OFAC, ONU, UE), listes de surveillance et contrôle LCB-FT" />
+      <Onglets valeur={onglet} onChange={setOnglet} options={[{ id: 'alertes', label: 'Alertes' }, { id: 'sanctions', label: 'Sanctions' }, { id: 'listes', label: 'Listes de surveillance' }, { id: 'verification', label: 'Vérifier une personne' }]} />
+      {onglet === 'sanctions' && <SanctionsTab initialId={ciblee} />}
       {onglet === 'alertes' && <Alertes />}
       {onglet === 'listes' && <Listes />}
       {onglet === 'verification' && <Verification />}
@@ -83,7 +95,8 @@ function Listes() {
   const { can } = useCan();
   const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const [f, setF] = useState({ nom: '', prenom: '', numero_piece: '', categorie: 'interne', source: '' });
+  const VIDE = { nom: '', prenom: '', numero_piece: '', categorie: 'interne', source: '', type_entree: 'individu', date_naissance: '', pays: '', alias: '' };
+  const [f, setF] = useState(VIDE);
   const [csv, setCsv] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const charger = useCallback(async () => { try { setItems((await conformiteApi.listes({ search: search || undefined, per_page: 50 })).items); setErreur(null); } catch (e) { setErreur(msg(e)); } }, [search]);
@@ -94,9 +107,9 @@ function Listes() {
       <div className="lg:col-span-2 space-y-3">
         <Input className="max-w-xs" placeholder="Rechercher un nom…" value={search} onChange={(e) => setSearch(e.target.value)} />
         {erreur ? <p className="text-destructive text-sm">{erreur}</p> : (
-          <Card><CardContent className="p-0"><table className="w-full text-sm"><thead className="bg-muted text-xs uppercase text-muted-foreground"><tr><th className="px-3 py-2 text-left">Nom</th><th className="px-3 py-2 text-left">Pièce</th><th className="px-3 py-2 text-left">Catégorie</th><th className="px-3 py-2 text-left">Source</th><th /></tr></thead>
-            <tbody>{items.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Aucune entrée</td></tr>}
-              {items.map((e) => (<tr key={e.id} className="border-t"><td className="px-3 py-1.5">{e.prenom} {e.nom}</td><td className="px-3 py-1.5">{e.numeroPiece ?? '—'}</td><td className="px-3 py-1.5"><Badge variant={e.categorie === 'sanction' ? 'destructive' : e.categorie === 'pep' ? 'warning' : 'outline'}>{e.categorie}</Badge></td><td className="px-3 py-1.5">{e.source ?? '—'}</td>
+          <Card><CardContent className="p-0"><table className="w-full text-sm"><thead className="bg-muted text-xs uppercase text-muted-foreground"><tr><th className="px-3 py-2 text-left">Nom</th><th className="px-3 py-2 text-left">Naissance / pays</th><th className="px-3 py-2 text-left">Pièce</th><th className="px-3 py-2 text-left">Catégorie</th><th className="px-3 py-2 text-left">Source</th><th /></tr></thead>
+            <tbody>{items.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">Aucune entrée</td></tr>}
+              {items.map((e) => (<tr key={e.id} className="border-t"><td className="px-3 py-1.5">{e.prenom} {e.nom}{e.typeEntree === 'entite' && <Badge variant="outline" className="ml-1.5 text-[10px]">Société</Badge>}{e.alias?.length > 0 && <span className="block text-[11px] text-muted-foreground">alias : {e.alias.join(', ')}</span>}</td><td className="px-3 py-1.5 text-xs">{[e.dateNaissance ? formatDate(e.dateNaissance) : null, e.pays].filter(Boolean).join(' · ') || '—'}</td><td className="px-3 py-1.5">{e.numeroPiece ?? '—'}</td><td className="px-3 py-1.5"><Badge variant={e.categorie === 'sanction' ? 'destructive' : e.categorie === 'pep' ? 'warning' : 'outline'}>{e.categorie}</Badge></td><td className="px-3 py-1.5">{e.source ?? '—'}</td>
                 <td className="px-3 py-1.5 text-right">{edition && <button className="text-destructive" onClick={async () => { if (window.confirm(`Retirer ${e.nom} de la liste ?`)) { try { await conformiteApi.supprimerEntree(e.id); await charger(); } catch (x) { toast.error(msg(x)); } } }}><Trash2 className="h-4 w-4" /></button>}</td></tr>))}</tbody></table></CardContent></Card>
         )}
       </div>
@@ -105,11 +118,15 @@ function Listes() {
           <Card><CardHeader><CardTitle className="text-base">Ajouter</CardTitle></CardHeader><CardContent className="space-y-2">
             <Input placeholder="Nom" value={f.nom} onChange={(e) => setF({ ...f, nom: e.target.value })} /><Input placeholder="Prénom" value={f.prenom} onChange={(e) => setF({ ...f, prenom: e.target.value })} /><Input placeholder="N° de pièce" value={f.numero_piece} onChange={(e) => setF({ ...f, numero_piece: e.target.value })} />
             <select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.categorie} onChange={(e) => setF({ ...f, categorie: e.target.value })}><option value="interne">Liste interne</option><option value="pep">Personne politiquement exposée</option><option value="sanction">Sanction</option></select>
-            <Input placeholder="Source" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} />
-            <Button variant="brand" size="sm" disabled={!f.nom.trim()} onClick={async () => { try { await conformiteApi.ajouterEntree({ ...f, prenom: f.prenom || null, numero_piece: f.numero_piece || null, source: f.source || null }); setF({ nom: '', prenom: '', numero_piece: '', categorie: 'interne', source: '' }); await charger(); } catch (e) { toast.error(msg(e)); } }}>Ajouter</Button>
+            <Input placeholder="Source et référence (ex. ANIF — notification n°…)" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} />
+            <select className="h-10 w-full rounded-lg border bg-background px-3 text-sm" value={f.type_entree} onChange={(e) => setF({ ...f, type_entree: e.target.value })}><option value="individu">Personne physique</option><option value="entite">Société / organisation</option></select>
+            <div className="grid grid-cols-2 gap-2"><Input type="date" title="Date de naissance" value={f.date_naissance} onChange={(e) => setF({ ...f, date_naissance: e.target.value })} /><Input placeholder="Pays" value={f.pays} onChange={(e) => setF({ ...f, pays: e.target.value })} /></div>
+            <Input placeholder="Alias (séparés par des virgules)" value={f.alias} onChange={(e) => setF({ ...f, alias: e.target.value })} />
+            <p className="text-[11px] text-muted-foreground">Ces listes sont comparées à chaque client et prospect, au même titre que les listes officielles : une saisie est recherchée dans le portefeuille aussitôt.</p>
+            <Button variant="brand" size="sm" disabled={!f.nom.trim()} onClick={async () => { try { await conformiteApi.ajouterEntree({ ...f, prenom: f.prenom || null, numero_piece: f.numero_piece || null, source: f.source || null, date_naissance: f.date_naissance || null, pays: f.pays || null, alias: f.alias.split(/[;,]/).map((a) => a.trim()).filter(Boolean) }); setF(VIDE); await charger(); } catch (e) { toast.error(msg(e)); } }}>Ajouter</Button>
           </CardContent></Card>
           <Card><CardHeader><CardTitle className="text-base">Import en masse</CardTitle></CardHeader><CardContent className="space-y-2">
-            <Textarea rows={5} className="font-mono text-xs" placeholder={'nom;prenom;numero_piece;pays;categorie;source'} value={csv} onChange={(e) => setCsv(e.target.value)} />
+            <Textarea rows={5} className="font-mono text-xs" placeholder={'nom;prenom;numero_piece;pays;categorie;source;date_naissance;alias;type\nDupont;Jean;;Cameroun;sanction;ANIF notif. 12/2026;1980-05-12;J. Dupont|Jean D.;individu'} value={csv} onChange={(e) => setCsv(e.target.value)} />
             <Button variant="outline" size="sm" disabled={csv.trim().length < 3} onClick={async () => { try { const r = await conformiteApi.importer(csv); toast.success(`${r.importees} importée(s), ${r.rejetees} rejetée(s)`); if (r.erreurs.length) toast.warning(r.erreurs.slice(0, 3).map((x: any) => `ligne ${x.ligne} : ${x.message}`).join(' · ')); setCsv(''); await charger(); } catch (e) { toast.error(msg(e)); } }}>Importer</Button>
           </CardContent></Card>
         </div>

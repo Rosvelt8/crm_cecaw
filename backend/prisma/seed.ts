@@ -8,12 +8,12 @@ async function main() {
   console.log('🌱 Seeding database...');
 
   // ── Groupes de produits ───────────────────────────────────────────
-  const [gpEpargne, gpAssurance, gpCredit, gpFinancier] = await Promise.all([
-    prisma.groupeProduit.upsert({ where: { id: 1 }, create: { nom: 'Épargne', description: 'Produits d\'épargne et dépôts', couleur: '#10b981' }, update: {} }),
-    prisma.groupeProduit.upsert({ where: { id: 2 }, create: { nom: 'Micro-assurance', description: 'Couvertures santé et vie', couleur: '#6366f1' }, update: {} }),
-    prisma.groupeProduit.upsert({ where: { id: 3 }, create: { nom: 'Crédit', description: 'Produits de financement', couleur: '#f59e0b' }, update: {} }),
-    prisma.groupeProduit.upsert({ where: { id: 4 }, create: { nom: 'Produits Financiers', description: 'Services de transfert et mobile banking', couleur: '#3b82f6' }, update: {} }),
-  ]);
+  // Créés l'un après l'autre : l'identifiant est auto-incrémenté, donc créés en parallèle (Promise.all) les groupes
+  // recevaient des identifiants dans un ordre aléatoire et des produits de crédit se retrouvaient typés « épargne ».
+  const gpEpargne = await prisma.groupeProduit.upsert({ where: { id: 1 }, create: { nom: 'Épargne', description: 'Produits d\'épargne et dépôts', couleur: '#10b981' }, update: {} });
+  const gpAssurance = await prisma.groupeProduit.upsert({ where: { id: 2 }, create: { nom: 'Micro-assurance', description: 'Couvertures santé et vie', couleur: '#6366f1' }, update: {} });
+  const gpCredit = await prisma.groupeProduit.upsert({ where: { id: 3 }, create: { nom: 'Crédit', description: 'Produits de financement', couleur: '#f59e0b' }, update: {} });
+  const gpFinancier = await prisma.groupeProduit.upsert({ where: { id: 4 }, create: { nom: 'Produits Financiers', description: 'Services de transfert et mobile banking', couleur: '#3b82f6' }, update: {} });
 
   // ── Produits ──────────────────────────────────────────────────────
   const produits = [

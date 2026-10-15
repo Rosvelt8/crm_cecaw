@@ -24,7 +24,8 @@ const CATEGORIES: Record<string, string> = {
 function analyser(defaut: unknown, saisie: string): unknown {
   if (typeof defaut === 'number') return Number(saisie);
   if (typeof defaut === 'boolean') return saisie === 'true';
-  if (Array.isArray(defaut)) return saisie.split(/[;,\s]+/).filter(Boolean).map(Number);
+  if (Array.isArray(defaut)) { const morceaux = saisie.split(/[;,\s]+/).filter(Boolean); return typeof defaut[0] === 'string' ? morceaux : morceaux.map(Number); }
+  if (typeof defaut === 'string') return saisie.trim();
   return JSON.parse(saisie);
 }
 const afficher = (v: unknown) => (typeof v === 'object' && v !== null && !Array.isArray(v) ? JSON.stringify(v) : Array.isArray(v) ? v.join(', ') : String(v));

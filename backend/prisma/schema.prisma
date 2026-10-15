@@ -658,6 +658,10 @@ model Utilisateur {
   campagnesResponsable  Campagne[]             @relation("CampagneResponsable")
   campagnesMembre       CampagneMembre[]
   ciblesAjoutees        CampagneCible[]        @relation("CibleAjouteePar")
+  screeningsLances      ScreeningVerification[] @relation("ScreeningLancePar")
+  screeningsRevus       ScreeningVerification[] @relation("ScreeningRevuPar")
+  screeningsEcartes     ScreeningEcartee[]
+  synchrosSanctions     SanctionSynchronisation[]
 
   @@index([email])
   @@index([agenceId])
@@ -772,6 +776,8 @@ model Prospect {
   visitesTournee VisiteTournee[]
   interactions   Interaction[]
   campagnesCiblees CampagneCible[]
+  screenings     ScreeningVerification[]
+  screeningsEcartes ScreeningEcartee[]
 
   @@index([commercialId])
   @@index([statut])
@@ -903,6 +909,8 @@ model Client {
   score                ScoreClient?
   appetences           AppetenceProduit[]
   campagnesCiblees     CampagneCible[]
+  screenings           ScreeningVerification[]
+  screeningsEcartes    ScreeningEcartee[]
 
   @@index([commercialId])
   @@index([agenceId])
@@ -2197,6 +2205,10 @@ model EntreeSurveillance {
   dateNaissance DateTime?      @map("date_naissance") @db.Date
   numeroPiece   String?        @map("numero_piece") @db.VarChar(60)
   pays          String?        @db.VarChar(80)
+  /// Autres noms connus (alias, nom d'usage) : comparés au même titre que le nom principal.
+  alias         String[]
+  /// Personne ou société : le contrôle ne rapproche une personne que d'entrées de type « individu ».
+  typeEntree    TypeEntreeSanction @default(individu) @map("type_entree")
   categorie     CategorieListe @default(interne)
   source        String?        @db.VarChar(150)
   motif         String?        @db.Text
@@ -2673,4 +2685,217 @@ model CampagneCible {
   @@unique([campagneId, prospectId])
   @@index([prospectId])
   @@map("campagnes_cibles")
+}
+
+// ─────────────────────────────────────────────
+// Conformité : contrôle des sanctions OFAC (SDN et listes non-SDN)
+// ─────────────────────────────────────────────
+
+enum ListeSanction {
+  /// OFAC : Specially Designated Nationals and Blocked Persons.
+  sdn
+  /// OFAC : listes de sanctions consolidées hors SDN (SSI, NS-PLC, CAPTA, etc.).
+  non_sdn
+  /// Liste consolidée du Conseil de sécurité des Nations unies.
+  onu
+  /// Liste consolidée des sanctions financières de l'Union européenne.
+  ue
+  /// Listes de surveillance saisies dans le CRM (notifications nationales, PEP, liste interne).
+  locale
+}
+
+enum TypeEntreeSanction {
+  individu
+  entite
+}
+
+enum StatutSynchroSanction {
+  en_cours
+  reussie
+  inchangee
+  echec
+}
+
+/// Copie locale d'une inscription des listes officielles de l'OFAC (Sanctions List Service).
+/// Une inscription retirée par l'OFAC n'est jamais supprimée (`actif = false`) : les contrôles
+/// passés y font référence et doivent rester explicables.
+model SanctionEntree {
+  id              Int                @id @default(autoincrement())
+  liste           ListeSanction
+  /// Identifiant de l'inscription chez la source (OFAC `ent_num`, ONU `DATAID`, UE `logicalId`, id local).
+  uid             Int
+  /// Référence lisible publiée par la source (ex. ONU « QDi.123 »), pour la retrouver sur le site officiel.
+  reference       String?            @db.VarChar(60)
+  type            TypeEntreeSanction
+  nom             String             @db.VarChar(500)
+  programmes      String[]
+  titre           String?            @db.VarChar(300)
+  /// Date d'inscription sur la liste, quand la source la publie.
+  dateInscription DateTime?          @map("date_inscription") @db.Date
+  /// Dates de naissance telles que publiées (affichage) et leurs formes exploitables.
+  naissances      String[]
+  datesNaissance  DateTime[]         @map("dates_naissance") @db.Date
+  anneesNaissance Int[]              @map("annees_naissance")
+  lieuxNaissance  String[]           @map("lieux_naissance")
+  nationalites    String[]
+  /// Pays associés (adresses, nationalités, pièces), normalisés en minuscules sans accents.
+  pays            String[]
+  /// Pièces et numéros d'enregistrement : [{ type, valeur, normalise, pays }].
+  identifiants    Json?
+  remarques       String?            @db.Text
+  /// Empreinte du contenu publié : détecte les modifications d'une synchronisation à l'autre.
+  empreinte       String             @db.VarChar(64)
+  actif           Boolean            @default(true)
+  ajouteSyncId    Int?               @map("ajoute_sync_id")
+  modifieSyncId   Int?               @map("modifie_sync_id")
+  retireSyncId    Int?               @map("retire_sync_id")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  alias    SanctionAlias[]
+  ecartees ScreeningEcartee[]
+
+  @@unique([liste, uid])
+  @@index([actif])
+  @@index([modifieSyncId])
+  @@map("sanctions_entrees")
+}
+
+model SanctionAlias {
+  id       Int            @id @default(autoincrement())
+  entreeId Int            @map("entree_id")
+  nom      String         @db.VarChar(500)
+  /// `aka` (alias), `fka` (anciennement), `nka` (désormais).
+  type     String         @db.VarChar(10)
+
+  entree SanctionEntree @relation(fields: [entreeId], references: [id], onDelete: Cascade)
+
+  @@index([entreeId])
+  @@map("sanctions_alias")
+}
+
+/// Journal des téléchargements : une ligne par liste et par exécution, y compris les échecs.
+model SanctionSynchronisation {
+  id             Int                   @id @default(autoincrement())
+  liste          ListeSanction
+  statut         StatutSynchroSanction @default(en_cours)
+  declencheur    String                @default("planifie") @db.VarChar(20)
+  declencheParId Int?                  @map("declenche_par_id")
+  /// SHA-256 des fichiers téléchargés : une publication identique à la précédente n'est pas retraitée.
+  empreinteSource String?              @map("empreinte_source") @db.VarChar(64)
+  nbEntrees      Int                   @default(0) @map("nb_entrees")
+  nbAjoutees     Int                   @default(0) @map("nb_ajoutees")
+  nbModifiees    Int                   @default(0) @map("nb_modifiees")
+  nbRetirees     Int                   @default(0) @map("nb_retirees")
+  /// Navires et aéronefs : présents dans les fichiers, sans objet pour des personnes ou sociétés.
+  nbIgnorees     Int                   @default(0) @map("nb_ignorees")
+  erreur         String?               @db.Text
+  debutAt        DateTime              @default(now()) @map("debut_at")
+  finAt          DateTime?             @map("fin_at")
+
+  declenchePar Utilisateur? @relation(fields: [declencheParId], references: [id], onDelete: SetNull)
+
+  @@index([liste, statut, id])
+  @@map("sanctions_synchronisations")
+}
+
+enum StatutScreening {
+  aucune_correspondance
+  correspondance_potentielle
+  correspondance_confirmee
+  erreur_technique
+}
+
+enum StatutRevueScreening {
+  non_requise
+  a_revoir
+  escaladee
+  revue
+}
+
+enum DecisionRevueScreening {
+  faux_positif
+  correspondance_confirmee
+  escalade
+}
+
+enum DeclencheurScreening {
+  manuel
+  automatique
+  surveillance_continue
+}
+
+/// Un contrôle de sanctions. L'identité contrôlée est figée au moment du contrôle : l'historique
+/// reste opposable même si la fiche client change ensuite. Seul un humain habilité peut passer
+/// un contrôle à `correspondance_confirmee`.
+model ScreeningVerification {
+  id                Int                    @id @default(autoincrement())
+  reference         String                 @unique @db.VarChar(30)
+  clientId          Int?                   @map("client_id")
+  prospectId        Int?                   @map("prospect_id")
+  typePersonne      TypePersonne           @default(physique) @map("type_personne")
+  nom               String                 @db.VarChar(200)
+  prenom            String?                @db.VarChar(200)
+  alias             String[]
+  dateNaissance     DateTime?              @map("date_naissance") @db.Date
+  pays              String?                @db.VarChar(100)
+  entreprise        String?                @db.VarChar(200)
+  numeroPiece       String?                @map("numero_piece") @db.VarChar(80)
+  /// Empreinte de l'identité contrôlée : sert à invalider une correspondance écartée si la fiche change.
+  empreinteSujet    String                 @map("empreinte_sujet") @db.VarChar(64)
+  statut            StatutScreening
+  scoreMax          Int?                   @map("score_max")
+  seuil             Int
+  nbCorrespondances Int                    @default(0) @map("nb_correspondances")
+  /// { correspondances: [...], ecartees: [...] }
+  resultat          Json?
+  avertissements    String[]
+  erreur            String?                @db.Text
+  /// Versions des listes utilisées : [{ liste, synchro_id, a_jour_au, nb_entrees }].
+  versionListes     Json?                  @map("version_listes")
+  declencheur       DeclencheurScreening   @default(manuel)
+  creeParId         Int?                   @map("cree_par_id")
+  revueStatut       StatutRevueScreening   @default(non_requise) @map("revue_statut")
+  decision          DecisionRevueScreening?
+  commentaireRevue  String?                @map("commentaire_revue") @db.Text
+  revueParId        Int?                   @map("revue_par_id")
+  revueAt           DateTime?              @map("revue_at")
+  alerteId          Int?                   @map("alerte_id")
+  createdAt         DateTime               @default(now()) @map("created_at")
+
+  client   Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  prospect Prospect?    @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  creePar  Utilisateur? @relation("ScreeningLancePar", fields: [creeParId], references: [id], onDelete: SetNull)
+  revuePar Utilisateur? @relation("ScreeningRevuPar", fields: [revueParId], references: [id], onDelete: SetNull)
+  ecartees ScreeningEcartee[]
+
+  @@index([clientId, createdAt(sort: Desc)])
+  @@index([prospectId, createdAt(sort: Desc)])
+  @@index([statut])
+  @@index([revueStatut, createdAt])
+  @@map("screenings")
+}
+
+/// Correspondance écartée par un humain (faux positif) : tant que ni la fiche ni l'inscription OFAC
+/// ne changent, elle ne relève plus d'alerte aux contrôles suivants (elle reste visible, signalée écartée).
+model ScreeningEcartee {
+  id              Int      @id @default(autoincrement())
+  clientId        Int?     @map("client_id")
+  prospectId      Int?     @map("prospect_id")
+  entreeId        Int      @map("entree_id")
+  empreinteEntree String   @map("empreinte_entree") @db.VarChar(64)
+  empreinteSujet  String   @map("empreinte_sujet") @db.VarChar(64)
+  screeningId     Int      @map("screening_id")
+  decideParId     Int?     @map("decide_par_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  client    Client?               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  prospect  Prospect?             @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  entree    SanctionEntree        @relation(fields: [entreeId], references: [id], onDelete: Cascade)
+  screening ScreeningVerification @relation(fields: [screeningId], references: [id], onDelete: Cascade)
+  decidePar Utilisateur?          @relation(fields: [decideParId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, entreeId])
+  @@unique([prospectId, entreeId])
+  @@map("screenings_ecartees")
 }

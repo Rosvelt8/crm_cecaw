@@ -9,6 +9,7 @@ import { detecterImpayes } from '../modules/recouvrement/recouvrement.service';
 import { recalculerObjectifs } from '../modules/objectifs/objectifs.calcul';
 import { recalculerScoresClients } from './segmentation';
 import { genererRelancesCommerciales } from './relancesCommerciales';
+import { depistagePortefeuilleComplet, synchroSanctionsPlanifiee } from '../modules/screening/sanctionsTaches';
 
 /**
  * Planificateur de tâches. Les tâches quotidiennes sont verrouillées en base : la ligne
@@ -23,6 +24,8 @@ interface Tache {
   /** Heure UTC à partir de laquelle la tâche quotidienne peut partir ; absent pour une tâche périodique. */
   heureUtc?: number;
   intervalMin?: number;
+  /** Jamais lancée par le planificateur : réservée au lancement manuel (Paramètres > Système > Tâches). */
+  manuelle?: boolean;
   actif?: () => boolean;
   executer: () => Promise<unknown>;
 }
@@ -58,6 +61,8 @@ export const TACHES: Tache[] = [
   { nom: 'objectifs', libelle: 'Recalcul des objectifs et alertes sur écarts', heureUtc: 5, executer: recalculerObjectifs },
   { nom: 'score_clients', libelle: 'Recalcul des scores 360°, du cycle de vie et de la matrice client × produit', heureUtc: 1, executer: recalculerScoresClients },
   { nom: 'relances_commerciales', libelle: 'Suggestions de relance pour les commerciaux (clients dormants, opportunités, prospects stagnants)', heureUtc: 2, executer: genererRelancesCommerciales },
+  { nom: 'sanctions_synchronisation', libelle: 'Mise à jour des listes de sanctions (OFAC, ONU, UE, listes locales) toutes les 6 heures, et contrôle du portefeuille sur les inscriptions nouvelles ou modifiées', intervalMin: 360, executer: synchroSanctionsPlanifiee },
+  { nom: 'sanctions_portefeuille', libelle: 'Contrôle de tout le portefeuille clients et prospects contre les listes de sanctions (première mise en service ; lancement manuel)', manuelle: true, executer: depistagePortefeuilleComplet },
   { nom: 'sauvegarde', libelle: 'Sauvegarde chiffrée de la base', heureUtc: 2, actif: () => process.env.BACKUP_ENABLED === 'true', executer: sauvegarder },
   { nom: 'file_sms', libelle: "Envoi des SMS en attente", intervalMin: 2, executer: () => traiterFileSms() },
 ];
@@ -102,7 +107,7 @@ export async function etatTaches() {
   const dernieres = await prisma.tacheExecution.findMany({ orderBy: { debutAt: 'desc' }, take: 100 });
   return TACHES.map((t) => {
     const l = dernieres.find((d) => d.nom === t.nom);
-    return { nom: t.nom, libelle: t.libelle, planification: t.intervalMin ? `toutes les ${t.intervalMin} min` : `chaque jour à ${String(t.heureUtc).padStart(2, '0')}h UTC`, active: t.actif ? t.actif() : true, derniere_execution: l?.debutAt ?? null, dernier_statut: l?.statut ?? null, derniere_erreur: l?.erreur ?? null };
+    return { nom: t.nom, libelle: t.libelle, planification: t.manuelle ? 'lancement manuel' : t.intervalMin ? `toutes les ${t.intervalMin} min` : `chaque jour à ${String(t.heureUtc).padStart(2, '0')}h UTC`, active: t.actif ? t.actif() : true, derniere_execution: l?.debutAt ?? null, dernier_statut: l?.statut ?? null, derniere_erreur: l?.erreur ?? null };
   });
 }
 
@@ -116,7 +121,7 @@ export function demarrerPlanificateur() {
     const maintenant = new Date();
     const cle = maintenant.toISOString().slice(0, 10);
     for (const t of TACHES) {
-      if (t.actif && !t.actif()) continue;
+      if (t.manuelle || (t.actif && !t.actif())) continue;
       if (t.intervalMin) {
         if (Date.now() - (dernierPassage.get(t.nom) ?? 0) < t.intervalMin * 60_000) continue;
         dernierPassage.set(t.nom, Date.now());

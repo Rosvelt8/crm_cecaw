@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fichier d'EXEMPLE fabriqué d'après la structure documentée du format FSF v1.1 : il n'est PAS extrait du fichier officiel de l'UE. -->
+<export generationDate="2026-10-14T10:00:00.000+02:00" globalFileId="999999">
+  <sanctionEntity designationDetails="" unitedNationId="" logicalId="900001" euReferenceNumber="EU.9001.01">
+    <remark>Exemple : responsable d'un programme d'armement.</remark>
+    <regulation regulationType="regulation" organisationType="commission" publicationDate="2017-03-31" entryIntoForceDate="2017-03-31" numberTitle="2017/1509" programme="PRK" logicalId="800001"/>
+    <subjectType code="person" classificationCode="P"/>
+    <nameAlias firstName="Yong Chol" middleName="" lastName="Jo" wholeName="Yong Chol Jo" function="Official" gender="M" title="" strong="true" logicalId="810001"/>
+    <nameAlias firstName="" middleName="" lastName="" wholeName="Cho Yong Chol" function="" gender="M" title="" strong="false" logicalId="810002"/>
+    <birthdate birthdate="1973-09-30" year="1973" monthOfYear="9" dayOfMonth="30" circa="false" calendarType="GREGORIAN" city="Pyongyang" place="" countryIso2Code="KP" countryDescription="KOREA, DEMOCRATIC PEOPLE'S REPUBLIC OF" logicalId="820001"/>
+    <citizenship countryIso2Code="KP" countryDescription="KOREA, DEMOCRATIC PEOPLE'S REPUBLIC OF" logicalId="830001"/>
+    <identification number="PS-4455667" identificationTypeCode="passport" identificationTypeDescription="Passport" countryIso2Code="KP" countryDescription="KOREA, DEMOCRATIC PEOPLE'S REPUBLIC OF" diplomatic="false" logicalId="840001"/>
+  </sanctionEntity>
+  <sanctionEntity designationDetails="" unitedNationId="" logicalId="900002" euReferenceNumber="EU.9002.02">
+    <regulation regulationType="regulation" organisationType="council" publicationDate="2022-02-23" entryIntoForceDate="2022-02-23" numberTitle="2022/330" programme="UKR" logicalId="800002"/>
+    <subjectType code="enterprise" classificationCode="E"/>
+    <nameAlias firstName="" middleName="" lastName="" wholeName="Exemple Holding Limited" function="" gender="" title="" strong="true" logicalId="810003"/>
+    <nameAlias firstName="" middleName="" lastName="" wholeName="EH Ltd" function="" gender="" title="" strong="false" logicalId="810004"/>
+    <address street="1 Example Street" city="Nicosia" zipCode="1000" countryIso2Code="CY" countryDescription="CYPRUS" logicalId="850001"/>
+  </sanctionEntity>
+  <sanctionEntity designationDetails="" unitedNationId="" logicalId="900003" euReferenceNumber="EU.9003.03">
+    <regulation regulationType="regulation" organisationType="council" publicationDate="2021-05-10" entryIntoForceDate="2021-05-10" numberTitle="2021/999" programme="CAF" logicalId="800003"/>
+    <subjectType code="person" classificationCode="P"/>
+    <nameAlias firstName="Paul Marie" middleName="" lastName="Kamga" wholeName="" function="" gender="M" title="" strong="true" logicalId="810005"/>
+    <birthdate birthdate="" year="1980" monthOfYear="" dayOfMonth="" circa="true" calendarType="GREGORIAN" city="Douala" place="" countryIso2Code="CM" countryDescription="CAMEROON" logicalId="820002"/>
+    <citizenship countryIso2Code="CM" countryDescription="CAMEROON" logicalId="830002"/>
+  </sanctionEntity>
+  <sanctionEntity designationDetails="" unitedNationId="" logicalId="900004" euReferenceNumber="EU.9004.04">
+    <regulation regulationType="regulation" organisationType="council" publicationDate="2020-01-01" entryIntoForceDate="2020-01-01" numberTitle="2020/1" programme="XXX" logicalId="800004"/>
+    <subjectType code="vessel" classificationCode="V"/>
+    <nameAlias firstName="" middleName="" lastName="" wholeName="MV Exemple" function="" gender="" title="" strong="true" logicalId="810006"/>
+  </sanctionEntity>
+</export>

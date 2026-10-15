@@ -1,0 +1,825 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<CONSOLIDATED_LIST xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://www.un.org/sc/resources/sc-sanctions.xsd" dateGenerated="2026-10-14T23:00:00.827Z">
+  <INDIVIDUALS>
+    <INDIVIDUAL>
+      <DATAID>6907993</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>ERIC</FIRST_NAME>
+      <SECOND_NAME>BADEGE</SECOND_NAME>
+      <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>CDi.001</REFERENCE_NUMBER>
+      <LISTED_ON>2012-12-31</LISTED_ON>
+      <GENDER>Male</GENDER>
+      <COMMENTS1>He fled to Rwanda in March 2013 and is still living there as of early 2016. INTERPOL-UN Security Council Special Notice:https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals</COMMENTS1>
+      <HAS_INTERPOL_LINK>YES</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK>https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals#2013-16027</INTERPOL_LINK>
+      <NATIONALITY>
+        <VALUE>Democratic Republic of the Congo</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2016-10-13</VALUE>
+      </LAST_DAY_UPDATED>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY />
+        <ALIAS_NAME />
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <COUNTRY>Rwanda</COUNTRY>
+        <NOTE>as of early 2016</NOTE>
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <YEAR>1971</YEAR>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <COUNTRY />
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT />
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+    <INDIVIDUAL>
+      <DATAID>6909615</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>MUHAMMED </FIRST_NAME>
+      <SECOND_NAME>LUMISA </SECOND_NAME>
+      <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>CDi.047</REFERENCE_NUMBER>
+      <LISTED_ON>2026-07-14</LISTED_ON>
+      <GENDER>Male</GENDER>
+      <COMMENTS1>Gender: Male. As one of the commanders of the Allied Democratic Forces (ADF) (CDe.001), MUHAMMED LUMISA is involved in planning, promulgating, and supporting the militia’s activities. He also oversees the group’s external logistics. INTERPOL-UN Security Council Special Notice:https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals</COMMENTS1>
+      <HAS_INTERPOL_LINK>YES</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK>https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals</INTERPOL_LINK>
+      <DESIGNATION>
+        <VALUE>Commander, doctor and head of external logistics of the Allied Democratic Forces (ADF) (CDe.001) </VALUE>
+      </DESIGNATION>
+      <NATIONALITY>
+        <VALUE>Uganda</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE />
+      </LAST_DAY_UPDATED>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>LUMISA, MUHAMAD</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>L. KATO</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>LUMINSA</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>LUMWINSA</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>MUKADE</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>MUKAKE</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <COUNTRY>Democratic Republic of the Congo</COUNTRY>
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>BETWEEN</TYPE_OF_DATE>
+        <FROM_YEAR>1959</FROM_YEAR>
+        <TO_YEAR>1965</TO_YEAR>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>Kampala District</CITY>
+        <STATE_PROVINCE> Central Region</STATE_PROVINCE>
+        <COUNTRY>Uganda</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT />
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+    <INDIVIDUAL>
+      <DATAID>6908565</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>JO</FIRST_NAME>
+      <SECOND_NAME>YONG CHOL</SECOND_NAME>
+      <UN_LIST_TYPE>DPRK</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>KPi.034</REFERENCE_NUMBER>
+      <LISTED_ON>2016-11-30</LISTED_ON>
+      <COMMENTS1>Jo Yong Chol is a DPRK Ministry of State Security Official stationed in Syria supporting KOMID.</COMMENTS1>
+      <HAS_INTERPOL_LINK>NO</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK />
+      <DESIGNATION>
+        <VALUE>DPRK Ministry of State Security Official</VALUE>
+      </DESIGNATION>
+      <NATIONALITY>
+        <VALUE>Democratic People's Republic of Korea</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE />
+      </LAST_DAY_UPDATED>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Cho Yong Chol</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <COUNTRY />
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <DATE>1973-09-30</DATE>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <COUNTRY />
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT />
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+    <INDIVIDUAL>
+      <DATAID>111792</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>ABU BAKAR</FIRST_NAME>
+      <SECOND_NAME>BA'ASYIR</SECOND_NAME>
+      <UN_LIST_TYPE>Al-Qaida</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>QDi.217</REFERENCE_NUMBER>
+      <LISTED_ON>2006-04-21</LISTED_ON>
+      <COMMENTS1>Formed Jemmah Anshorut Tauhid (JAT) (QDe.133) in 2008. In 2010, arrested for incitement to commit terrorism and fundraising with respect to a training camp in Aceh, Indonesia and sentenced to 15 years in 2011. Ba'asyir was released from prison on 8 January 2021 after serving his sentence in accordance with Indonesian laws and regulations INTERPOL-UN Security Council Special Notice:https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals</COMMENTS1>
+      <HAS_INTERPOL_LINK>YES</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK>https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals#2006-27298</INTERPOL_LINK>
+      <NATIONALITY>
+        <VALUE>Indonesia</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2015-10-14</VALUE>
+        <VALUE>2020-11-24</VALUE>
+        <VALUE>2021-04-06</VALUE>
+      </LAST_DAY_UPDATED>
+      <LAST_REVIEWED_ON>
+        <VALUE>2010-06-08</VALUE>
+        <VALUE>2020-11-24</VALUE>
+        <VALUE>2024-11-07</VALUE>
+      </LAST_REVIEWED_ON>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Abu Bakar Baasyir</ALIAS_NAME>
+        <DATE_OF_BIRTH>1938-08-17</DATE_OF_BIRTH>
+        <CITY_OF_BIRTH>Jombang, East Java</CITY_OF_BIRTH>
+        <COUNTRY_OF_BIRTH>Indonesia</COUNTRY_OF_BIRTH>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Abu Bakar Bashir</ALIAS_NAME>
+        <DATE_OF_BIRTH>1938-08-17</DATE_OF_BIRTH>
+        <CITY_OF_BIRTH>Jombang, East Java</CITY_OF_BIRTH>
+        <COUNTRY_OF_BIRTH>Indonesia</COUNTRY_OF_BIRTH>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Abdus Samad</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Abdus Somad</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <COUNTRY>Indonesia</COUNTRY>
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <DATE>1938-08-17</DATE>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>Jombang</CITY>
+        <STATE_PROVINCE>East Java</STATE_PROVINCE>
+        <COUNTRY>Indonesia</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT />
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+    <INDIVIDUAL>
+      <DATAID>2983638</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>ABDUL</FIRST_NAME>
+      <SECOND_NAME>ROSYID</SECOND_NAME>
+      <THIRD_NAME>RIDHO</THIRD_NAME>
+      <FOURTH_NAME>BA'ASYIR</FOURTH_NAME>
+      <UN_LIST_TYPE>Al-Qaida</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>QDi.305</REFERENCE_NUMBER>
+      <LISTED_ON>2012-03-12</LISTED_ON>
+      <COMMENTS1>Father's name is Abu Bakar Ba'asyir (QDi.217). Brother of Abdul Rahim Ba’aysir (QDi.293). Belongs to the leadership of and is involved in recruitment and fundraising for Jemmah Anshorut Tauhid (JAT) (QDe.133) Associated with Jemaah Islamiyah (QDe.092) INTERPOL-UN Security Council Special Notice:https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals</COMMENTS1>
+      <HAS_INTERPOL_LINK>YES</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK>https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals#2012-312656</INTERPOL_LINK>
+      <NATIONALITY>
+        <VALUE>Indonesia</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2021-11-15</VALUE>
+      </LAST_DAY_UPDATED>
+      <LAST_REVIEWED_ON>
+        <VALUE>2021-11-15</VALUE>
+        <VALUE>2025-12-31</VALUE>
+      </LAST_REVIEWED_ON>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Abdul Rosyid Ridho Bashir</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Rashid Rida Ba’aysir</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Rashid Rida Bashir</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <STREET>Podok Pesantren AL Wayain Ngrandu</STREET>
+        <CITY>Sumber Agung Magetan</CITY>
+        <STATE_PROVINCE>East Java</STATE_PROVINCE>
+        <COUNTRY>Indonesia</COUNTRY>
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <DATE>1974-01-31</DATE>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>Sukoharjo</CITY>
+        <COUNTRY>Indonesia</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT>
+        <TYPE_OF_DOCUMENT>National Identification Number</TYPE_OF_DOCUMENT>
+        <NOTE>Indonesian National Identity Card number 1127083101740003 under name
+Abdul Rosyid Ridho Ba’asyir</NOTE>
+      </INDIVIDUAL_DOCUMENT>
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+    <INDIVIDUAL>
+      <DATAID>6907995</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>GASTON</FIRST_NAME>
+      <SECOND_NAME>IYAMUREMYE</SECOND_NAME>
+      <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>CDi.003</REFERENCE_NUMBER>
+      <LISTED_ON>2010-12-01</LISTED_ON>
+      <GENDER>Male</GENDER>
+      <COMMENTS1>INTERPOL-UN Security Council Special Notice:https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals</COMMENTS1>
+      <HAS_INTERPOL_LINK>YES</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK>https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals#2013-16038</INTERPOL_LINK>
+      <DESIGNATION>
+        <VALUE>FDLR Interim President</VALUE>
+        <VALUE>FDLR-FOCA 1st Vice-President</VALUE>
+        <VALUE>FDLR-FOCA Major General</VALUE>
+      </DESIGNATION>
+      <NATIONALITY>
+        <VALUE>Rwanda</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2016-10-13</VALUE>
+      </LAST_DAY_UPDATED>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>Rumuli</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Byiringiro Victor Rumuli</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Victor Rumuri</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Michel Byiringiro</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <STATE_PROVINCE>North Kivu Province</STATE_PROVINCE>
+        <COUNTRY>Democratic Republic of the Congo</COUNTRY>
+        <NOTE>as of June 2016</NOTE>
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <YEAR>1948</YEAR>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>Musanze District</CITY>
+        <STATE_PROVINCE>Northern Province</STATE_PROVINCE>
+        <COUNTRY>Rwanda</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>Ruhengeri</CITY>
+        <COUNTRY>Rwanda</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT />
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+    <INDIVIDUAL>
+      <DATAID>6908503</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>JANG</FIRST_NAME>
+      <SECOND_NAME>BOM SU</SECOND_NAME>
+      <UN_LIST_TYPE>DPRK</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>KPi.016</REFERENCE_NUMBER>
+      <LISTED_ON>2016-03-02</LISTED_ON>
+      <COMMENTS1>Pursuant to Resolution 2371(2017) the Security Council added the following information: New AKA: Jang Hyon U with date of birth 22 February 1958 and diplomatic passport number 836110034, which expires on 1 January 2020.</COMMENTS1>
+      <HAS_INTERPOL_LINK>NO</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK />
+      <DESIGNATION>
+        <VALUE>Tanchon Commercial Bank Representative in Syria </VALUE>
+      </DESIGNATION>
+      <NATIONALITY>
+        <VALUE>Democratic People's Republic of Korea</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2017-08-05</VALUE>
+      </LAST_DAY_UPDATED>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Jang Pom Su</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Jang Hyon U</ALIAS_NAME>
+        <DATE_OF_BIRTH>1958-02-22</DATE_OF_BIRTH>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <COUNTRY />
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <DATE>1957-04-15</DATE>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <COUNTRY />
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT />
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+    <INDIVIDUAL>
+      <DATAID>6908021</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>BOSCO</FIRST_NAME>
+      <SECOND_NAME>TAGANDA</SECOND_NAME>
+      <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>CDi.030</REFERENCE_NUMBER>
+      <LISTED_ON>2005-11-01</LISTED_ON>
+      <GENDER>Male</GENDER>
+      <COMMENTS1>Born in Rwanda, he moved to Nyamitaba, Masisi territory, North Kivu, when he was a child. Nominated FARDC Brigadier-General by Presidential Decree on 11 December 2004, following Ituri peace agreements. Formerly Chief of Staff in CNDP and became CNDP military commander since the arrest of Laurent Nkunda in January 2009. Since January 2009, de facto Deputy Commander of consecutive anti-FDLR operations ‘Umoja Wetu’, ‘Kimia II’, and ‘Amani Leo’ in North and South Kivu. Entered Rwanda in March 2013, and voluntarily surrender to ICC officials in Kigali on March 22. Transferred to the ICC in The Hague, Netherlands. On 9 June 2014, ICC confirmed 13 charges of war crimes and five charges of crimes against humanity against him; the trial started in September 2015. On 8 July 2019, the ICC found him guilty of 18 counts of war crimes and crimes against humanity, committed in Ituri in 2002-2003. On 7 November 2019, he was sentenced to a total of 30 years imprisonment.  He has appealed both his conviction and sentence. On 30 March 2021, the ICC Appeals Chamber confirmed his conviction and sentence. On 14 December 2022, he was transferred to the territory of Belgium for enforcement of sentence. INTERPOL-UN Security Council Special Notice:https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals</COMMENTS1>
+      <HAS_INTERPOL_LINK>YES</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK>https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals#2013-16240</INTERPOL_LINK>
+      <NATIONALITY>
+        <VALUE>Democratic Republic of the Congo</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2016-10-13</VALUE>
+        <VALUE>2020-08-19</VALUE>
+        <VALUE>2023-03-01</VALUE>
+      </LAST_DAY_UPDATED>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Bosco Ntaganda</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Bosco Ntagenda</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>General Taganda</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>Lydia</ALIAS_NAME>
+        <NOTE>When he was part of APR.</NOTE>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>Terminator</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>Tango Romeo</ALIAS_NAME>
+        <NOTE>Call sign</NOTE>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>Romeo</ALIAS_NAME>
+        <NOTE>Call sign</NOTE>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>Major</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <COUNTRY>Belgium</COUNTRY>
+        <NOTE>As of 14 December 2022</NOTE>
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>BETWEEN</TYPE_OF_DATE>
+        <FROM_YEAR>1973</FROM_YEAR>
+        <TO_YEAR>1974</TO_YEAR>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>Bigogwe</CITY>
+        <COUNTRY>Rwanda</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT />
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+    <INDIVIDUAL>
+      <DATAID>6908994</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>AHMAD</FIRST_NAME>
+      <SECOND_NAME>MAHMOOD</SECOND_NAME>
+      <THIRD_NAME>HASSAN</THIRD_NAME>
+      <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>CDi.040</REFERENCE_NUMBER>
+      <LISTED_ON>2024-02-20</LISTED_ON>
+      <COMMENTS1>Listed pursuant to paragraphs 7 (b), 7 (e), and 7 (h) of resolution 2293 (2016) and paragraph 3 of resolution 2641 (2022): “being political and military leaders of foreign armed groups operating in the DRC who impede the disarmament and the voluntary repatriation or resettlement of combatants belonging to those groups”, “planning, directing, or committing acts in the DRC that constitute human rights violations or abuses or violations of international humanitarian law, as applicable, including those acts involving the targeting of civilians, including killing and maiming, rape and other sexual violence, abduction, forced displacement, and attacks on schools and hospitals”, “acting on behalf of or at the direction of a designated individual or entity, or acting on behalf of or at the direction of an entity owned or controlled by a designated individual or entity”, and “involve[d] in the production, manufacture or use in the DRC of improvised explosive devices, or in the commission, planning, ordering, aiding, abetting or otherwise assistance of attacks in the DRC with improvised explosive devices”. INTERPOL-UN Security Council Special Notice:https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals</COMMENTS1>
+      <HAS_INTERPOL_LINK>YES</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK>https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Individuals#2024-16008</INTERPOL_LINK>
+      <DESIGNATION>
+        <VALUE>Lieutenant general</VALUE>
+        <VALUE>Senior leader of the Allied Democratic Forces (ADF) (CDe.001)</VALUE>
+      </DESIGNATION>
+      <NATIONALITY>
+        <VALUE>United Republic of Tanzania</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE />
+      </LAST_DAY_UPDATED>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>AHMED MAHAMUD HASSAN ALIYANI</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>AHMAD MAHMOUD HASSAN</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>AHMAD MAHAMOOD HASSAN</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>AHMED MAHMOUD HASSAN</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>ABU WAQAS</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>SAINT JOYAGE</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>JUNDI</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>ABWAKASI</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>ABUWAKAS</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>MURABU</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>MARABOU</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>MWARABU</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>LEBLANC</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <COUNTRY>Democratic Republic of the Congo</COUNTRY>
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <DATE>1997-07-21</DATE>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <YEAR>1993</YEAR>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <COUNTRY />
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT>
+        <TYPE_OF_DOCUMENT>Passport</TYPE_OF_DOCUMENT>
+        <NUMBER>AB850901</NUMBER>
+        <ISSUING_COUNTRY>United Republic of Tanzania</ISSUING_COUNTRY>
+        <DATE_OF_EXPIRY>2026-12-11</DATE_OF_EXPIRY>
+      </INDIVIDUAL_DOCUMENT>
+      <INDIVIDUAL_DOCUMENT>
+        <TYPE_OF_DOCUMENT>Passport</TYPE_OF_DOCUMENT>
+        <NUMBER>AB187304 </NUMBER>
+        <ISSUING_COUNTRY>United Republic of Tanzania</ISSUING_COUNTRY>
+        <NOTE>Expired 28 Nov. 2016</NOTE>
+      </INDIVIDUAL_DOCUMENT>
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+    <INDIVIDUAL>
+      <DATAID>111514</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>ABDUL MANAN AGHA</FIRST_NAME>
+      <UN_LIST_TYPE>Al-Qaida</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>QDi.018</REFERENCE_NUMBER>
+      <LISTED_ON>2001-10-17</LISTED_ON>
+      <NAME_ORIGINAL_SCRIPT>عبد المنان آغا</NAME_ORIGINAL_SCRIPT>
+      <COMMENTS1>Pakistan</COMMENTS1>
+      <HAS_INTERPOL_LINK>NO</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK />
+      <TITLE>
+        <VALUE>Haji</VALUE>
+      </TITLE>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2013-06-26</VALUE>
+        <VALUE>2019-05-01</VALUE>
+        <VALUE>2022-11-08</VALUE>
+      </LAST_DAY_UPDATED>
+      <LAST_REVIEWED_ON>
+        <VALUE>2010-06-15</VALUE>
+        <VALUE>2019-02-21</VALUE>
+        <VALUE>2022-11-08</VALUE>
+        <VALUE>2025-12-31</VALUE>
+      </LAST_REVIEWED_ON>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Abdul Manan</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>Abdul Man’am Saiyid</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>Saiyid Abd al-Man</ALIAS_NAME>
+        <NOTE>formerly listed as</NOTE>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <COUNTRY />
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE />
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <COUNTRY />
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT />
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </INDIVIDUAL>
+  </INDIVIDUALS>
+  <ENTITIES>
+    <ENTITY>
+      <DATAID>6908402</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>ADF</FIRST_NAME>
+      <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>CDe.001</REFERENCE_NUMBER>
+      <LISTED_ON>2014-06-30</LISTED_ON>
+      <COMMENTS1>ADF founder and leader, Jamil Mukulu (CDi.015), was arrested in Dar es Salaam, Tanzania in April 2015. He was subsequently extradited to Kampala, Uganda in July 2015. As of June 2016, Mukulu is reportedly being held in a police detention cell awaiting his trial. Seka Baluku (CDi.036) succeeded Jamil Mukulu (CDi.015) as the overall leader of the ADF. As highlighted in several reports from the Group of Experts on the DRC (S/2015/19, S/2015/797, S/2016/1102, S/2017/672, S/2018/531, S/2019/469, S/2019/974, S/2020/482), the ADF, including under Seka Baluku’s leadership, continued to commit the repeated targeting, killing and maiming, rape and other sexual violence, abduction of civilians, including children, as well as attacks on villages and health facilities, in particular in Mamove, Beni territory, on 12 and 24 February 2019, and Mantumbi, Beni territory, on 5 December 2019 and 30 January 2020, as well as the continuous recruitment and use of children during attacks and for forced labour in Beni territory in the DRC since at least 2015. INTERPOL-UN Security Council Special Notice:https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Entities</COMMENTS1>
+      <HAS_INTERPOL_LINK>YES</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK>https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Entities#2015-28326</INTERPOL_LINK>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2016-10-19</VALUE>
+        <VALUE>2020-08-19</VALUE>
+      </LAST_DAY_UPDATED>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Allied Democratic Forces</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>f.k.a.</QUALITY>
+        <ALIAS_NAME>Forces Démocratiques Alliées-Armée Nationale de Libération de l’Ouganda</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>f.k.a.</QUALITY>
+        <ALIAS_NAME>ADF/NALU</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>f.k.a.</QUALITY>
+        <ALIAS_NAME>NALU</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ADDRESS>
+        <STATE_PROVINCE>North Kivu </STATE_PROVINCE>
+        <COUNTRY>Democratic Republic of the Congo</COUNTRY>
+      </ENTITY_ADDRESS>
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </ENTITY>
+    <ENTITY>
+      <DATAID>114076</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>LASHKAR-E-TAYYIBA</FIRST_NAME>
+      <UN_LIST_TYPE>Al-Qaida</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>QDe.118</REFERENCE_NUMBER>
+      <LISTED_ON>2005-05-02</LISTED_ON>
+      <COMMENTS1>Associated with Hafiz Muhammad Saeed (QDi.263) who is the leader of Lashkar-e-Tayyiba INTERPOL-UN Security Council Special Notice:https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Entities</COMMENTS1>
+      <HAS_INTERPOL_LINK>YES</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK>https://www.interpol.int/en/How-we-work/Notices/View-UN-Notices-Entities#2013-17226</INTERPOL_LINK>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2005-11-03</VALUE>
+        <VALUE>2008-12-10</VALUE>
+        <VALUE>2012-03-14</VALUE>
+        <VALUE>2020-11-24</VALUE>
+        <VALUE>2023-10-30</VALUE>
+      </LAST_DAY_UPDATED>
+      <LAST_REVIEWED_ON>
+        <VALUE>2010-06-08</VALUE>
+        <VALUE>2020-11-24</VALUE>
+        <VALUE>2023-10-30</VALUE>
+      </LAST_REVIEWED_ON>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Lashkar-e-Toiba</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Lashkar-i-Taiba</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>al Mansoorian</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>al Mansooreen</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Army of the Pure</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Army of the Righteous</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Army of the Pure and Righteous</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Paasban-e-Kashmir</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Paasban-i-Ahle-Hadith</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Pasban-e-Kashmir</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Pasban-e-Ahle-Hadith</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Paasban-e-Ahle-Hadis</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Pashan-e-ahle Hadis</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Lashkar e Tayyaba</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>LET</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jamaat-ud-Dawa</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>JUD</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jama'at al-Dawa</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jamaat ud-Daawa</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jamaat ul-Dawah</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jamaat-ul-Dawa</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jama'at-i-Dawat</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jamaiat-ud-Dawa</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jama'at-ud-Da'awah</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jama'at-ud-Da'awa</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Jamaati-ud-Dawa</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Falah-i-Insaniat Foundation (FIF)</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ADDRESS>
+        <COUNTRY />
+      </ENTITY_ADDRESS>
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </ENTITY>
+    <ENTITY>
+      <DATAID>110387</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>FAJR INDUSTRIAL GROUP</FIRST_NAME>
+      <UN_LIST_TYPE>Iran</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>IRe.017</REFERENCE_NUMBER>
+      <LISTED_ON>2006-12-23</LISTED_ON>
+      <COMMENTS1>Subordinate entity of AIO. [Old Reference # E.37.B.3]</COMMENTS1>
+      <HAS_INTERPOL_LINK>NO</HAS_INTERPOL_LINK>
+      <INTERPOL_LINK />
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <ENTITY_ALIAS>
+        <QUALITY>f.k.a.</QUALITY>
+        <ALIAS_NAME>Instrumentation Factory Plant</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ADDRESS>
+        <COUNTRY />
+      </ENTITY_ADDRESS>
+      <SORT_KEY />
+      <SORT_KEY_LAST_MOD />
+    </ENTITY>
+  </ENTITIES>
+</CONSOLIDATED_LIST>

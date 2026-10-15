@@ -152,7 +152,7 @@ export const ROLES_REFERENTIEL: RoleReferentiel[] = [
       ...d('credit', 'VIEW'),
       ...d('communication', 'VIEW'),
       ...d('documentaire', 'VIEW', 'CREATE'),
-      ...d('conformite', 'VIEW', 'UPDATE', 'EXECUTE', 'AUDIT'),
+      ...d('conformite', 'VIEW', 'UPDATE', 'EXECUTE', 'APPROVE', 'AUDIT'),
     ],
   },
   {
@@ -490,6 +490,7 @@ const CATALOGUE_DOMAINE: Record<string, Partial<Record<VerbePermission, string>>
     VIEW: 'Consulter le résumé, les alertes et les listes de conformité',
     UPDATE: 'Gérer les listes de sanctions et de vigilance',
     EXECUTE: 'Traiter une alerte ou lancer une analyse de conformité',
+    APPROVE: 'Rendre la décision de revue d\'un contrôle de sanctions OFAC (faux positif, correspondance confirmée, escalade)',
     CONFIGURE: 'Paramétrer les listes et règles de conformité',
     AUDIT: 'Auditer la conformité et les règles de séparation des fonctions',
     EXPORT: 'Exporter les données de conformité',

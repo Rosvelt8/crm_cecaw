@@ -37,6 +37,11 @@ export const DEFAUTS: Record<string, DefinitionParametre> = {
   'territoire.rayon_couverture_agence_km': { valeur: 5, categorie: 'territoire', description: "Distance maximale (km) d'un client à son agence pour être considéré couvert" },
   'conformite.seuil_operation_elevee': { valeur: 5_000_000, categorie: 'conformite', description: 'Montant à partir duquel une opération génère une alerte de conformité (FCFA)' },
   'conformite.seuil_fractionnement': { valeur: 5_000_000, categorie: 'conformite', description: 'Cumul sur 24 h, en au moins 3 opérations, au-delà duquel un fractionnement est suspecté (FCFA)' },
+  'conformite.ofac_listes': { valeur: ['sdn', 'non_sdn', 'onu', 'ue', 'locale'], categorie: 'conformite', description: "Listes de sanctions contrôlées et synchronisées : sdn et non_sdn (OFAC), onu (Nations unies), ue (Union européenne, requiert EU_SANCTIONS_URL), locale (listes de surveillance du CRM). Une liste non configurée est ignorée" },
+  'conformite.ofac_seuil': { valeur: 85, categorie: 'conformite', description: "Score de ressemblance de nom (sur 100) à partir duquel une correspondance potentielle est retenue, toutes listes confondues (60 à 100)" },
+  'conformite.ofac_confiance_min': { valeur: 'faible', categorie: 'conformite', description: "Confiance minimale (faible, moyenne ou forte) pour qu'une correspondance de sanctions déclenche une revue. Au-dessous, elle reste consignée dans le contrôle mais sans alerte" },
+  'conformite.ofac_age_max_jours': { valeur: 1, categorie: 'conformite', description: "Âge maximal (jours) des listes de sanctions avant d'avertir que les contrôles s'appuient sur des listes anciennes (la synchronisation a lieu toutes les 6 heures)" },
+  'conformite.ofac_depistage_auto': { valeur: true, categorie: 'conformite', description: "Contrôler automatiquement tout nouveau client ou prospect contre les listes de sanctions" },
   'objectifs.tolerance_ecart_pct': { valeur: 15, categorie: 'objectifs', description: "Écart (points de %) entre l'avancement attendu et réalisé déclenchant une alerte" },
   'securite.mfa_obligatoire': { valeur: false, categorie: 'securite', description: "Inviter tout utilisateur à activer l'authentification à deux facteurs" },
   'securite.echecs_avant_blocage': { valeur: 5, categorie: 'securite', description: 'Échecs de connexion consécutifs avant blocage du compte' },
@@ -91,6 +96,13 @@ export function validerValeur(cle: string, valeur: unknown): string | null {
   const def = DEFAUTS[cle];
   if (!def) return `Paramètre inconnu : ${cle}`;
   const modele = def.valeur;
+  if (cle === 'conformite.ofac_listes') {
+    const valides = ['sdn', 'non_sdn', 'onu', 'ue', 'locale'];
+    return Array.isArray(valeur) && valeur.length >= 1 && new Set(valeur).size === valeur.length && valeur.every((x) => valides.includes(x as string))
+      ? null : 'Une liste non vide parmi sdn, non_sdn, onu, ue et locale est attendue.';
+  }
+  if (cle === 'conformite.ofac_confiance_min') return ['faible', 'moyenne', 'forte'].includes(valeur as string) ? null : 'Valeur attendue : faible, moyenne ou forte.';
+  if (cle === 'conformite.ofac_seuil' && (typeof valeur !== 'number' || valeur < 60 || valeur > 100)) return 'Un seuil entre 60 et 100 est attendu.';
   if (typeof modele === 'number') {
     if (typeof valeur !== 'number' || !Number.isFinite(valeur) || valeur < 0) return 'Une valeur numérique positive est attendue.';
   } else if (typeof modele === 'boolean') {
