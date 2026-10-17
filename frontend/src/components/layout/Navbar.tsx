@@ -16,6 +16,7 @@ import {
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { notificationsApi } from '@/services/metierService';
+import BoutonInstaller from '@/components/pwa/BoutonInstaller';
 
 /** Nombre de notifications non lues, actualisé chaque minute et au retour sur l'onglet. */
 function useNonLues() {
@@ -57,6 +58,7 @@ export default function Navbar({ onMobileMenuClick }: { onMobileMenuClick: () =>
 
       {/* Right section: Notifications + User menu */}
       <div className="flex items-center gap-2">
+        <BoutonInstaller />
         <Link href="/dashboard/calendrier" aria-label="Calendrier des opérations" title="Calendrier des opérations">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
             <CalendarDays className="h-4 w-4" />

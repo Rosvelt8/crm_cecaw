@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Poppins, JetBrains_Mono, Playfair_Display } from 'next/font/google';
 import '@/styles/globals.css';
 import AppProvider from '@/providers/AppProvider';
+import PwaRegister from '@/components/pwa/PwaRegister';
 import { APP_NAME, APP_DESCRIPTION } from '@/constants';
 
 const poppins = Poppins({
@@ -31,6 +32,9 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
   keywords: ['microfinance', 'CRM', 'Cameroun', 'Douala', 'Cecaw Finance', 'gestion de crédit', 'épargne'],
   authors: [{ name: 'Cecaw Finance IT Team' }],
+  applicationName: 'CECAW',
+  appleWebApp: { capable: true, title: 'CECAW', statusBarStyle: 'default' },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -51,6 +55,7 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning>
       <body className={`${poppins.variable} ${mono.variable} ${playfair.variable} font-sans antialiased`}>
         <AppProvider>{children}</AppProvider>
+        <PwaRegister />
       </body>
     </html>
   );
