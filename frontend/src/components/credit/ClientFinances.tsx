@@ -110,10 +110,13 @@ export default function ClientFinances({ clientId }: { clientId: number }) {
       <div className="flex items-center justify-between"><p className="text-sm font-medium">{titre}</p><p className="text-xs text-muted-foreground">Total mensuel : {fcfa(total)}</p></div>
       {liste.length === 0 && <p className="text-xs text-muted-foreground">Aucune ligne.</p>}
       {liste.map((l, i) => (
-        <div key={i} className="grid grid-cols-12 gap-2">
-          <Input disabled={!modifier} className="col-span-7 h-9" placeholder="Libellé" value={l.libelle} onChange={(e) => edit(liste, set, i, { libelle: e.target.value })} />
-          <Input disabled={!modifier} className="col-span-4 h-9" type="number" min={0} placeholder="Montant / mois" value={l.montant_mensuel || ''} onChange={(e) => edit(liste, set, i, { montant_mensuel: Number(e.target.value) })} />
-          {modifier && <button className="col-span-1 text-muted-foreground hover:text-destructive" onClick={() => { set(liste.filter((_, j) => j !== i)); setSale(true); }}><Trash2 className="h-4 w-4" /></button>}
+        <div key={i} className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-2.5 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1"><Input disabled={!modifier} className="h-10" aria-label="Libellé" placeholder="Libellé (ex. Commerce, loyer…)" value={l.libelle} onChange={(e) => edit(liste, set, i, { libelle: e.target.value })} /></div>
+          <div className="flex items-center gap-2 sm:w-56">
+            <Input disabled={!modifier} className="h-10 text-right" type="number" min={0} aria-label="Montant mensuel" placeholder="Montant" value={l.montant_mensuel || ''} onChange={(e) => edit(liste, set, i, { montant_mensuel: Number(e.target.value) })} />
+            <span className="shrink-0 text-xs text-muted-foreground">FCFA / mois</span>
+            {modifier && <button type="button" aria-label="Supprimer la ligne" className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => { set(liste.filter((_, j) => j !== i)); setSale(true); }}><Trash2 className="h-4 w-4" /></button>}
+          </div>
         </div>
       ))}
       {modifier && <Button size="sm" variant="ghost" onClick={() => { set([...liste, { ...vide }]); setSale(true); }}><Plus className="h-4 w-4 mr-1" />Ajouter</Button>}
@@ -133,7 +136,7 @@ export default function ClientFinances({ clientId }: { clientId: number }) {
             <p className="text-xs text-muted-foreground">Revenus retenus : <strong>{d.revenus_mensuels != null ? fcfa(d.revenus_mensuels) : 'non renseignés'}</strong>{d.charges_mensuelles != null && <> · charges : <strong>{fcfa(d.charges_mensuelles)}</strong></>}</p>
           </div>
         </div>
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid gap-6 2xl:grid-cols-2">
           {bloc({ titre: 'Sources de revenus', liste: sources, set: setSources, total: totalSources, vide: { libelle: '', montant_mensuel: 0 } })}
           {bloc({ titre: 'Charges', liste: charges, set: setCharges, total: totalCharges, vide: { libelle: '', montant_mensuel: 0 } })}
         </div>
