@@ -4,8 +4,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { EnTete } from '@/components/ui/kpi';
-import Carte, { type CartePoint, type CartePolygone } from '@/components/map/Carte';
+import { EnTete, fcfa } from '@/components/ui/kpi';
+import Carte, { type CartePoint, type CartePolygone, type IconeCarte } from '@/components/map/Carte';
 import { sigApi } from '@/services/metierService';
 import { agenceService } from '@/services/agenceService';
 import { msg } from '@/lib/apiHelpers';
@@ -23,6 +23,9 @@ const COUCHES: DefCouche[] = [
   { id: 'agents', label: 'Agents en activité', couleur: '#ec4899', defaut: true },
   { id: 'zones', label: 'Zones', couleur: '#6366f1', defaut: true },
 ];
+
+/** Pictogramme de chaque couche, repris dans la légende et sur la carte. */
+const ICONE_COUCHE: Record<string, IconeCarte> = { agences: 'agence', points_collecte: 'collecte', clients: 'client', domiciles: 'domicile', activites: 'activite', prospects: 'prospect', credits: 'credit', impayes: 'impaye', agents: 'agent' };
 
 export default function SigPage() {
   const [actives, setActives] = useState<string[]>(COUCHES.filter((c) => c.defaut).map((c) => c.id));
@@ -47,24 +50,73 @@ export default function SigPage() {
     const pts: CartePoint[] = [];
     const pgs: CartePolygone[] = [];
     let tr = false;
+    const tel = (t?: string) => (t ? [{ label: 'Appeler', href: `tel:${t.replace(/\s+/g, '')}`, icone: 'appeler' as const }] : []);
+    const route = (lat: number, lng: number) => ({ label: 'Itinéraire', href: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, externe: true, icone: 'itineraire' as const });
+    const TON_STATUT: Record<string, 'bon' | 'alerte' | 'mauvais' | 'neutre' | 'info'> = { actif: 'bon', inactif: 'neutre', blackliste: 'mauvais', nouveau: 'info', contacte: 'info', interesse: 'bon', negocie: 'alerte' };
     for (const def of COUCHES) {
       const fc = donnees[def.id];
       if (!fc) continue;
       if (fc.tronque) tr = true;
       for (const f of fc.features) {
+        const p = f.properties;
         if (def.id === 'zones') {
           const g = f.geometry;
           const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
-          for (const poly of polys) pgs.push({ anneau: poly[0].map(([lng, lat]: number[]) => [lat, lng]), couleur: def.couleur, titre: f.properties.nom });
+          for (const poly of polys) pgs.push({
+            anneau: poly[0].map(([lng, lat]: number[]) => [lat, lng]), couleur: def.couleur, titre: p.nom,
+            popup: { titre: p.nom, sousTitre: p.type === 'secteur' ? 'Secteur' : 'Zone', actions: [{ label: 'Gérer les zones', href: '/dashboard/parametres/zones', icone: 'voir', principale: true }] },
+          });
           continue;
         }
         const [lng, lat] = f.geometry.coordinates;
-        const p = f.properties;
         const enActivite = def.id === 'agents' ? p.en_activite : true;
-        pts.push({
-          lat, lng, couleur: enActivite ? def.couleur : '#94a3b8', rayon: def.id === 'agences' ? 10 : def.id === 'agents' ? 8 : 5,
-          titre: p.nom ?? p.reference ?? def.label, detail: [def.label, p.telephone, p.quartier, p.montant ? `${Math.round(p.montant)} FCFA` : null, p.jours ? `${p.jours} j de retard` : null, p.activite].filter(Boolean).join(' · '),
-        });
+        const nom = p.nom ?? p.client ?? p.reference ?? def.label;
+        let popup: CartePoint['popup'];
+        switch (def.id) {
+          case 'agences':
+            popup = { titre: nom, sousTitre: 'Agence', infos: p.ville ? [{ icone: 'adresse', label: 'Ville', valeur: p.ville }] : [], actions: [{ label: 'Voir les agences', href: '/dashboard/parametres/agences', icone: 'voir', principale: true }, route(lat, lng)] };
+            break;
+          case 'points_collecte':
+            popup = { titre: nom, sousTitre: 'Point de collecte', infos: [...(p.code ? [{ icone: 'document' as const, label: 'Code', valeur: p.code }] : []), ...(p.agence ? [{ icone: 'agence' as const, label: 'Agence', valeur: p.agence }] : [])], actions: [route(lat, lng)] };
+            break;
+          case 'clients': case 'domiciles':
+            popup = {
+              titre: nom, sousTitre: def.id === 'clients' ? 'Client' : 'Domicile du client',
+              badges: p.statut ? [{ label: p.statut, ton: TON_STATUT[p.statut] ?? 'neutre' }] : [],
+              infos: [...(p.telephone ? [{ icone: 'telephone' as const, label: 'Téléphone', valeur: p.telephone }] : []), ...(p.quartier ? [{ icone: 'adresse' as const, label: 'Quartier', valeur: p.quartier }] : [])],
+              actions: [{ label: 'Voir le client', href: `/dashboard/marketing/clients/${p.id}`, icone: 'voir', principale: true }, ...tel(p.telephone), route(lat, lng)],
+            };
+            break;
+          case 'activites':
+            popup = { titre: nom, sousTitre: 'Lieu d\'activité', infos: p.activite ? [{ icone: 'activite', label: 'Activité', valeur: p.activite }] : [], actions: [{ label: 'Voir le client', href: `/dashboard/marketing/clients/${p.id}`, icone: 'voir', principale: true }, route(lat, lng)] };
+            break;
+          case 'prospects':
+            popup = {
+              titre: nom, sousTitre: 'Prospect', badges: p.statut ? [{ label: p.statut, ton: TON_STATUT[p.statut] ?? 'neutre' }] : [],
+              infos: p.telephone ? [{ icone: 'telephone', label: 'Téléphone', valeur: p.telephone }] : [],
+              actions: [{ label: 'Voir le prospect', href: `/dashboard/marketing/prospects/${p.id}/modifier`, icone: 'voir', principale: true }, ...tel(p.telephone), route(lat, lng)],
+            };
+            break;
+          case 'credits':
+            popup = { titre: p.reference ?? 'Crédit', sousTitre: 'Crédit en cours', infos: [{ icone: 'personne', label: 'Client', valeur: p.client }, ...(p.montant ? [{ icone: 'montant' as const, label: 'Montant', valeur: fcfa(p.montant) }] : [])], actions: [{ label: 'Voir le crédit', href: `/dashboard/credits/${p.id}`, icone: 'voir', principale: true }, route(lat, lng)] };
+            break;
+          case 'impayes':
+            popup = {
+              titre: p.reference ?? 'Impayé', sousTitre: 'Dossier de recouvrement',
+              badges: [...(p.jours ? [{ label: `${p.jours} j de retard`, ton: p.jours > 90 ? 'mauvais' as const : 'alerte' as const }] : []), ...(p.classe ? [{ label: String(p.classe).replace('_', ' '), ton: 'neutre' as const }] : [])],
+              infos: [{ icone: 'personne', label: 'Client', valeur: p.client }, ...(p.montant ? [{ icone: 'montant' as const, label: 'Impayé', valeur: fcfa(p.montant) }] : []), ...(p.statut ? [{ icone: 'document' as const, label: 'Statut', valeur: String(p.statut).replace('_', ' ') }] : [])],
+              actions: [{ label: 'Voir le dossier', href: `/dashboard/recouvrement/${p.id}`, icone: 'voir', principale: true }, route(lat, lng)],
+            };
+            break;
+          case 'agents':
+            popup = {
+              titre: nom, sousTitre: `Agent ${p.matricule ?? ''}`.trim(), badges: [{ label: p.en_activite ? 'En activité' : 'Hors activité', ton: p.en_activite ? 'bon' : 'neutre' }],
+              infos: [...(p.matricule ? [{ icone: 'document' as const, label: 'Matricule', valeur: p.matricule }] : []), ...(p.type ? [{ icone: 'activite' as const, label: 'Type', valeur: p.type }] : [])],
+              actions: [{ label: "Fiche de l'agent", href: `/dashboard/collecte/agents/${p.id}`, icone: 'voir', principale: true }, { label: 'Ses tournées', href: '/dashboard/terrain/tournees', icone: 'tournee' }],
+            };
+            break;
+        }
+        pts.push({ lat, lng, couleur: enActivite ? def.couleur : '#94a3b8', icone: ICONE_COUCHE[def.id], pulse: def.id === 'agents' && !!enActivite, titre: nom, popup });
       }
     }
     return { points: pts, polygones: pgs, tronque: tr };
@@ -72,7 +124,7 @@ export default function SigPage() {
 
   return (
     <div className="space-y-4">
-      <EnTete titre="Cartographie" sousTitre="Agences, clientèle, crédits, impayés, points de collecte et agents sur OpenStreetMap" />
+      <EnTete titre="Cartographie" sousTitre="Agences, clientèle, crédits, impayés, points de collecte et agents (cliquez un point pour le détail et ses liens)" />
       <Card><CardContent className="p-4 space-y-3">
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {COUCHES.map((c) => (

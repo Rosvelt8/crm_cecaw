@@ -48,10 +48,56 @@ export default function TourneeDetailPage() {
   if (erreur) return <div className="space-y-3"><Link href="/dashboard/terrain/tournees" className="text-sm text-muted-foreground inline-flex items-center"><ArrowLeft className="h-4 w-4 mr-1" />Retour</Link><p className="text-destructive">{erreur}</p></div>;
   if (!t) return <div className="flex items-center justify-center py-20 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" />Chargement…</div>;
 
-  const points: CartePoint[] = t.visites.filter((v: any) => v.latitude != null).map((v: any) => ({
-    lat: Number(v.latitude), lng: Number(v.longitude), couleur: STATUT_VISITE[v.statut].c, rayon: 8, titre: `${v.ordre}. ${v.libelle}`, detail: `${STATUT_VISITE[v.statut].l} · priorité ${v.priorite}`,
-  }));
-  if (t.departLatitude != null) points.unshift({ lat: Number(t.departLatitude), lng: Number(t.departLongitude), couleur: '#111827', rayon: 5, titre: 'Départ' });
+  const itineraire = (lat: number, lng: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  const pageCible = (v: any): { label: string; href: string } | null =>
+    v.clientId ? { label: 'Voir le client', href: `/dashboard/marketing/clients/${v.clientId}` }
+    : v.prospectId ? { label: 'Voir le prospect', href: `/dashboard/marketing/prospects/${v.prospectId}/modifier` }
+    : v.dossierId ? { label: 'Voir le dossier', href: `/dashboard/recouvrement/${v.dossierId}` } : null;
+  const NATURE: Record<string, string> = { client: 'Client', prospect: 'Prospect', dossier_recouvrement: 'Dossier de recouvrement', point_collecte: 'Point de collecte' };
+  const points: CartePoint[] = t.visites.filter((v: any) => v.latitude != null).map((v: any): CartePoint => {
+    const st = STATUT_VISITE[v.statut];
+    const cible = pageCible(v);
+    return {
+      lat: Number(v.latitude), lng: Number(v.longitude), couleur: st.c, numero: v.ordre, pulse: v.statut === 'en_cours', titre: `${v.ordre}. ${v.libelle}`,
+      popup: {
+        titre: `${v.ordre}. ${v.libelle}`,
+        sousTitre: NATURE[v.cibleType] ?? 'Visite',
+        badges: [
+          { label: st.l, ton: v.statut === 'realisee' ? 'bon' : v.statut === 'manquee' ? 'mauvais' : v.statut === 'en_cours' ? 'info' : 'neutre' },
+          ...(v.arriveeAt ? [{ label: v.presenceValidee ? 'Présence validée' : 'Présence à confirmer', ton: v.presenceValidee ? 'bon' as const : 'alerte' as const }] : []),
+          ...(v.conflitDetecte ? [{ label: 'Conflit de synchronisation', ton: 'mauvais' as const }] : []),
+        ],
+        infos: [
+          ...(v.adresse ? [{ icone: 'adresse' as const, label: 'Adresse', valeur: v.adresse }] : []),
+          { icone: 'priorite' as const, label: 'Priorité', valeur: `${v.priorite}/100${v.motifPriorite ? ` · ${v.motifPriorite}` : ''}` },
+          ...(v.heurePrevue ? [{ icone: 'heure' as const, label: 'Heure prévue', valeur: formatDateTime(v.heurePrevue) }] : []),
+          ...(v.distanceDepuisPrecedenteKm != null ? [{ icone: 'distance' as const, label: 'Depuis la précédente', valeur: `${v.distanceDepuisPrecedenteKm} km` }] : []),
+          ...(v.arriveeAt ? [{ icone: 'heure' as const, label: 'Arrivée', valeur: formatDateTime(v.arriveeAt) }] : []),
+          ...(v.distanceCibleM != null ? [{ icone: 'distance' as const, label: 'Écart à la cible', valeur: `${v.distanceCibleM} m` }] : []),
+          ...(v.photos?.length ? [{ icone: 'photo' as const, label: 'Photos de preuve', valeur: String(v.photos.length) }] : []),
+          ...(v.signatureNom ? [{ icone: 'signature' as const, label: 'Signée par', valeur: v.signatureNom }] : []),
+        ],
+        texte: v.compteRendu ?? undefined,
+        actions: [
+          ...(cible ? [{ ...cible, icone: 'voir' as const, principale: true }] : []),
+          { label: 'Itinéraire', href: itineraire(Number(v.latitude), Number(v.longitude)), externe: true, icone: 'itineraire' as const },
+        ],
+      },
+    };
+  });
+  if (t.departLatitude != null) points.unshift({
+    lat: Number(t.departLatitude), lng: Number(t.departLongitude), couleur: '#111827', icone: 'depart', titre: 'Départ',
+    popup: {
+      titre: 'Point de départ', sousTitre: `${t.agent.utilisateur.prenom} ${t.agent.utilisateur.nom} · ${t.reference}`,
+      badges: [{ label: t.statut.replace('_', ' '), ton: t.statut === 'terminee' ? 'bon' : t.statut === 'en_cours' ? 'info' : 'neutre' }],
+      infos: [
+        { icone: 'personne', label: 'Agent', valeur: `${t.agent.utilisateur.prenom} ${t.agent.utilisateur.nom}` },
+        ...(t.agent.matricule ? [{ icone: 'document' as const, label: 'Matricule', valeur: t.agent.matricule }] : []),
+        ...(t.zone ? [{ icone: 'zone' as const, label: 'Zone', valeur: t.zone.nom }] : []),
+      ],
+      actions: [{ label: "Fiche de l'agent", href: `/dashboard/collecte/agents/${t.agentId ?? t.agent.id}`, icone: 'voir', principale: true }],
+    },
+  });
   const lignes: CarteLigne[] = [];
   if (cmp?.prevu?.points?.length) lignes.push({ points: [...(cmp.prevu.depart ? [[cmp.prevu.depart.lat, cmp.prevu.depart.lng]] : []), ...cmp.prevu.points.map((p: any) => [p.lat, p.lng])] as [number, number][], couleur: '#6366f1', pointille: true, titre: 'Circuit prévu' });
   if (cmp?.realise?.points?.length > 1) lignes.push({ points: cmp.realise.points.map((p: any) => [p.lat, p.lng]), couleur: '#f59e0b', titre: 'Trajet réalisé' });
@@ -91,7 +137,7 @@ export default function TourneeDetailPage() {
       )}
 
       <Card><CardContent className="p-2"><Carte points={points} lignes={lignes} hauteur={420} /></CardContent></Card>
-      <p className="text-xs text-muted-foreground">Ligne pointillée : circuit prévu · ligne pleine : trajet GPS réalisé · pastilles : visites colorées selon leur statut.</p>
+      <p className="text-xs text-muted-foreground">Épingles numérotées : visites, colorées selon leur statut (cliquez pour le détail et les liens) · ligne pointillée : circuit prévu · ligne pleine : trajet GPS réalisé.</p>
 
       {['planifiee', 'en_cours'].includes(t.statut) && can('tournees:CREATE', 'tournees:UPDATE') && (
         <div className="flex gap-2">

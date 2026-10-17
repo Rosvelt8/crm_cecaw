@@ -54,8 +54,8 @@ export default function TerritoirePage() {
     } catch (e) { toast.error(msg(e, 'Découpage impossible')); } finally { setOccupe(false); }
   };
 
-  const polys: CartePolygone[] = (apercu ?? []).filter((z: any) => z.geometrie).map((z: any) => ({ anneau: z.geometrie.coordinates[0].map(([lng, lat]: number[]) => [lat, lng]), couleur: '#6366f1', titre: `${z.nom} : ${z.nb_points} point(s)` }));
-  const centres: CartePoint[] = (apercu ?? []).map((z: any) => ({ lat: z.centre.lat, lng: z.centre.lng, couleur: '#6366f1', rayon: 7, titre: z.nom }));
+  const polys: CartePolygone[] = (apercu ?? []).filter((z: any) => z.geometrie).map((z: any) => ({ anneau: z.geometrie.coordinates[0].map(([lng, lat]: number[]) => [lat, lng]), couleur: '#6366f1', titre: `${z.nom} : ${z.nb_points} point(s)`, popup: { titre: z.nom, sousTitre: 'Zone proposée', infos: [{ icone: 'zone', label: 'Points inclus', valeur: String(z.nb_points) }], actions: [{ label: 'Gérer les zones', href: '/dashboard/parametres/zones', icone: 'voir', principale: true }] } }));
+  const centres: CartePoint[] = (apercu ?? []).map((z: any) => ({ lat: z.centre.lat, lng: z.centre.lng, couleur: '#6366f1', icone: 'agence', titre: z.nom, popup: { titre: z.nom, sousTitre: 'Centre de la zone proposée', infos: [{ icone: 'zone', label: 'Points inclus', valeur: String(z.nb_points) }] } }));
   const nb = (s: string) => zones.filter((z) => z.statut === s).length;
 
   return (

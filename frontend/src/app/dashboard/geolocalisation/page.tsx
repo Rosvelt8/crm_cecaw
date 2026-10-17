@@ -20,7 +20,7 @@ import {
 import { toast } from 'sonner';
 import type { TrajetAgent } from '@/components/collecte/terrain-map-inner';
 
-const TerrainMap = dynamic(() => import('@/components/collecte/terrain-map-inner'), {
+const TerrainMap = dynamic(() => import('@/components/collecte/terrain-map'), {
   ssr: false,
   loading: () => (
     <div className="h-full w-full flex items-center justify-center bg-muted rounded-xl">

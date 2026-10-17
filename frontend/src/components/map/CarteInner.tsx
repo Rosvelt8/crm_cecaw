@@ -5,9 +5,9 @@ import { CircleMarker, MapContainer, Polygon, Polyline, Popup, TileLayer, useMap
 import type { LatLngBoundsExpression, LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-export interface CartePoint { lat: number; lng: number; couleur: string; rayon?: number; titre?: string; detail?: string; groupe?: string }
-export interface CarteLigne { points: [number, number][]; couleur: string; pointille?: boolean; epaisseur?: number; titre?: string }
-export interface CartePolygone { anneau: [number, number][]; couleur: string; titre?: string }
+import { texteDuPopup, type CarteLigne, type CartePoint, type CartePolygone } from './types';
+
+export type { CarteLigne, CartePoint, CartePolygone };
 
 /** Recadre la carte sur l'ensemble des éléments dès qu'ils changent. */
 function Cadrage({ points }: { points: LatLngTuple[] }) {
@@ -36,7 +36,7 @@ export default function CarteInner({ points = [], lignes = [], polygones = [], h
       <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       {polygones.map((p, i) => (
         <Polygon key={`pg${i}`} positions={p.anneau} pathOptions={{ color: p.couleur, weight: 2, fillOpacity: 0.12 }}>
-          {p.titre && <Popup>{p.titre}</Popup>}
+          {(p.titre || p.popup) && <Popup>{p.popup?.titre ?? p.titre}</Popup>}
         </Polygon>
       ))}
       {lignes.map((l, i) => (
@@ -46,7 +46,7 @@ export default function CarteInner({ points = [], lignes = [], polygones = [], h
       ))}
       {points.map((p, i) => (
         <CircleMarker key={`p${i}`} center={[p.lat, p.lng]} radius={p.rayon ?? 6} pathOptions={{ color: '#ffffff', weight: 1.5, fillColor: p.couleur, fillOpacity: 0.9 }}>
-          {(p.titre || p.detail) && <Popup><strong>{p.titre}</strong>{p.detail && <><br />{p.detail}</>}</Popup>}
+          {(p.titre || p.detail || p.popup) && (() => { const t = p.popup ? texteDuPopup(p.popup) : { titre: p.titre, detail: p.detail }; return <Popup><strong>{t.titre}</strong>{t.detail && <><br />{t.detail}</>}</Popup>; })()}
         </CircleMarker>
       ))}
       <Cadrage points={tous} />

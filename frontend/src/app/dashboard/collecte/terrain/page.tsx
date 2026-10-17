@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Search, Signal, WifiOff, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const TerrainMap = dynamic(() => import('@/components/collecte/terrain-map-inner'), {
+const TerrainMap = dynamic(() => import('@/components/collecte/terrain-map'), {
   ssr: false,
   loading: () => (
     <div className="h-full w-full flex items-center justify-center bg-slate-100">
