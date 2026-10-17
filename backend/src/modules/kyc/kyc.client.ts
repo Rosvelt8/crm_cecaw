@@ -133,4 +133,48 @@ router.post('/clients/:id/photos-activite', can('kyc:CREATE', 'kyc:UPDATE'), upl
   return success(res, pj);
 }));
 
+/**
+ * Justificatifs financiers (relevés, factures, bulletins, registre de commerce…) : preuves des revenus et charges
+ * déclarés. Rattachés au client, et à la demande de crédit quand ils sont déposés depuis son dossier.
+ */
+const FORMATS_JUSTIFICATIF = /^(image\/(jpeg|png|webp)|application\/pdf)$/;
+const CATEGORIE_JUSTIFICATIF = 'justificatif_financier';
+
+router.get('/clients/:id/justificatifs-financiers', can('kyc:VIEW', 'credit:VIEW'), wrap(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  await clientAccessible(req, id);
+  return success(res, await prisma.pieceJointe.findMany({ where: { clientId: id, categorie: CATEGORIE_JUSTIFICATIF, archiveAt: null }, orderBy: { createdAt: 'desc' } }));
+}));
+
+router.post('/clients/:id/justificatifs-financiers', can('kyc:CREATE', 'kyc:UPDATE', 'credit:UPDATE'), upload.single('fichier'), wrap(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const c = await clientAccessible(req, id);
+  const f = req.file;
+  if (!f) throw new ErreurMetier('Fichier requis', 400);
+  if (!FORMATS_JUSTIFICATIF.test(f.mimetype)) throw new ErreurMetier('Formats acceptés : PDF, JPEG, PNG ou WebP.', 422);
+  const b = z.object({ intitule: z.string().trim().max(200).optional(), demande_id: z.coerce.number().int().positive().optional() }).parse(req.body);
+  if (b.demande_id) {
+    const d = await prisma.demandeCredit.findUnique({ where: { id: b.demande_id }, select: { clientId: true } });
+    if (!d || d.clientId !== id) throw new ErreurMetier('Cette demande de crédit n\'appartient pas à ce client.', 422);
+  }
+  const pj = await prisma.pieceJointe.create({
+    data: {
+      intitule: b.intitule || f.originalname, nomFichier: f.originalname, typeMime: f.mimetype, taille: f.size, url: `/uploads/${f.filename}`,
+      categorie: CATEGORIE_JUSTIFICATIF, clientId: id, demandeCreditId: b.demande_id ?? null,
+    },
+  });
+  await createLog({ utilisateurId: req.user!.sub, utilisateurLabel: req.user!.email, agenceId: req.user!.agenceId ?? undefined, module: 'kyc', action: 'CREATE_JUSTIFICATIF_FINANCIER', entiteType: 'client', entiteId: id, description: `Justificatif financier « ${pj.intitule} » ajouté pour ${c.prenom ?? ''} ${c.nom}` });
+  return success(res, pj);
+}));
+
+/** Retrait : le fichier reste archivé (traçabilité), il n'apparaît plus dans la liste. */
+router.delete('/clients/:id/justificatifs-financiers/:pid', can('kyc:UPDATE', 'credit:UPDATE'), wrap(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  await clientAccessible(req, id);
+  const r = await prisma.pieceJointe.updateMany({ where: { id: parseInt(req.params.pid, 10), clientId: id, categorie: CATEGORIE_JUSTIFICATIF, archiveAt: null }, data: { archiveAt: new Date() } });
+  if (r.count === 0) throw new ErreurMetier('Justificatif introuvable.', 404);
+  await createLog({ utilisateurId: req.user!.sub, utilisateurLabel: req.user!.email, agenceId: req.user!.agenceId ?? undefined, module: 'kyc', action: 'DELETE_JUSTIFICATIF_FINANCIER', entiteType: 'client', entiteId: id, description: `Justificatif financier #${req.params.pid} retiré` });
+  return success(res, { archive: true });
+}));
+
 export default router;

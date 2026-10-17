@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import GrilleAnalyse from '@/components/credit/GrilleAnalyse';
+import ClientFinances from '@/components/credit/ClientFinances';
 import { creditService } from '@/services/creditService';
 import { adminService } from '@/services/adminService';
 import { msg as msgApi, telecharger, cheminFichier } from '@/lib/apiHelpers';
@@ -21,7 +22,7 @@ import { useCan } from '@/hooks/useCan';
 import { cn, formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { STATUT_LABELS, STATUT_VARIANT, type DemandeCreditDetail, type ModeReglement, type TypeGarantie } from '@/types/credit';
 
-type Onglet = 'synthese' | 'garanties' | 'grille' | 'echeancier' | 'archives';
+type Onglet = 'synthese' | 'finances' | 'garanties' | 'grille' | 'echeancier' | 'archives';
 
 const message = (e: unknown, defaut: string) => (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? defaut;
 const ETAPES: Record<string, string> = {
@@ -65,6 +66,7 @@ export default function DemandeDetailPage() {
 
   const onglets: { id: Onglet; label: string }[] = [
     { id: 'synthese', label: 'Synthèse' },
+    { id: 'finances', label: 'Revenus et charges' },
     { id: 'garanties', label: `Garanties et visites (${d.garanties.length + d.garants.length + d.visites.length})` },
     ...(can('analyse:VIEW') ? [{ id: 'grille' as Onglet, label: "Grille d'analyse" }] : []),
     { id: 'echeancier', label: 'Échéancier' },
@@ -107,6 +109,7 @@ export default function DemandeDetailPage() {
       </div>
 
       {onglet === 'synthese' && <Synthese d={d} nomClient={nomClient} occupe={occupe} agir={agir} can={can} />}
+      {onglet === 'finances' && <ClientFinances clientId={client.id} demandeId={d.id} />}
       {onglet === 'garanties' && <GarantiesVisites d={d} recharger={charger} can={can} />}
       {onglet === 'grille' && (
         <GrilleAnalyse

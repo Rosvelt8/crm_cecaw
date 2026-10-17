@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import ClientFinances from '@/components/credit/ClientFinances';
 import { clientService } from '@/services/clientService';
 import { produitService } from '@/services/produitService';
 import { creditService } from '@/services/creditService';
@@ -99,7 +100,7 @@ export default function NouvelleDemandePage() {
   };
 
   return (
-    <div className="space-y-4 max-w-5xl">
+    <div className="space-y-4 max-w-6xl">
       <Link href="/dashboard/credits" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4 mr-1" />Demandes de crédit</Link>
       <h1 className="text-2xl font-bold">Nouvelle demande de crédit</h1>
 
@@ -201,6 +202,15 @@ export default function NouvelleDemandePage() {
           </CardContent>
         </Card>
       </div>
+
+      {clientId ? (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">Revenus, charges et justificatifs de <strong>{clientChoisi ? `${clientChoisi.prenom ?? ''} ${clientChoisi.nom}`.trim() : `client #${clientId}`}</strong> : ce sont les preuves financières de la demande. Les modifications s'enregistrent avec le bouton « Enregistrer » de cette section, indépendamment de la demande.</p>
+          <ClientFinances key={clientId} clientId={clientId} compact />
+        </div>
+      ) : (
+        <Card><CardContent className="py-6 text-sm text-muted-foreground">Choisissez un client pour consulter et compléter ses revenus, ses charges et ses justificatifs financiers.</CardContent></Card>
+      )}
     </div>
   );
 }

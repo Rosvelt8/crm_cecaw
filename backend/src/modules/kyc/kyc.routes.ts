@@ -11,6 +11,8 @@ router.use(authenticate);
 router.get('/dossiers', can('kyc:VIEW'), ctrl.lister);
 router.post('/dossiers', can('kyc:CREATE'), ctrl.creer);
 router.get('/dossiers/:id', can('kyc:VIEW'), ctrl.obtenir);
+router.get('/dossiers/:id/concordance', can('kyc:VIEW'), ctrl.concordance);
+router.post('/dossiers/:id/consultations', can('kyc:VIEW'), ctrl.consulter);
 router.put('/dossiers/:id/controles/:cid', can('kyc:EXECUTE'), ctrl.evaluerControle);
 router.post('/dossiers/:id/pieces-identite', can('kyc:CREATE', 'kyc:UPDATE'), upload.single('fichier'), ctrl.ajouterPieceIdentite);
 router.post('/dossiers/:id/documents', can('kyc:CREATE', 'kyc:UPDATE'), upload.single('fichier'), ctrl.joindreDocument);

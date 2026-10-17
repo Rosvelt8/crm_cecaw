@@ -8,6 +8,7 @@ import { archiverSansBloquer } from '../../lib/archivage';
 import { debloquerDemandesEnAttenteKyc } from '../credit/credit.service';
 import { emettre } from '../../lib/notifier';
 import { alerter, rechercherSurveillance } from '../../lib/conformite';
+import { calculerConcordance, piecesAConsulter } from './kyc.concordance';
 
 /** Contrôles standard créés avec chaque dossier (KYC 16). */
 export const CONTROLES_STANDARD = [
@@ -71,7 +72,7 @@ export async function lister(actor: JwtPayload, query: Record<string, unknown>) 
 
 export async function obtenir(actor: JwtPayload, id: number) {
   await dossierVisible(actor, id);
-  const [dossier, actes] = await Promise.all([
+  const [dossier, actes, consultations] = await Promise.all([
     prisma.dossierKyc.findUniqueOrThrow({
       where: { id },
       include: {
@@ -86,8 +87,17 @@ export async function obtenir(actor: JwtPayload, id: number) {
       orderBy: { createdAt: 'asc' },
       include: { acteur: { select: { id: true, prenom: true, nom: true } } },
     }),
+    prisma.acteWorkflow.findMany({
+      where: { entiteType: 'kyc_consultation', entiteId: id },
+      orderBy: { createdAt: 'asc' },
+      include: { acteur: { select: { id: true, prenom: true, nom: true } } },
+    }),
   ]);
-  return { ...dossier, actes };
+  return {
+    ...dossier, actes,
+    // Qui a ouvert quelle pièce, et quand : preuve que le contrôle s'est fait sur le document lui-même.
+    consultations: consultations.map((c) => ({ pieceJointeId: Number(c.commentaire), acteur: c.acteur, at: c.createdAt })),
+  };
 }
 
 export async function creer(actor: JwtPayload, c: { client_id?: number; prospect_id?: number }) {
@@ -122,15 +132,57 @@ export async function creer(actor: JwtPayload, c: { client_id?: number; prospect
   return dossier;
 }
 
-export async function evaluerControle(actor: JwtPayload, id: number, controleId: number, c: { resultat: ResultatControle; commentaire?: string }) {
+export async function concordance(actor: JwtPayload, id: number) {
+  await dossierVisible(actor, id);
+  return calculerConcordance(id);
+}
+
+/** Enregistre que le contrôleur a ouvert une pièce du dossier. */
+export async function enregistrerConsultation(actor: JwtPayload, id: number, pieceJointeId: number) {
+  await dossierVisible(actor, id);
+  const pj = await prisma.pieceJointe.findFirst({ where: { id: pieceJointeId, dossierKycId: id }, select: { id: true, intitule: true } });
+  if (!pj) throw new ErreurMetier('Cette pièce ne fait pas partie du dossier.', 404);
+  await consignerActe('kyc_consultation', id, 'consultation_piece', actor.sub, String(pj.id));
+  return { pieceJointeId: pj.id };
+}
+
+/**
+ * Une décision de contrôle doit être motivée et appuyée sur ce qui a été réellement examiné :
+ * observation écrite obligatoire ; « conforme » exige d'avoir ouvert les copies des pièces d'identité
+ * (contrôle d'identité) et de reconnaître explicitement les écarts ou manques relevés par la concordance
+ * avec la fiche.
+ */
+export async function evaluerControle(
+  actor: JwtPayload, id: number, controleId: number,
+  c: { resultat: ResultatControle; commentaire?: string; accepte_ecarts?: boolean },
+) {
   const d = await dossierVisible(actor, id);
   if (d.statut !== 'en_controle') throw new ErreurMetier('Les contrôles ne sont évaluables que sur un dossier en cours de contrôle.', 409);
-  if (c.resultat === 'non_conforme' && !c.commentaire?.trim()) throw new ErreurMetier('Un commentaire est obligatoire pour une non-conformité.', 422);
-  const r = await prisma.controleKyc.updateMany({
-    where: { id: controleId, dossierId: id },
-    data: { resultat: c.resultat, commentaire: c.commentaire ?? null, controleParId: actor.sub },
-  });
-  if (r.count === 0) throw new ErreurMetier('Contrôle introuvable', 404);
+  const observation = c.commentaire?.trim() ?? '';
+  if (observation.length < 10) throw new ErreurMetier("Une observation d'au moins 10 caractères est obligatoire : indiquez ce que vous avez vérifié et comment.", 422);
+  const controle = await prisma.controleKyc.findFirst({ where: { id: controleId, dossierId: id } });
+  if (!controle) throw new ErreurMetier('Contrôle introuvable', 404);
+
+  let commentaire = observation;
+  if (c.resultat === 'conforme') {
+    const conc = await calculerConcordance(id);
+    const liees = conc.verifications.filter((x) => x.controles.includes(controle.code));
+    const ecarts = liees.filter((x) => x.statut === 'ecart' || x.statut === 'manquant');
+    if (ecarts.length > 0 && !c.accepte_ecarts) {
+      throw new ErreurMetier(`Des points ne concordent pas avec la fiche ou manquent : ${ecarts.map((x) => x.libelle).join(' ; ')}. Corrigez-les, ou confirmez que vous acceptez ces écarts en les justifiant.`, 422);
+    }
+    if (ecarts.length > 0) commentaire = `[Écarts acceptés : ${ecarts.map((x) => x.libelle).join(' ; ')}] ${observation}`;
+
+    if (controle.code === 'identite_conforme') {
+      const { identite } = await piecesAConsulter(id);
+      if (identite.length > 0) {
+        const vues = new Set((await prisma.acteWorkflow.findMany({ where: { entiteType: 'kyc_consultation', entiteId: id, acteurId: actor.sub }, select: { commentaire: true } })).map((x) => Number(x.commentaire)));
+        const manquantes = identite.filter((p) => !vues.has(p));
+        if (manquantes.length > 0) throw new ErreurMetier(`Ouvrez et lisez la copie de chaque pièce d'identité avant de la déclarer conforme (${manquantes.length} non consultée(s)).`, 422);
+      }
+    }
+  }
+  await prisma.controleKyc.update({ where: { id: controleId }, data: { resultat: c.resultat, commentaire, controleParId: actor.sub } });
   return prisma.controleKyc.findUniqueOrThrow({ where: { id: controleId } });
 }
 

@@ -12,6 +12,7 @@ const creerSchema = z.object({
 const controleSchema = z.object({
   resultat: z.enum(['conforme', 'non_conforme', 'non_applicable']),
   commentaire: z.string().optional(),
+  accepte_ecarts: z.boolean().optional(),
 });
 const pieceSchema = z.object({
   type: z.enum(['cni', 'passeport', 'permis', 'carte_sejour', 'recepisse', 'autre']),
@@ -31,6 +32,9 @@ export const lister = wrap(async (req, res) => {
   return success(res, items, 200, meta);
 });
 export const obtenir = wrap(async (req, res) => success(res, await svc.obtenir(req.user!, id(req))));
+export const concordance = wrap(async (req, res) => success(res, await svc.concordance(req.user!, id(req))));
+export const consulter = wrap(async (req, res) =>
+  success(res, await svc.enregistrerConsultation(req.user!, id(req), z.object({ piece_jointe_id: z.coerce.number().int().positive() }).parse(req.body).piece_jointe_id)));
 export const creer = wrap(async (req, res) => created(res, await svc.creer(req.user!, creerSchema.parse(req.body))));
 export const evaluerControle = wrap(async (req, res) =>
   success(res, await svc.evaluerControle(req.user!, id(req), parseInt(req.params.cid, 10), controleSchema.parse(req.body))));
