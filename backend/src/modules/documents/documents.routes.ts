@@ -3,9 +3,10 @@ import prisma from '../../lib/prisma';
 import { authenticate } from '../../middleware/auth';
 import { requirePermission as can } from '../../middleware/permissions';
 import { ErreurMetier, rolesEffectifs } from '../../lib/rbac';
-import { DocumentPdf, montantPdf, datePdf } from '../../lib/pdf';
+import { DocumentPdf, montantPdf, datePdf, nombrePdf, montantArrondiPdf } from '../../lib/pdf';
 import { createLog } from '../../lib/logger';
-import { demandeVisible } from '../credit/credit.service';
+import { z } from 'zod';
+import { demandeVisible, simuler } from '../credit/credit.service';
 
 /**
  * Documents PDF : relevé de compte (COMPTES 6), contrat de crédit et échéancier (CRÉDIT 16 et 18).
@@ -58,6 +59,72 @@ router.get('/comptes/:id/releve', can('comptes:VIEW', 'comptes:EXPORT'), wrap(as
   );
   await createLog({ utilisateurId: req.user!.sub, utilisateurLabel: req.user!.email, agenceId: req.user!.agenceId ?? undefined, module: 'system', action: 'EXPORT_RELEVE', entiteType: 'compte', entiteId: id, description: `Relevé du compte ${compte.numero}` });
   return envoyer(res, doc, `releve-${compte.numero}`);
+}));
+
+/**
+ * Échéancier de simulation (avant toute demande) : à remettre ou envoyer au client, sans valeur contractuelle.
+ * Recalculé côté serveur avec le paramétrage en vigueur : le document ne peut pas être falsifié depuis l'écran.
+ */
+const simulationPdfSchema = z.object({
+  produit_id: z.coerce.number().int().positive(),
+  montant: z.coerce.number().positive(),
+  duree_mois: z.coerce.number().int().positive(),
+  periodicite: z.enum(['mensuel', 'bimensuel', 'trimestriel', 'semestriel']).default('mensuel'),
+  differe_mois: z.coerce.number().int().nonnegative().optional(),
+  client_id: z.coerce.number().int().positive().optional(),
+});
+const LIBELLE_PERIODICITE: Record<string, string> = { mensuel: 'Mensuelle', bimensuel: 'Bimestrielle', trimestriel: 'Trimestrielle', semestriel: 'Semestrielle' };
+const LIBELLE_MODE: Record<string, string> = { constant: 'Annuités constantes', degressif: 'Capital constant (dégressif)', in_fine: 'In fine' };
+
+router.post('/credits/simulation', can('credit:VIEW'), wrap(async (req, res) => {
+  const c = simulationPdfSchema.parse(req.body);
+  const sim = await simuler(c);
+  const [produit, client] = await Promise.all([
+    prisma.produit.findUnique({ where: { id: c.produit_id }, select: { nom: true } }),
+    c.client_id ? prisma.client.findUnique({ where: { id: c.client_id }, select: { nom: true, prenom: true } }) : null,
+  ]);
+  const avecTva = sim.taux_tva > 0 && sim.totalTva + sim.tvaFraisDossier > 0;
+  const maintenant = new Date();
+  const doc = new DocumentPdf('Simulation de crédit');
+  doc.entete({
+    document: 'Simulation de crédit',
+    reference: `Réf. SIM-${maintenant.toISOString().slice(0, 10).replace(/-/g, '')}-${String(maintenant.getUTCHours()).padStart(2, '0')}${String(maintenant.getUTCMinutes()).padStart(2, '0')}`,
+    date: `Établie le ${datePdf(maintenant)}`,
+  });
+  doc.indicateurs([
+    { libelle: 'Montant du crédit', valeur: montantArrondiPdf(c.montant), detail: `sur ${c.duree_mois} mois` },
+    { libelle: 'Première échéance', valeur: montantArrondiPdf(sim.premiereEcheance), detail: LIBELLE_PERIODICITE[c.periodicite].toLowerCase() },
+    { libelle: 'Total à rembourser', valeur: montantArrondiPdf(sim.totalARembourser), detail: avecTva ? 'hors frais, TVA incluse' : 'hors frais de dossier' },
+    { libelle: 'Coût total / TEG', valeur: montantArrondiPdf(sim.coutTotal), detail: `TEG approché ${sim.teg} %` },
+  ]);
+  doc.bloc('Client et produit', [
+    ['Client', client ? `${client.prenom ?? ''} ${client.nom}`.trim() : 'Non renseigné'],
+    ['Produit de crédit', produit?.nom ?? '-'],
+  ]);
+  doc.bloc('Conditions du crédit', [
+    ['Montant demandé', montantPdf(c.montant)],
+    ['Durée', `${c.duree_mois} mois${c.differe_mois ? ` dont ${c.differe_mois} de différé` : ''}`],
+    ['Périodicité', LIBELLE_PERIODICITE[c.periodicite]],
+    ["Taux d'intérêt annuel", `${sim.taux_annuel} %`],
+    ["Mode d'amortissement", LIBELLE_MODE[sim.mode_amortissement] ?? sim.mode_amortissement],
+    ['Frais de dossier', montantPdf(sim.frais_dossier)],
+    ['Total des intérêts', montantPdf(sim.totalInterets)],
+    ...(avecTva ? [[`TVA (${sim.taux_tva} %)`, `${montantPdf(sim.totalTva)} sur intérêts${sim.tvaFraisDossier > 0 ? ` + ${montantPdf(sim.tvaFraisDossier)} sur frais` : ''}`] as [string, string]] : []),
+  ]);
+  if (!sim.eligible) doc.encadre(`Demande non éligible en l'état : ${sim.motifs_ineligibilite.join(' ; ')}`, 'alerte');
+  const num = (n: number) => nombrePdf(n);
+  const somme = (cle: 'capital' | 'interet' | 'tva' | 'montantTotal') => num(sim.lignes.reduce((t, l) => t + l[cle], 0));
+  doc.sousTitre('Calendrier de remboursement (montants en FCFA)');
+  doc.tableau(
+    [{ titre: 'N°', largeur: 6 }, { titre: 'Échéance le', largeur: 14 }, { titre: 'Capital', largeur: 17, alignement: 'd' }, { titre: 'Intérêts', largeur: 15, alignement: 'd' },
+      ...(avecTva ? [{ titre: 'TVA', largeur: 12, alignement: 'd' as const }] : []),
+      { titre: 'À payer', largeur: 18, alignement: 'd' }, { titre: 'Capital restant dû', largeur: 19, alignement: 'd' }],
+    sim.lignes.map((l) => [String(l.numero), datePdf(l.dateEcheance), num(l.capital), num(l.interet), ...(avecTva ? [num(l.tva)] : []), num(l.montantTotal), num(l.capitalRestantDu)]),
+    ['', 'Total', somme('capital'), somme('interet'), ...(avecTva ? [somme('tva')] : []), somme('montantTotal'), ''],
+  );
+  doc.encadre("Simulation donnée à titre indicatif, sans engagement de CECAW FINANCE S.A. Les conditions définitives (taux, frais, TVA, assurance éventuelle, garanties) sont celles du contrat signé après étude et accord du dossier. Les dates d'échéance partent du jour d'édition ; elles seront recalculées à partir de la date de décaissement.");
+  await createLog({ utilisateurId: req.user!.sub, utilisateurLabel: req.user!.email, agenceId: req.user!.agenceId ?? undefined, module: 'credit', action: 'EXPORT_SIMULATION', entiteType: 'produit', entiteId: c.produit_id, description: `Simulation de ${c.montant} sur ${c.duree_mois} mois exportée` });
+  return envoyer(res, doc, `simulation-credit-${new Date().toISOString().slice(0, 10)}`);
 }));
 
 router.get('/credits/:id/echeancier', can('credit:VIEW'), wrap(async (req, res) => {

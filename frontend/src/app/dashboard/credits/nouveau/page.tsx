@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Download, Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import ClientFinances from '@/components/credit/ClientFinances';
 import { clientService } from '@/services/clientService';
 import { produitService } from '@/services/produitService';
 import { creditService } from '@/services/creditService';
+import apiClient from '@/lib/axios';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Periodicite, Simulation, TypeCredit } from '@/types/credit';
 
@@ -76,6 +77,28 @@ export default function NouvelleDemandePage() {
     }, 400);
     return () => { annule = true; clearTimeout(t); };
   }, [produitId, montant, duree, periodicite, differe, clientId]);
+
+  const [pdfOccupe, setPdfOccupe] = useState(false);
+  /** Génère le PDF de la simulation courante (recalculée côté serveur) puis le télécharge ou l'imprime. */
+  const exporterPdf = async (action: 'telecharger' | 'imprimer') => {
+    if (!produitId) return;
+    setPdfOccupe(true);
+    try {
+      const r = await apiClient.post('/documents/credits/simulation', {
+        produit_id: produitId, montant, duree_mois: duree, periodicite, differe_mois: differe || undefined, client_id: clientId ?? undefined,
+      }, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data as BlobPart], { type: 'application/pdf' }));
+      if (action === 'telecharger') {
+        const a = document.createElement('a'); a.href = url; a.download = `simulation-credit-${new Date().toISOString().slice(0, 10)}.pdf`; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      } else {
+        const f = document.createElement('iframe');
+        f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; f.src = url;
+        f.onload = () => { f.contentWindow?.focus(); f.contentWindow?.print(); setTimeout(() => { f.remove(); URL.revokeObjectURL(url); }, 60_000); };
+        document.body.appendChild(f);
+      }
+    } catch (e) { toast.error(message(e, 'Impossible de générer le PDF')); } finally { setPdfOccupe(false); }
+  };
 
   const pret = clientId && produitId && montant > 0 && duree > 0 && objet.trim().length >= 3;
   const clientChoisi = useMemo(() => clients.find((c) => c.id === clientId), [clients, clientId]);
@@ -165,7 +188,15 @@ export default function NouvelleDemandePage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Simulation</CardTitle></CardHeader>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Simulation</CardTitle>
+            {simulation && (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" disabled={pdfOccupe} onClick={() => exporterPdf('telecharger')}>{pdfOccupe ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}Télécharger en PDF</Button>
+                <Button size="sm" variant="outline" disabled={pdfOccupe} onClick={() => exporterPdf('imprimer')}><Printer className="h-4 w-4 mr-1.5" />Imprimer</Button>
+              </div>
+            )}
+          </CardHeader>
           <CardContent className="space-y-3">
             {erreurSimulation && <p className="flex items-start gap-2 text-sm text-warning-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />{erreurSimulation}</p>}
             {!simulation && !erreurSimulation && <p className="text-sm text-muted-foreground">Choisissez un produit et renseignez montant et durée pour voir l'échéancier.</p>}
