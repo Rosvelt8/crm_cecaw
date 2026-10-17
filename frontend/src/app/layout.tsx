@@ -31,9 +31,6 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
   keywords: ['microfinance', 'CRM', 'Cameroun', 'Douala', 'Cecaw Finance', 'gestion de crédit', 'épargne'],
   authors: [{ name: 'Cecaw Finance IT Team' }],
-  icons: {
-    icon: '/favicon.ico',
-  },
 };
 
 export const viewport: Viewport = {
