@@ -71,9 +71,14 @@ router.get('/credits/:id/echeancier', can('credit:VIEW'), wrap(async (req, res) 
   doc.champ('Montant', montantPdf(d.montantAccorde ?? d.montantDemande));
   doc.champ('Taux annuel', `${d.tauxApplique ?? '-'} %`);
   doc.sousTitre('Calendrier de remboursement');
+  const avecTva = d.echeances.some((e: any) => Number(e.tva) > 0);
+  const num = (n: unknown) => montantPdf(n as number).replace(' FCFA', '');
+  if (avecTva) doc.ligne('Les échéances comprennent la TVA sur les intérêts (colonne « TVA »).', 9);
   doc.tableau(
-    [{ titre: 'N°', largeur: 6 }, { titre: 'Date', largeur: 14 }, { titre: 'Capital', largeur: 18, alignement: 'd' }, { titre: 'Intérêts', largeur: 16, alignement: 'd' }, { titre: 'Échéance', largeur: 18, alignement: 'd' }, { titre: 'Restant dû', largeur: 20, alignement: 'd' }, { titre: 'Statut', largeur: 14 }],
-    d.echeances.map((e: any) => [String(e.numero), datePdf(e.dateEcheance), montantPdf(e.capital).replace(' FCFA', ''), montantPdf(e.interet).replace(' FCFA', ''), montantPdf(e.montantTotal).replace(' FCFA', ''), montantPdf(e.capitalRestantDu).replace(' FCFA', ''), e.statut.replace(/_/g, ' ')]),
+    [{ titre: 'N°', largeur: 6 }, { titre: 'Date', largeur: 13 }, { titre: 'Capital', largeur: 16, alignement: 'd' }, { titre: 'Intérêts', largeur: 14, alignement: 'd' },
+      ...(avecTva ? [{ titre: 'TVA', largeur: 12, alignement: 'd' as const }] : []),
+      { titre: 'Échéance', largeur: 17, alignement: 'd' }, { titre: 'Restant dû', largeur: 18, alignement: 'd' }, { titre: 'Statut', largeur: 13 }],
+    d.echeances.map((e: any) => [String(e.numero), datePdf(e.dateEcheance), num(e.capital), num(e.interet), ...(avecTva ? [num(e.tva)] : []), num(e.montantTotal), num(e.capitalRestantDu), e.statut.replace(/_/g, ' ')]),
   );
   await createLog({ utilisateurId: req.user!.sub, utilisateurLabel: req.user!.email, agenceId: req.user!.agenceId ?? undefined, module: 'credit', action: 'EXPORT_ECHEANCIER', entiteType: 'demande_credit', entiteId: id, description: `Échéancier de ${d.reference}` });
   return envoyer(res, doc, `echeancier-${d.reference}`);
@@ -96,6 +101,10 @@ router.get('/credits/:id/contrat', can('credit:VIEW'), wrap(async (req, res) => 
   doc.champ('Durée', `${c.dureeMois} mois`);
   doc.champ('Taux annuel', `${c.taux} %`);
   doc.champ('Frais de dossier', montantPdf(c.fraisDossier));
+  if (Number(c.tauxTva) > 0) {
+    doc.champ('TVA', `${c.tauxTva} %${c.tvaSurInterets ? ' sur les intérêts' : ''}${Number(c.tvaFraisDossier) > 0 ? ' et sur les frais de dossier' : ''}`);
+    if (Number(c.tvaFraisDossier) > 0) doc.champ('TVA sur frais de dossier', montantPdf(c.tvaFraisDossier));
+  }
   doc.champ('Objet', d.objet);
   if (d.garanties.length) {
     doc.sousTitre('Garanties');

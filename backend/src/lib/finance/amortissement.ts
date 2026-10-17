@@ -27,6 +27,12 @@ export interface ParametresEcheancier {
   differeMois?: number;
   /** Frais de dossier, en montant, perçus au décaissement (hors échéancier). */
   fraisDossier?: number;
+  /** TVA en pourcentage (ex. 19,25) ; absent ou 0 = aucune TVA. */
+  tauxTva?: number;
+  /** La TVA porte sur les intérêts de chaque échéance (défaut : oui). */
+  tvaSurInterets?: boolean;
+  /** La TVA porte sur les frais de dossier, prélevée au décaissement (défaut : oui). */
+  tvaSurFrais?: boolean;
   dateDebut: Date;
 }
 
@@ -35,6 +41,9 @@ export interface LigneEcheance {
   dateEcheance: Date;
   capital: number;
   interet: number;
+  /** TVA sur les intérêts de l'échéance (comprise dans `montantTotal`). */
+  tva: number;
+  /** Capital + intérêts + TVA : ce que le client règle. */
   montantTotal: number;
   capitalRestantDu: number;
 }
@@ -42,9 +51,13 @@ export interface LigneEcheance {
 export interface Echeancier {
   lignes: LigneEcheance[];
   totalInterets: number;
+  /** TVA totale des échéances. */
+  totalTva: number;
+  /** TVA sur les frais de dossier, prélevée au décaissement. */
+  tvaFraisDossier: number;
   totalARembourser: number;
   premiereEcheance: number;
-  /** Coût total du crédit : intérêts + frais de dossier. */
+  /** Coût total du crédit : intérêts + frais de dossier + TVA. */
   coutTotal: number;
   /** Taux effectif annuel approché, en pourcentage. */
   teg: number;
@@ -83,6 +96,8 @@ export function genererEcheancier(p: ParametresEcheancier): Echeancier {
   const nbDiffere = (p.differeMois ?? 0) / pas;
   const nbAmortissement = nbPeriodes - nbDiffere;
   const tauxPeriode = p.tauxAnnuel / 100 / (12 / pas);
+  const tauxTva = Math.max(0, p.tauxTva ?? 0) / 100;
+  const tvaInterets = tauxTva > 0 && (p.tvaSurInterets ?? true);
 
   const lignes: LigneEcheance[] = [];
   let restant = p.montant;
@@ -115,19 +130,23 @@ export function genererEcheancier(p: ParametresEcheancier): Echeancier {
     capital = Math.min(capital, restant);
     restant = arrondi(restant - capital);
 
+    const tva = tvaInterets ? arrondi(interet * tauxTva) : 0;
     lignes.push({
       numero: n,
       dateEcheance: ajouterMois(p.dateDebut, n * pas),
       capital: arrondi(capital),
       interet,
-      montantTotal: arrondi(capital + interet),
+      tva,
+      montantTotal: arrondi(capital + interet + tva),
       capitalRestantDu: restant,
     });
   }
 
   const totalInterets = arrondi(lignes.reduce((s, l) => s + l.interet, 0));
   const frais = p.fraisDossier ?? 0;
-  const coutTotal = arrondi(totalInterets + frais);
+  const totalTva = arrondi(lignes.reduce((s, l) => s + l.tva, 0));
+  const tvaFraisDossier = tauxTva > 0 && (p.tvaSurFrais ?? true) ? arrondi(frais * tauxTva) : 0;
+  const coutTotal = arrondi(totalInterets + frais + totalTva + tvaFraisDossier);
 
   // Approximation du TEG : coût total rapporté au capital moyen immobilisé, annualisé.
   const capitalMoyen = lignes.reduce((s, l, i) => s + (i === 0 ? p.montant : lignes[i - 1].capitalRestantDu), 0) / lignes.length;
@@ -136,7 +155,9 @@ export function genererEcheancier(p: ParametresEcheancier): Echeancier {
   return {
     lignes,
     totalInterets,
-    totalARembourser: arrondi(p.montant + totalInterets),
+    totalTva,
+    tvaFraisDossier,
+    totalARembourser: arrondi(p.montant + totalInterets + totalTva),
     premiereEcheance: lignes[0].montantTotal,
     coutTotal,
     teg,

@@ -360,9 +360,12 @@ function Echeancier({ d, occupe, agir, can }: { d: DemandeCreditDetail; occupe: 
   const totalDu = d.echeances.filter((e) => e.statut !== 'payee').reduce((s, e) => s + Number(e.montantTotal) + Number(e.penalite) - Number(e.montantPaye), 0);
   const enRetard = d.echeances.filter((e) => e.statut === 'en_retard');
   const encours = d.statut === 'decaissee';
+  const avecTva = d.echeances.some((e) => Number(e.tva) > 0);
+  const totalTva = d.echeances.reduce((s, e) => s + Number(e.tva), 0);
 
   return (
     <div className="space-y-4">
+      {avecTva && <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">Chaque échéance comprend la TVA sur les intérêts (total {formatCurrency(totalTva)} sur la durée).{d.contrat && Number(d.contrat.tvaFraisDossier ?? 0) > 0 ? ` TVA sur frais de dossier prélevée au décaissement : ${formatCurrency(Number(d.contrat.tvaFraisDossier))}.` : ''}</p>}
       <div className="grid sm:grid-cols-3 gap-3">
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Reste dû</p><p className="text-xl font-bold tabular-nums">{formatCurrency(totalDu)}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Échéances soldées</p><p className="text-xl font-bold">{d.echeances.filter((e) => e.statut === 'payee').length} / {d.echeances.length}</p></CardContent></Card>
@@ -371,12 +374,12 @@ function Echeancier({ d, occupe, agir, can }: { d: DemandeCreditDetail; occupe: 
 
       <Card><CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-muted text-xs uppercase text-muted-foreground"><tr><th className="px-3 py-2 text-left">N°</th><th className="px-3 py-2 text-left">Date</th><th className="px-3 py-2 text-right">Capital</th><th className="px-3 py-2 text-right">Intérêts</th><th className="px-3 py-2 text-right">Échéance</th><th className="px-3 py-2 text-right">Payé</th><th className="px-3 py-2 text-right">Restant dû</th><th className="px-3 py-2 text-left">Statut</th></tr></thead>
+          <thead className="bg-muted text-xs uppercase text-muted-foreground"><tr><th className="px-3 py-2 text-left">N°</th><th className="px-3 py-2 text-left">Date</th><th className="px-3 py-2 text-right">Capital</th><th className="px-3 py-2 text-right">Intérêts</th>{avecTva && <th className="px-3 py-2 text-right">TVA</th>}<th className="px-3 py-2 text-right">Échéance</th><th className="px-3 py-2 text-right">Payé</th><th className="px-3 py-2 text-right">Restant dû</th><th className="px-3 py-2 text-left">Statut</th></tr></thead>
           <tbody>
             {d.echeances.map((e) => (
               <tr key={e.id} className="border-t">
                 <td className="px-3 py-1.5">{e.numero}</td><td className="px-3 py-1.5">{formatDate(e.dateEcheance)}</td>
-                <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(Number(e.capital))}</td><td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(Number(e.interet))}</td>
+                <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(Number(e.capital))}</td><td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(Number(e.interet))}</td>{avecTva && <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(Number(e.tva))}</td>}
                 <td className="px-3 py-1.5 text-right tabular-nums font-medium">{formatCurrency(Number(e.montantTotal))}</td><td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(Number(e.montantPaye))}</td>
                 <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(Number(e.capitalRestantDu))}</td>
                 <td className="px-3 py-1.5"><Badge variant={STATUT_ECHEANCE[e.statut].v}>{STATUT_ECHEANCE[e.statut].l}</Badge></td>

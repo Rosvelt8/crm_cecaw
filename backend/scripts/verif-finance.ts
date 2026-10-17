@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { calculerGrille, calculerBilan } from '../src/lib/finance/grilleAnalyse';
 import { genererEcheancier, mensualiteEquivalente } from '../src/lib/finance/amortissement';
+import { ventiler } from '../src/lib/compta';
 
 // ── Grille : cas calculé à la main ────────────────────────────────────────────
 // CA haute 1 000 000 / basse 800 000, retenue basse => (A) = 800 000
@@ -70,3 +71,30 @@ assert.equal(t.lignes.length, 4);
 assert.throws(() => genererEcheancier({ montant: 1000, tauxAnnuel: 10, dureeMois: 10, periodicite: 'trimestriel', mode: 'constant', dateDebut: debut }));
 assert.ok(mensualiteEquivalente(c, 'mensuel') > 0);
 console.log('echeancier OK');
+
+// ── TVA ──────────────────────────────────────────────────────────────────────
+{
+  const sans = genererEcheancier({ montant: 1_000_000, tauxAnnuel: 18, dureeMois: 12, periodicite: 'mensuel', mode: 'constant', fraisDossier: 20_000, dateDebut: debut });
+  assert.equal(sans.totalTva, 0, 'sans taux : aucune TVA');
+  assert.equal(sans.lignes[0].montantTotal, c.lignes[0].montantTotal, 'sans taux, échéance inchangée');
+  const tva = genererEcheancier({ montant: 1_000_000, tauxAnnuel: 18, dureeMois: 12, periodicite: 'mensuel', mode: 'constant', fraisDossier: 20_000, tauxTva: 19.25, dateDebut: debut });
+  // 1re échéance : intérêts 15 000 × 19,25 % = 2 887,50 de TVA
+  assert.equal(tva.lignes[0].interet, 15_000);
+  assert.equal(tva.lignes[0].tva, 2_887.5, 'TVA de la 1re échéance');
+  assert.equal(Math.round((tva.lignes[0].montantTotal - tva.lignes[0].capital - tva.lignes[0].interet) * 100) / 100, 2_887.5, 'échéance = capital + intérêts + TVA');
+  assert.equal(Math.round(tva.totalTva * 100) / 100, Math.round(tva.lignes.reduce((s, l) => s + l.tva, 0) * 100) / 100, 'total TVA = somme des lignes');
+  assert.ok(Math.abs(tva.totalTva - tva.totalInterets * 0.1925) < 0.5 * tva.lignes.length, 'TVA ≈ 19,25 % des intérêts (arrondis par ligne)');
+  assert.equal(tva.tvaFraisDossier, 3_850, 'TVA sur frais de dossier : 20 000 × 19,25 %');
+  assert.equal(tva.lignes.at(-1)!.capitalRestantDu, 0, 'le capital reste soldé avec TVA');
+  assert.equal(Math.round(tva.lignes.reduce((s, l) => s + l.capital, 0)), 1_000_000, 'la TVA ne touche pas le capital');
+  assert.ok(tva.coutTotal > sans.coutTotal && tva.teg > sans.teg, 'le coût et le TEG intègrent la TVA');
+  const seulementFrais = genererEcheancier({ montant: 1_000_000, tauxAnnuel: 18, dureeMois: 12, periodicite: 'mensuel', mode: 'constant', fraisDossier: 20_000, tauxTva: 19.25, tvaSurInterets: false, dateDebut: debut });
+  assert.equal(seulementFrais.totalTva, 0, 'TVA sur intérêts désactivée');
+  assert.equal(seulementFrais.tvaFraisDossier, 3_850, 'TVA sur frais seuls');
+  const seulementInterets = genererEcheancier({ montant: 1_000_000, tauxAnnuel: 18, dureeMois: 12, periodicite: 'mensuel', mode: 'constant', fraisDossier: 20_000, tauxTva: 19.25, tvaSurFrais: false, dateDebut: debut });
+  assert.equal(seulementInterets.tvaFraisDossier, 0, 'TVA sur frais désactivée');
+  // Ventilation d'un règlement : pénalités, intérêts, TVA, puis capital
+  const v = ventiler({ capital: 70_000, interet: 15_000, frais: 0, penalite: 1_000, tva: 2_887.5 }, 0, 19_000);
+  assert.deepEqual([v.penalites, v.interets, v.tva, v.capital], [1_000, 15_000, 2_887.5, 112.5], 'ventilation avec TVA');
+  console.log('tva OK');
+}

@@ -32,7 +32,7 @@ export interface Garantie { id: number; type: TypeGarantie; description: string;
 export interface Garant { id: number; nom: string; prenom: string | null; telephone: string; lienParente: string | null; profession: string | null; revenuMensuel: string | null }
 
 export interface Echeance {
-  id: number; numero: number; dateEcheance: string; capital: string; interet: string; frais: string; penalite: string;
+  id: number; numero: number; dateEcheance: string; capital: string; interet: string; tva: string; frais: string; penalite: string;
   montantTotal: string; capitalRestantDu: string; montantPaye: string;
   statut: 'a_echoir' | 'payee' | 'partiellement_payee' | 'en_retard' | 'impayee';
 }
@@ -56,17 +56,17 @@ export interface DemandeCreditDetail extends Omit<DemandeCreditListe, 'client' |
   garants: Garant[];
   visites: { id: number; dateVisite: string; compteRendu: string; visitePar: PersonneRef; photos: { id: number; url: string; nomFichier: string }[] }[];
   decisions: { id: number; sens: string; instance: string; motif: string | null; conditions: string | null; createdAt: string; decidePar: PersonneRef; montantAccorde: string | null }[];
-  contrat: { id: number; numero: string; montant: string; taux: string; dureeMois: number; fraisDossier: string; signeParClient: boolean; dateSignature: string | null; dateDeblocage: string | null } | null;
+  contrat: { id: number; numero: string; montant: string; taux: string; dureeMois: number; fraisDossier: string; tauxTva?: string; tvaFraisDossier?: string; signeParClient: boolean; dateSignature: string | null; dateDeblocage: string | null } | null;
   echeances: Echeance[];
   avenants: { id: number; type: string; motif: string; ancienMontant: string; nouveauMontant: string; dateEffet: string }[];
   actes: ActeWorkflow[];
   instance_requise: 'agence' | 'comite' | 'direction';
 }
 
-export interface LigneSimulation { numero: number; dateEcheance: string; capital: number; interet: number; montantTotal: number; capitalRestantDu: number }
+export interface LigneSimulation { numero: number; dateEcheance: string; capital: number; interet: number; tva: number; montantTotal: number; capitalRestantDu: number }
 export interface Simulation {
-  taux_annuel: number; mode_amortissement: string; frais_dossier: number; eligible: boolean; motifs_ineligibilite: string[];
-  lignes: LigneSimulation[]; totalInterets: number; totalARembourser: number; premiereEcheance: number; coutTotal: number; teg: number;
+  taux_annuel: number; taux_tva: number; mode_amortissement: string; frais_dossier: number; eligible: boolean; motifs_ineligibilite: string[];
+  lignes: LigneSimulation[]; totalInterets: number; totalTva: number; tvaFraisDossier: number; totalARembourser: number; premiereEcheance: number; coutTotal: number; teg: number;
 }
 
 export interface PayloadDemande {

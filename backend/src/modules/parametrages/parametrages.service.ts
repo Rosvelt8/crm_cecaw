@@ -13,6 +13,9 @@ export interface CorpsParametrage {
   taux_remuneration_epargne?: number | null;
   frais_dossier?: number | null;
   frais_dossier_pct?: number | null;
+  taux_tva?: number | null;
+  tva_sur_interets?: boolean;
+  tva_sur_frais?: boolean;
   commission?: number | null;
   montant_min?: number | null;
   montant_max?: number | null;
@@ -48,6 +51,7 @@ export async function creer(actor: JwtPayload, c: CorpsParametrage) {
   if (Number.isNaN(dateEffet.getTime())) throw new ErreurMetier("Date d'effet invalide", 422);
   if (c.montant_min != null && c.montant_max != null && c.montant_min > c.montant_max) throw new ErreurMetier('Le montant minimum dépasse le maximum.', 422);
   if (c.duree_min_mois != null && c.duree_max_mois != null && c.duree_min_mois > c.duree_max_mois) throw new ErreurMetier('La durée minimum dépasse le maximum.', 422);
+  if (c.taux_tva != null && c.taux_tva > 100) throw new ErreurMetier('Le taux de TVA ne peut pas dépasser 100 %.', 422);
   if (produit.type === 'credit' && c.taux_interet_annuel == null) throw new ErreurMetier("Le taux d'intérêt est obligatoire pour un produit de crédit.", 422);
 
   const posterieure = await prisma.parametrageProduit.findFirst({ where: { produitId: c.produit_id, dateEffet: { gte: dateEffet } } });
@@ -64,6 +68,7 @@ export async function creer(actor: JwtPayload, c: CorpsParametrage) {
         tauxInteretAnnuel: c.taux_interet_annuel ?? null, tauxPenaliteRetard: c.taux_penalite_retard ?? null,
         tauxRemunerationEpargne: c.taux_remuneration_epargne ?? null, fraisDossier: c.frais_dossier ?? null,
         fraisDossierPct: c.frais_dossier_pct ?? null, commission: c.commission ?? null,
+        tauxTva: c.taux_tva ?? null, tvaSurInterets: c.tva_sur_interets ?? true, tvaSurFrais: c.tva_sur_frais ?? true,
         montantMin: c.montant_min ?? null, montantMax: c.montant_max ?? null,
         dureeMinMois: c.duree_min_mois ?? null, dureeMaxMois: c.duree_max_mois ?? null,
         modeAmortissement: c.mode_amortissement ?? null, ageMin: c.age_min ?? null, ageMax: c.age_max ?? null,

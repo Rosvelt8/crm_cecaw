@@ -12,6 +12,7 @@ const schema = z.object({
   date_effet: z.string().min(1),
   taux_interet_annuel: nb, taux_penalite_retard: nb, taux_remuneration_epargne: nb,
   frais_dossier: nb, frais_dossier_pct: nb, commission: nb,
+  taux_tva: nb, tva_sur_interets: z.boolean().optional(), tva_sur_frais: z.boolean().optional(),
   montant_min: nb, montant_max: nb, duree_min_mois: entier, duree_max_mois: entier,
   mode_amortissement: z.enum(['constant', 'degressif', 'in_fine']).nullish(),
   age_min: entier, age_max: entier, anciennete_activite_min_mois: entier, quotite_cessible_max_pct: nb,

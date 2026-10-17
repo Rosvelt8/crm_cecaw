@@ -22,6 +22,7 @@ const num = (v: string) => (v.trim() === '' ? null : Number(v));
 const FORM_VIDE = {
   date_effet: new Date().toISOString().slice(0, 10),
   taux_interet_annuel: '', taux_penalite_retard: '', taux_remuneration_epargne: '', frais_dossier: '', frais_dossier_pct: '', commission: '',
+  taux_tva: '', tva_sur_interets: true, tva_sur_frais: true,
   montant_min: '', montant_max: '', duree_min_mois: '', duree_max_mois: '', mode_amortissement: 'constant',
   age_min: '', age_max: '', anciennete_activite_min_mois: '', quotite_cessible_max_pct: '',
 };
@@ -43,10 +44,27 @@ export default function ParametrageFinancierPage() {
   }, []);
   useEffect(() => { void chargerProduits(); }, [chargerProduits]);
 
+  // La nouvelle version part de celle en vigueur : on ne ressaisit que ce qui change (ex. ajouter la TVA).
+  const preremplir = (liste: Parametrage[]) => {
+    const v = liste.find((x) => !x.dateFin);
+    if (!v) { setForm(FORM_VIDE); return; }
+    const t = (x: string | number | null) => (x === null || x === undefined ? '' : String(Number(x)));
+    setForm({
+      date_effet: FORM_VIDE.date_effet,
+      taux_interet_annuel: t(v.tauxInteretAnnuel), taux_penalite_retard: t(v.tauxPenaliteRetard), taux_remuneration_epargne: t(v.tauxRemunerationEpargne),
+      frais_dossier: t(v.fraisDossier), frais_dossier_pct: t(v.fraisDossierPct), commission: t(v.commission),
+      taux_tva: t(v.tauxTva), tva_sur_interets: v.tvaSurInterets ?? true, tva_sur_frais: v.tvaSurFrais ?? true,
+      montant_min: t(v.montantMin), montant_max: t(v.montantMax), duree_min_mois: t(v.dureeMinMois), duree_max_mois: t(v.dureeMaxMois),
+      mode_amortissement: v.modeAmortissement ?? 'constant',
+      age_min: t(v.ageMin), age_max: t(v.ageMax), anciennete_activite_min_mois: t(v.ancienneteActiviteMinMois), quotite_cessible_max_pct: t(v.quotiteCessibleMaxPct),
+    });
+  };
+
   const chargerVersions = useCallback(async (id: number) => {
-    try { setVersions(await adminService.parametrages(id)); } catch (e) { toast.error(message(e, 'Historique indisponible')); }
+    try { const r = await adminService.parametrages(id); setVersions(r); preremplir(r); } catch (e) { toast.error(message(e, 'Historique indisponible')); }
   }, []);
   useEffect(() => { if (choisi) void chargerVersions(choisi.id); }, [choisi, chargerVersions]);
+
 
   const definirType = async (type: 'epargne' | 'credit' | 'autre') => {
     if (!choisi) return;
@@ -63,6 +81,7 @@ export default function ParametrageFinancierPage() {
         taux_interet_annuel: num(form.taux_interet_annuel), taux_penalite_retard: num(form.taux_penalite_retard),
         taux_remuneration_epargne: num(form.taux_remuneration_epargne), frais_dossier: num(form.frais_dossier),
         frais_dossier_pct: num(form.frais_dossier_pct), commission: num(form.commission),
+        taux_tva: choisi.type === 'credit' ? num(form.taux_tva) : null, tva_sur_interets: form.tva_sur_interets, tva_sur_frais: form.tva_sur_frais,
         montant_min: num(form.montant_min), montant_max: num(form.montant_max),
         duree_min_mois: num(form.duree_min_mois), duree_max_mois: num(form.duree_max_mois),
         mode_amortissement: choisi.type === 'credit' ? form.mode_amortissement : null,
@@ -78,7 +97,7 @@ export default function ParametrageFinancierPage() {
   const champ = (label: string, cle: keyof typeof FORM_VIDE, type = 'number') => (
     <div className="space-y-1.5" key={cle}>
       <Label>{label}</Label>
-      <Input type={type} min={type === 'number' ? 0 : undefined} step="any" value={form[cle]} onChange={(e) => setForm({ ...form, [cle]: e.target.value })} />
+      <Input type={type} min={type === 'number' ? 0 : undefined} step="any" value={String(form[cle])} onChange={(e) => setForm({ ...form, [cle]: e.target.value })} />
     </div>
   );
 
@@ -127,6 +146,7 @@ export default function ParametrageFinancierPage() {
                         <span className="font-medium">Depuis le {formatDate(v.dateEffet)}{v.dateFin ? ` jusqu'au ${formatDate(v.dateFin)}` : ''}</span>
                         {v.tauxInteretAnnuel && <span>Taux {v.tauxInteretAnnuel} %</span>}
                         {v.tauxPenaliteRetard && <span>Pénalité {v.tauxPenaliteRetard} %</span>}
+                        {v.tauxTva && Number(v.tauxTva) > 0 && <span>TVA {Number(v.tauxTva)} %</span>}
                         {(v.montantMin || v.montantMax) && <span>{v.montantMin ?? 0} à {v.montantMax ?? '∞'}</span>}
                         {(v.dureeMinMois || v.dureeMaxMois) && <span>{v.dureeMinMois ?? 0} à {v.dureeMaxMois ?? '∞'} mois</span>}
                         {!v.dateFin && <Badge variant="success" className="w-fit">En vigueur</Badge>}
@@ -153,6 +173,17 @@ export default function ParametrageFinancierPage() {
                       {champ('Durée minimum (mois)', 'duree_min_mois')}
                       {champ('Durée maximum (mois)', 'duree_max_mois')}
                     </div>
+                    {choisi.type === 'credit' && (
+                      <div className="rounded-lg border p-3 space-y-3">
+                        <p className="text-sm font-medium">TVA sur le crédit</p>
+                        <div className="grid sm:grid-cols-3 gap-3 items-end">
+                          {champ('Taux de TVA (%)', 'taux_tva')}
+                          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.tva_sur_interets} onChange={(e) => setForm({ ...form, tva_sur_interets: e.target.checked })} />TVA sur les intérêts (ajoutée à chaque échéance)</label>
+                          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.tva_sur_frais} onChange={(e) => setForm({ ...form, tva_sur_frais: e.target.checked })} />TVA sur les frais de dossier (prélevée au décaissement)</label>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Laissez vide ou 0 pour aucune TVA. Le taux normal au Cameroun est de 19,25 % ; l'assiette applicable à vos opérations est à confirmer avec votre comptable ou l'administration fiscale. Le taux est figé dans chaque contrat à son édition : un changement ultérieur ne touche pas les crédits déjà contractés.</p>
+                      </div>
+                    )}
                     {choisi.type === 'credit' && (
                       <div className="grid sm:grid-cols-3 gap-3">
                         <div className="space-y-1.5"><Label>Mode d'amortissement</Label>

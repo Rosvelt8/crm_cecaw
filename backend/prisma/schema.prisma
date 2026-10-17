@@ -559,6 +559,12 @@ model ParametrageProduit {
   tauxRemunerationEpargne   Decimal?           @map("taux_remuneration_epargne") @db.Decimal(6, 3)
   fraisDossier              Decimal?           @map("frais_dossier") @db.Decimal(15, 2)
   fraisDossierPct           Decimal?           @map("frais_dossier_pct") @db.Decimal(6, 3)
+  /// TVA sur les crédits, en % (ex. 19,25). Vide ou 0 = aucune TVA. Figée dans le contrat à son édition.
+  tauxTva                   Decimal?           @map("taux_tva") @db.Decimal(6, 3)
+  /// La TVA porte sur les intérêts de chaque échéance.
+  tvaSurInterets            Boolean            @default(true) @map("tva_sur_interets")
+  /// La TVA porte sur les frais de dossier (prélevée au décaissement).
+  tvaSurFrais               Boolean            @default(true) @map("tva_sur_frais")
   commission                Decimal?           @db.Decimal(15, 2)
   montantMin                Decimal?           @map("montant_min") @db.Decimal(15, 2)
   montantMax                Decimal?           @map("montant_max") @db.Decimal(15, 2)
@@ -1345,6 +1351,10 @@ model ContratCredit {
   taux           Decimal   @db.Decimal(6, 3)
   dureeMois      Int       @map("duree_mois")
   fraisDossier   Decimal   @default(0) @map("frais_dossier") @db.Decimal(15, 2)
+  /// TVA figée à l'édition du contrat : taux, assiette sur intérêts, montant de TVA sur les frais de dossier.
+  tauxTva         Decimal  @default(0) @map("taux_tva") @db.Decimal(6, 3)
+  tvaSurInterets  Boolean  @default(true) @map("tva_sur_interets")
+  tvaFraisDossier Decimal  @default(0) @map("tva_frais_dossier") @db.Decimal(15, 2)
   dateSignature  DateTime? @map("date_signature")
   dateDeblocage  DateTime? @map("date_deblocage")
   signeParClient Boolean   @default(false) @map("signe_par_client")
@@ -1365,6 +1375,8 @@ model Echeance {
   capital          Decimal        @db.Decimal(15, 2)
   interet          Decimal        @db.Decimal(15, 2)
   frais            Decimal        @default(0) @db.Decimal(15, 2)
+  /// TVA de l'échéance (sur les intérêts) ; comprise dans `montantTotal`.
+  tva              Decimal        @default(0) @db.Decimal(15, 2)
   penalite         Decimal        @default(0) @db.Decimal(15, 2)
   montantTotal     Decimal        @map("montant_total") @db.Decimal(15, 2)
   capitalRestantDu Decimal        @map("capital_restant_du") @db.Decimal(15, 2)

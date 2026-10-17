@@ -96,6 +96,11 @@ function fraisDeDossier(param: { fraisDossier: Prisma.Decimal | null; fraisDossi
   return arrondi(fixe + (montant * pct) / 100);
 }
 
+/** TVA du paramétrage : taux en %, assiette sur les intérêts et/ou sur les frais de dossier. */
+function tvaDe(param: { tauxTva?: Prisma.Decimal | null; tvaSurInterets?: boolean; tvaSurFrais?: boolean } | null) {
+  return { tauxTva: Number(param?.tauxTva ?? 0), tvaSurInterets: param?.tvaSurInterets ?? true, tvaSurFrais: param?.tvaSurFrais ?? true };
+}
+
 /** Retourne les motifs d'inéligibilité ; liste vide = éligible. */
 function verifierEligibilite(
   param: Awaited<ReturnType<typeof parametrageEnVigueur>>,
@@ -214,6 +219,7 @@ export async function simuler(corps: CorpsSimulation) {
     mode,
     differeMois: corps.differe_mois ?? 0,
     fraisDossier: fraisDeDossier(param, corps.montant),
+    ...tvaDe(param),
     dateDebut: new Date(),
   };
   const erreurs = validerParametres(parametres);
@@ -231,6 +237,7 @@ export async function simuler(corps: CorpsSimulation) {
     taux_annuel: parametres.tauxAnnuel,
     mode_amortissement: mode,
     frais_dossier: parametres.fraisDossier,
+    taux_tva: parametres.tauxTva,
     eligible: eligibilite.length === 0,
     motifs_ineligibilite: eligibilite,
     ...echeancier,
@@ -550,12 +557,17 @@ export async function editerContrat(actor: JwtPayload, id: number) {
   const dem = d as any;
   const montant = Number(dem.montantAccorde);
   const numero = await prochaineReference('CT', 'contrat');
+  const frais = fraisDeDossier(dem.parametrage, montant);
+  const tva = tvaDe(dem.parametrage);
 
   await prisma.$transaction(async (tx) => {
     await tx.contratCredit.create({
       data: {
         demandeId: id, numero, montant, taux: dem.tauxApplique ?? dem.parametrage?.tauxInteretAnnuel ?? 0,
-        dureeMois: dem.dureeAccordeeMois ?? dem.dureeMois, fraisDossier: fraisDeDossier(dem.parametrage, montant),
+        dureeMois: dem.dureeAccordeeMois ?? dem.dureeMois, fraisDossier: frais,
+        // La TVA est figée avec le contrat : une modification ultérieure du paramétrage ne l'altère pas.
+        tauxTva: tva.tauxTva, tvaSurInterets: tva.tvaSurInterets,
+        tvaFraisDossier: tva.tvaSurFrais && tva.tauxTva > 0 ? arrondi((frais * tva.tauxTva) / 100) : 0,
       },
     });
     await tx.demandeCredit.update({ where: { id }, data: { statut: 'contrat_edite' } });
@@ -597,12 +609,13 @@ export async function decaisser(
 
   const montant = Number(dem.contrat.montant);
   const frais = Number(dem.contrat.fraisDossier);
-  const net = c.deduire_frais === false ? montant : arrondi(montant - frais);
+  const tvaFrais = Number(dem.contrat.tvaFraisDossier ?? 0);
+  const net = c.deduire_frais === false ? montant : arrondi(montant - frais - tvaFrais);
 
   const mode: ModeAmortissement = dem.parametrage?.modeAmortissement ?? 'constant';
   const echeancier = genererEcheancier({
     montant, tauxAnnuel: Number(dem.contrat.taux), dureeMois: dem.contrat.dureeMois, periodicite: dem.periodicite,
-    mode, differeMois: dem.differeMois, fraisDossier: frais, dateDebut: new Date(),
+    mode, differeMois: dem.differeMois, fraisDossier: frais, tauxTva: Number(dem.contrat.tauxTva ?? 0), tvaSurInterets: dem.contrat.tvaSurInterets ?? true, dateDebut: new Date(),
   });
 
   let agent: { id: number } | null = null;
@@ -626,7 +639,7 @@ export async function decaisser(
 
     await tx.echeance.createMany({
       data: echeancier.lignes.map((l) => ({
-        demandeId: id, numero: l.numero, dateEcheance: l.dateEcheance, capital: l.capital, interet: l.interet,
+        demandeId: id, numero: l.numero, dateEcheance: l.dateEcheance, capital: l.capital, interet: l.interet, tva: l.tva,
         montantTotal: l.montantTotal, capitalRestantDu: l.capitalRestantDu,
       })),
     });
@@ -644,10 +657,10 @@ export async function decaisser(
     description: `Décaissement de ${d.reference} : ${montant} (net ${net}) par ${c.mode}`, impact: `${montant}`,
   });
   await archiverSansBloquer('demande_credit', id, actor.sub, 'Décaissement');
-  await comptabiliser.decaissement({ demandeId: id, reference: d.reference, montant, fraisDeduits: c.deduire_frais === false ? 0 : frais, mode: c.mode, agenceId: dem.agenceId, acteurId: actor.sub });
+  await comptabiliser.decaissement({ demandeId: id, reference: d.reference, montant, fraisDeduits: c.deduire_frais === false ? 0 : frais, tvaDeduite: c.deduire_frais === false ? 0 : tvaFrais, mode: c.mode, agenceId: dem.agenceId, acteurId: actor.sub });
   await verifierOperation({ montant, type: 'decaissement', entiteType: 'demande_credit', entiteId: id, agenceId: dem.agenceId, clientId: d.clientId, libelle: `Décaissement ${d.reference}` });
   void emettre('credit.decaisse', { entiteType: 'demande_credit', entiteId: id, agenceId: dem.agenceId, acteurId: actor.sub, donnees: { reference: d.reference, montant: Math.round(montant), premiere_echeance: Math.round(echeancier.premiereEcheance), telephone: dem.client.telephone } });
-  return { statut: 'decaissee', montant, frais_dossier: frais, montant_net: net, nb_echeances: echeancier.lignes.length, premiere_echeance: echeancier.premiereEcheance };
+  return { statut: 'decaissee', montant, frais_dossier: frais, tva_frais_dossier: tvaFrais, montant_net: net, nb_echeances: echeancier.lignes.length, premiere_echeance: echeancier.premiereEcheance };
 }
 
 /** Marque en retard les échéances échues et non soldées. Idempotent, appelé à la lecture. */
@@ -693,7 +706,7 @@ export async function enregistrerRemboursement(
 
   const date = c.date_paiement ? new Date(c.date_paiement) : new Date();
   const imputations: { echeance: number; montant: number }[] = [];
-  const ventilation = { capital: 0, interets: 0, penalites: 0 };
+  const ventilation = { capital: 0, interets: 0, tva: 0, penalites: 0 };
   let remboursementId = 0;
 
   const cloture = await prisma.$transaction(async (tx) => {
@@ -720,8 +733,8 @@ export async function enregistrerRemboursement(
         data: { montantPaye: paye, statut: solde ? 'payee' : 'partiellement_payee', datePaiement: solde ? date : null },
       });
       imputations.push({ echeance: e.numero, montant: a_payer });
-      const v = ventiler({ capital: Number(e.capital), interet: Number(e.interet), frais: Number(e.frais), penalite: Number(e.penalite) }, Number(e.montantPaye), a_payer);
-      ventilation.capital += v.capital; ventilation.interets += v.interets; ventilation.penalites += v.penalites;
+      const v = ventiler({ capital: Number(e.capital), interet: Number(e.interet), frais: Number(e.frais), penalite: Number(e.penalite), tva: Number(e.tva) }, Number(e.montantPaye), a_payer);
+      ventilation.capital += v.capital; ventilation.interets += v.interets; ventilation.tva += v.tva; ventilation.penalites += v.penalites;
       reste = arrondi(reste - a_payer);
     }
 
@@ -744,7 +757,7 @@ export async function enregistrerRemboursement(
     description: `Remboursement de ${c.montant} sur ${d.reference}`, impact: `${c.montant}`,
   });
   const dem2 = d as any;
-  await comptabiliser.remboursement({ id: remboursementId, demandeId: id, reference: d.reference, mode: c.mode, capital: arrondi(ventilation.capital), interets: arrondi(ventilation.interets), penalites: arrondi(ventilation.penalites), agenceId: dem2.agenceId, acteurId: actor.sub, date });
+  await comptabiliser.remboursement({ id: remboursementId, demandeId: id, reference: d.reference, mode: c.mode, capital: arrondi(ventilation.capital), interets: arrondi(ventilation.interets), tva: arrondi(ventilation.tva), penalites: arrondi(ventilation.penalites), agenceId: dem2.agenceId, acteurId: actor.sub, date });
   await verifierOperation({ montant: c.montant, type: 'remboursement', entiteType: 'remboursement', entiteId: remboursementId, agenceId: dem2.agenceId, clientId: d.clientId, libelle: `Remboursement ${d.reference}` });
   void emettre('credit.remboursement', { entiteType: 'demande_credit', entiteId: id, agenceId: dem2.agenceId, acteurId: actor.sub, donnees: { reference: d.reference, montant: Math.round(c.montant), reste: Math.round(arrondi(totalDu - c.montant)), telephone: dem2.client.telephone } });
   // Reflète aussitôt la régularisation (ou l'allégement) sur le dossier de recouvrement éventuel.
@@ -787,7 +800,7 @@ export async function creerAvenant(
   // Capital restant dû : celui de la dernière échéance soldée, diminué de la part
   // de capital déjà versée sur une échéance partiellement payée.
   const base = payees.length > 0 ? Number(payees[payees.length - 1].capitalRestantDu) : Number(dem.contrat.montant);
-  const partielCapital = nonPayees.reduce((s, e) => s + Math.max(0, Number(e.montantPaye) - Number(e.interet) - Number(e.frais)), 0);
+  const partielCapital = nonPayees.reduce((s, e) => s + Math.max(0, Number(e.montantPaye) - Number(e.interet) - Number(e.frais) - Number(e.tva)), 0);
   const restant = arrondi(Math.max(0, base - partielCapital));
   const nouveauMontant = c.nouveau_montant ?? restant;
 
@@ -800,6 +813,7 @@ export async function creerAvenant(
   const dateEffet = c.date_effet ? new Date(c.date_effet) : new Date();
   const nouvelEcheancier = genererEcheancier({
     montant: nouveauMontant, tauxAnnuel: taux, dureeMois: c.nouvelle_duree_mois, periodicite: dem.periodicite, mode, dateDebut: dateEffet,
+    tauxTva: Number(dem.contrat.tauxTva ?? 0), tvaSurInterets: dem.contrat.tvaSurInterets ?? true,
   });
   const dernierNumero = payees.length > 0 ? payees[payees.length - 1].numero : 0;
 
@@ -814,7 +828,7 @@ export async function creerAvenant(
     await tx.echeance.deleteMany({ where: { demandeId: id, statut: { not: 'payee' } } });
     await tx.echeance.createMany({
       data: nouvelEcheancier.lignes.map((l) => ({
-        demandeId: id, numero: dernierNumero + l.numero, dateEcheance: l.dateEcheance, capital: l.capital, interet: l.interet,
+        demandeId: id, numero: dernierNumero + l.numero, dateEcheance: l.dateEcheance, capital: l.capital, interet: l.interet, tva: l.tva,
         montantTotal: l.montantTotal, capitalRestantDu: l.capitalRestantDu,
       })),
     });

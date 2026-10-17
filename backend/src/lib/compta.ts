@@ -18,6 +18,7 @@ export const PLAN_COMPTABLE: { numero: string; libelle: string; classe: number; 
   { numero: '1011', libelle: 'Fonds propres et report à nouveau', classe: 1, sensNormal: 'credit' },
   { numero: '3111', libelle: 'Crédits à la clientèle (encours)', classe: 3, sensNormal: 'debit' },
   { numero: '3711', libelle: "Dépôts et épargne de la clientèle", classe: 3, sensNormal: 'credit' },
+  { numero: '4431', libelle: 'TVA collectée sur opérations de crédit', classe: 4, sensNormal: 'credit' },
   { numero: '4711', libelle: 'Écarts de caisse et créances sur agents', classe: 4, sensNormal: 'debit' },
   { numero: '5211', libelle: 'Banques', classe: 5, sensNormal: 'debit' },
   { numero: '5711', libelle: 'Caisse', classe: 5, sensNormal: 'debit' },
@@ -132,25 +133,27 @@ export const comptabiliser = {
         : [{ compte: '3711', sens: 'debit', montant: t.montant }, { compte: '5711', sens: 'credit', montant: t.montant }],
     }),
 
-  decaissement: (d: { demandeId: number; reference: string; montant: number; fraisDeduits: number; mode: string; agenceId: number; acteurId: number }) =>
+  decaissement: (d: { demandeId: number; reference: string; montant: number; fraisDeduits: number; tvaDeduite?: number; mode: string; agenceId: number; acteurId: number }) =>
     posterSansBloquer({
       cle: `dec:${d.demandeId}`, journal: journalDe(d.mode), libelle: `Décaissement crédit ${d.reference}`, evenement: 'credit.decaissement',
       entiteType: 'demande_credit', entiteId: d.demandeId, agenceId: d.agenceId, acteurId: d.acteurId,
       lignes: [
         { compte: '3111', sens: 'debit', montant: d.montant },
-        { compte: contrepartie(d.mode), sens: 'credit', montant: arrondi(d.montant - d.fraisDeduits) },
+        { compte: contrepartie(d.mode), sens: 'credit', montant: arrondi(d.montant - d.fraisDeduits - (d.tvaDeduite ?? 0)) },
         { compte: '7211', sens: 'credit', montant: d.fraisDeduits, libelle: 'Frais de dossier' },
+        { compte: '4431', sens: 'credit', montant: d.tvaDeduite ?? 0, libelle: 'TVA sur frais de dossier' },
       ],
     }),
 
-  remboursement: (r: { id: number; demandeId: number; reference: string; mode: string; capital: number; interets: number; penalites: number; agenceId: number; acteurId: number; date?: Date }) =>
+  remboursement: (r: { id: number; demandeId: number; reference: string; mode: string; capital: number; interets: number; tva?: number; penalites: number; agenceId: number; acteurId: number; date?: Date }) =>
     posterSansBloquer({
       cle: `rbt:${r.id}`, journal: journalDe(r.mode), libelle: `Remboursement crédit ${r.reference}`, evenement: 'credit.remboursement',
       entiteType: 'remboursement', entiteId: r.id, agenceId: r.agenceId, acteurId: r.acteurId, date: r.date,
       lignes: [
-        { compte: contrepartie(r.mode), sens: 'debit', montant: arrondi(r.capital + r.interets + r.penalites) },
+        { compte: contrepartie(r.mode), sens: 'debit', montant: arrondi(r.capital + r.interets + (r.tva ?? 0) + r.penalites) },
         { compte: '3111', sens: 'credit', montant: r.capital },
         { compte: '7111', sens: 'credit', montant: r.interets, libelle: 'Intérêts' },
+        { compte: '4431', sens: 'credit', montant: r.tva ?? 0, libelle: 'TVA sur intérêts' },
         { compte: '7311', sens: 'credit', montant: r.penalites, libelle: 'Pénalités' },
       ],
     }),
@@ -170,9 +173,10 @@ export const comptabiliser = {
  * Ventile un règlement sur une échéance : pénalités, puis intérêts et frais, puis capital.
  * `dejaPaye` est ce qui avait déjà été versé sur l'échéance avant ce règlement.
  */
-export function ventiler(e: { capital: number; interet: number; frais: number; penalite: number }, dejaPaye: number, versement: number) {
-  const cumul = { penalites: 0, interets: 0, capital: 0 };
-  const ordre: [keyof typeof cumul, number][] = [['penalites', e.penalite], ['interets', e.interet + e.frais], ['capital', e.capital]];
+export function ventiler(e: { capital: number; interet: number; frais: number; penalite: number; tva?: number }, dejaPaye: number, versement: number) {
+  const cumul = { penalites: 0, interets: 0, tva: 0, capital: 0 };
+  // La TVA se règle avec les intérêts qui la génèrent, avant le capital.
+  const ordre: [keyof typeof cumul, number][] = [['penalites', e.penalite], ['interets', e.interet + e.frais], ['tva', e.tva ?? 0], ['capital', e.capital]];
   let passe = dejaPaye;
   let reste = versement;
   for (const [cle, du] of ordre) {
@@ -183,5 +187,5 @@ export function ventiler(e: { capital: number; interet: number; frais: number; p
     cumul[cle] += part;
     reste -= part;
   }
-  return { penalites: arrondi(cumul.penalites), interets: arrondi(cumul.interets), capital: arrondi(cumul.capital), excedent: arrondi(reste) };
+  return { penalites: arrondi(cumul.penalites), interets: arrondi(cumul.interets), tva: arrondi(cumul.tva), capital: arrondi(cumul.capital), excedent: arrondi(reste) };
 }

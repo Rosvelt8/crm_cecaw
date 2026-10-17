@@ -22,6 +22,9 @@ import type { Periodicite, Simulation, TypeCredit } from '@/types/credit';
 interface ClientOption { id: number; nom: string; prenom: string | null; telephone: string }
 interface ProduitOption { id: number; nom: string; type?: string }
 
+/** Montant sans l'unité : le tableau précise « en FCFA » dans son en-tête, pour éviter les retours à la ligne. */
+const nombre = (v: number) => formatCurrency(v).replace(/\s*FCFA$/u, '');
+
 const message = (e: unknown, defaut: string) => (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? defaut;
 
 export default function NouvelleDemandePage() {
@@ -178,20 +181,21 @@ export default function NouvelleDemandePage() {
                   <div className="rounded-md bg-muted p-2"><p className="text-xs text-muted-foreground">Taux annuel</p><p className="font-semibold">{simulation.taux_annuel} %</p></div>
                   <div className="rounded-md bg-muted p-2"><p className="text-xs text-muted-foreground">1re échéance</p><p className="font-semibold">{formatCurrency(simulation.premiereEcheance)}</p></div>
                   <div className="rounded-md bg-muted p-2"><p className="text-xs text-muted-foreground">Total des intérêts</p><p className="font-semibold">{formatCurrency(simulation.totalInterets)}</p></div>
-                  <div className="rounded-md bg-muted p-2"><p className="text-xs text-muted-foreground">Frais de dossier</p><p className="font-semibold">{formatCurrency(simulation.frais_dossier)}</p></div>
+                  <div className="rounded-md bg-muted p-2"><p className="text-xs text-muted-foreground">Frais de dossier</p><p className="font-semibold">{formatCurrency(simulation.frais_dossier)}{simulation.tvaFraisDossier > 0 && <span className="block text-xs font-normal text-muted-foreground">+ TVA {formatCurrency(simulation.tvaFraisDossier)}</span>}</p></div>
+                  {simulation.taux_tva > 0 && <div className="rounded-md bg-muted p-2"><p className="text-xs text-muted-foreground">TVA ({simulation.taux_tva} %)</p><p className="font-semibold">{formatCurrency(simulation.totalTva)}<span className="block text-xs font-normal text-muted-foreground">sur les intérêts, dans chaque échéance</span></p></div>}
                   <div className="rounded-md bg-muted p-2"><p className="text-xs text-muted-foreground">Total à rembourser</p><p className="font-semibold">{formatCurrency(simulation.totalARembourser)}</p></div>
                   <div className="rounded-md bg-muted p-2"><p className="text-xs text-muted-foreground">TEG approché</p><p className="font-semibold">{simulation.teg} %</p></div>
                 </div>
                 <Badge variant="outline">Amortissement {simulation.mode_amortissement}</Badge>
                 <div className="max-h-72 overflow-auto rounded-md border">
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted sticky top-0"><tr><th className="px-2 py-1.5 text-left">N°</th><th className="px-2 py-1.5 text-left">Date</th><th className="px-2 py-1.5 text-right">Capital</th><th className="px-2 py-1.5 text-right">Intérêts</th><th className="px-2 py-1.5 text-right">Échéance</th><th className="px-2 py-1.5 text-right">Restant dû</th></tr></thead>
+                  <table className="w-full text-xs [&_td]:whitespace-nowrap">
+                    <thead className="bg-muted sticky top-0"><tr><th className="px-2 py-1.5 text-left">N° <span className="font-normal text-muted-foreground">(FCFA)</span></th><th className="px-2 py-1.5 text-left">Date</th><th className="px-2 py-1.5 text-right">Capital</th><th className="px-2 py-1.5 text-right">Intérêts</th>{simulation.taux_tva > 0 && <th className="px-2 py-1.5 text-right">TVA</th>}<th className="px-2 py-1.5 text-right">Échéance</th><th className="px-2 py-1.5 text-right">Restant dû</th></tr></thead>
                     <tbody>
                       {simulation.lignes.map((l) => (
                         <tr key={l.numero} className="border-t">
                           <td className="px-2 py-1">{l.numero}</td><td className="px-2 py-1">{formatDate(l.dateEcheance)}</td>
-                          <td className="px-2 py-1 text-right tabular-nums">{formatCurrency(l.capital)}</td><td className="px-2 py-1 text-right tabular-nums">{formatCurrency(l.interet)}</td>
-                          <td className="px-2 py-1 text-right tabular-nums font-medium">{formatCurrency(l.montantTotal)}</td><td className="px-2 py-1 text-right tabular-nums">{formatCurrency(l.capitalRestantDu)}</td>
+                          <td className="px-2 py-1 text-right tabular-nums">{nombre(l.capital)}</td><td className="px-2 py-1 text-right tabular-nums">{nombre(l.interet)}</td>{simulation.taux_tva > 0 && <td className="px-2 py-1 text-right tabular-nums">{nombre(l.tva)}</td>}
+                          <td className="px-2 py-1 text-right tabular-nums font-medium">{nombre(l.montantTotal)}</td><td className="px-2 py-1 text-right tabular-nums">{nombre(l.capitalRestantDu)}</td>
                         </tr>
                       ))}
                     </tbody>

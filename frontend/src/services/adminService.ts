@@ -6,6 +6,7 @@ export interface Parametrage {
   id: number; produitId: number; dateEffet: string; dateFin: string | null;
   tauxInteretAnnuel: string | null; tauxPenaliteRetard: string | null; tauxRemunerationEpargne: string | null;
   fraisDossier: string | null; fraisDossierPct: string | null; commission: string | null;
+  tauxTva: string | null; tvaSurInterets: boolean; tvaSurFrais: boolean;
   montantMin: string | null; montantMax: string | null; dureeMinMois: number | null; dureeMaxMois: number | null;
   modeAmortissement: 'constant' | 'degressif' | 'in_fine' | null;
   ageMin: number | null; ageMax: number | null; ancienneteActiviteMinMois: number | null; quotiteCessibleMaxPct: string | null;
