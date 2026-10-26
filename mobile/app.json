@@ -41,6 +41,7 @@
       "expo-router",
       "expo-system-ui",
       "expo-secure-store",
+      "@maplibre/maplibre-react-native",
       [
         "expo-image-picker",
         {

@@ -138,6 +138,8 @@ export interface Client {
   referentRelation: string | null;
   statut: StatutClient;
   commercialId: number | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
   notes: string | null;
   nb_comptes?: number;
 }

@@ -1,5 +1,5 @@
 const { withAndroidManifest, withDangerousMod, AndroidConfig } = require('expo/config-plugins');
-const { copyFileSync, mkdirSync, writeFileSync } = require('node:fs');
+const { copyFileSync, existsSync, mkdirSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 
 /**
@@ -35,10 +35,14 @@ function withFichiers(config) {
       mkdirSync(dossierBrut, { recursive: true });
       mkdirSync(dossierXml, { recursive: true });
 
-      copyFileSync(
-        join(cfg.modRequest.projectRoot, 'assets/certs', FICHIER_CERT),
-        join(dossierBrut, 'cecaw_origin_ca.pem'),
-      );
+      // Le certificat n'est pas versionné (*.pem est ignoré par git). Sans lui, le prébuild ne doit pas
+      // échouer : le développement local (émulateur, API en clair sur le poste) n'en a pas besoin. Seule
+      // la connexion à l'API de production (domaine cecaw.cm) exige cette ancre : un build de production
+      // doit donc être fait avec le fichier présent.
+      const source = join(cfg.modRequest.projectRoot, 'assets/certs', FICHIER_CERT);
+      const certificatPresent = existsSync(source);
+      if (certificatPresent) copyFileSync(source, join(dossierBrut, 'cecaw_origin_ca.pem'));
+      else console.warn(`[cecaw] assets/certs/${FICHIER_CERT} absent : ancre de confiance non ajoutée (l'API de production ne sera pas joignable depuis ce build).`);
 
       // `cleartextTrafficPermitted="false"` : aucune requete en clair, meme par
       // erreur de configuration. Tout passe par TLS.
@@ -49,9 +53,15 @@ function withFichiers(config) {
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">${DOMAINE}</domain>
         <trust-anchors>
-            <certificates src="@raw/cecaw_origin_ca" />
-            <certificates src="system" />
+${certificatPresent ? '            <certificates src="@raw/cecaw_origin_ca" />\n' : ''}            <certificates src="system" />
         </trust-anchors>
+    </domain-config>
+    <!-- Développement local uniquement : poste relié par câble (adb reverse) ou émulateur. Ces adresses ne
+         désignent que l'appareil lui-même ou son hôte de développement, jamais un serveur distant. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
     </domain-config>
 </network-security-config>
 `,

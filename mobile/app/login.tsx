@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,6 +21,17 @@ export default function LoginScreen() {
   const submitMfa = useSession((s) => s.submitMfa);
   const cancelMfa = useSession((s) => s.cancelMfa);
   const [code, setCode] = useState('');
+
+  const scroll = useRef<ScrollView>(null);
+
+  // Le clavier ne doit jamais masquer le champ en cours de saisie : à son ouverture, on fait défiler
+  // jusqu'en bas du formulaire (mot de passe et bouton « Se connecter »).
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
+    });
+    return () => sub.remove();
+  }, []);
 
   const [identifiant, setIdentifiant] = useState('');
   const [password, setPassword] = useState('');
@@ -57,9 +69,10 @@ export default function LoginScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // Android en mode bord à bord ne redimensionne plus la fenêtre : le décalage doit se faire ici aussi.
+        behavior="padding"
       >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
           <View style={styles.sheet}>
             {mfaToken ? (
               <>

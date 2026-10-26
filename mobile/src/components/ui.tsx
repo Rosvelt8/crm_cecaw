@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Feather from '@expo/vector-icons/Feather';
 import {
   ActivityIndicator,
   Image,
@@ -118,18 +119,36 @@ export function Field({
   mono = false,
   ...props
 }: TextInputProps & { label: string; error?: string; hint?: string; mono?: boolean }) {
+  // Un champ de mot de passe offre toujours un œil pour afficher ou masquer la saisie.
+  const secret = Boolean(props.secureTextEntry);
+  const [visible, setVisible] = useState(false);
   return (
     <View style={{ gap: spacing.xs }}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        placeholderTextColor={colors.mutedLight}
-        style={[
-          styles.input,
-          mono && { fontFamily: fonts.mono },
-          error ? styles.inputError : null,
-        ]}
-        {...props}
-      />
+      <View>
+        <TextInput
+          placeholderTextColor={colors.mutedLight}
+          style={[
+            styles.input,
+            mono && { fontFamily: fonts.mono },
+            error ? styles.inputError : null,
+            secret && { paddingRight: 52 },
+          ]}
+          {...props}
+          secureTextEntry={secret && !visible}
+        />
+        {secret ? (
+          <Pressable
+            onPress={() => setVisible((v) => !v)}
+            hitSlop={10}
+            style={styles.oeil}
+            accessibilityRole="button"
+            accessibilityLabel={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+          >
+            <Feather name={visible ? 'eye-off' : 'eye'} size={20} color={colors.muted} />
+          </Pressable>
+        ) : null}
+      </View>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
       {!error && hint ? <Text style={styles.hintText}>{hint}</Text> : null}
     </View>
@@ -264,6 +283,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.surface,
   },
+  oeil: { position: 'absolute', right: 0, top: 0, bottom: 0, width: 52, alignItems: 'center', justifyContent: 'center' },
   inputError: { borderColor: colors.danger, backgroundColor: colors.dangerLight },
   errorText: { color: colors.danger, fontSize: 12, fontFamily: fonts.regular },
   hintText: { color: colors.mutedLight, fontSize: 12, fontFamily: fonts.regular },
